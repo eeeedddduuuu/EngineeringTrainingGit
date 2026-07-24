@@ -1,0 +1,91 @@
+# Agent 工作流编排配置
+# 定义了 4 个 Agent 的串/并联关系和节点间数据传递
+
+name: "AI数字媒体创作工作流"
+version: "v1.0"
+description: "从热点分析到脚本创作、合规审查、发布策略的完整创作流水线"
+
+pipeline:
+  # Stage 1: 热点分析（可选，可跳过直接创作）
+  - agent: trend
+    label: "热点趋势分析"
+    description: "分析当前热点，推荐选题角度"
+    required: false
+    timeout_seconds: 120
+    retry: 1
+    tools:
+      - web_search
+      - get_current_time
+    input:
+      user_request: "$input.user_request"
+
+  # Stage 2: 脚本创作（核心，必跑）
+  - agent: script
+    label: "脚本/文案创作"
+    description: "根据主题生成3个候选脚本方案"
+    required: true
+    timeout_seconds: 180
+    retry: 2
+    tools:
+      - knowledge_search
+      - template_matcher
+    input:
+      user_request: "$input.user_request"
+      trend_context: "$stage.trend.answer"  # 复用热点分析结果
+      platform: "$input.platform"
+      audience: "$input.audience"
+      duration: "$input.duration"
+      style: "$input.style"
+
+  # Stage 3: 合规审查（可选，推荐启用）
+  - agent: review
+    label: "内容合规审查"
+    description: "检查脚本内容是否符合平台规范"
+    required: false
+    timeout_seconds: 60
+    retry: 1
+    tools:
+      - sensitive_word_filter
+      - knowledge_search
+    input:
+      content: "$stage.script.answer"
+
+  # Stage 4: 发布策略（可选）
+  - agent: publish
+    label: "发布策略建议"
+    description: "为生成的内容制定发布策略和跨平台适配方案"
+    required: false
+    timeout_seconds: 60
+    retry: 1
+    tools:
+      - template_matcher
+      - get_current_time
+    input:
+      content: "$stage.script.answer"
+      platform: "$input.platform"
+
+# 候选方案评分配置
+scoring:
+  enabled: true
+  dimensions:
+    - name: "开头钩子吸引力"
+      weight: 0.25
+      range: [1, 10]
+    - name: "结构与平台匹配度"
+      weight: 0.20
+      range: [1, 10]
+    - name: "目标受众匹配度"
+      weight: 0.20
+      range: [1, 10]
+    - name: "内容原创性"
+      weight: 0.15
+      range: [1, 10]
+    - name: "可执行性"
+      weight: 0.20
+      range: [1, 10]
+
+# 错误处理
+error_handling:
+  on_tool_error: "skip_and_continue"   # skip_and_continue / retry / abort
+  on_agent_timeout: "retry_once"       # retry_once / use_mock_fallback / abort
+  on_provider_unavailable: "auto_fallback_to_mock"

@@ -1,0 +1,24 @@
+# .gitignore
+# 三个文档不推
+数媒工程实训_项目日报模板.md
+数媒工程实训课程设计_综合项目.md
+题目3-团队分工方案 (1).md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.swp
