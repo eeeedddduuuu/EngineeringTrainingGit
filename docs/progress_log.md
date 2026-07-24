@@ -34,13 +34,24 @@
 - [ ] 基于 Prompt 模板实现第一个 Agent 调用链路
 - [ ] 创建 feature/agent 分支并首次提交
 
-### P5（数据/测试）待完成
-- [ ] 样例数据采集（目标30条，先完成15条）
-- [ ] Chroma 知识库搭建脚本
-- [ ] 创建 feature/data-kb 分支并首次提交
+### P5（数据/测试）完成
+- [x] 样例数据确认（samples.xlsx，50条，4类别，3平台，跨2年）
+- [x] Chroma 知识库搭建（bge-small-zh-v1.5 + 语义检索验证通过）
+- [x] `/api/knowledge/search` 接口实现（Top-K 语义检索，含相似度分数）
+- [x] `/api/stats/samples` 接口实现（主题分布/平台分布/月度趋势）
+- [x] 统计图表生成（4张：topic/pie, platform/bar, monthly/line, tag/barh）
+- [x] pytest 测试用例编写（14条：auth 8条 + knowledge 6条 + stats 5条）
+- [x] Python 3.9 兼容性修复（Optional语法 + bcrypt 5.x 兼容）
+- [x] 后端 Bug 修复（auth.py 函数顺序 + main.py 启动建表）
+- [x] 创建 feature/data-kb 分支并提交（51 files, 3037 lines）
+- [ ] GitHub 推送（需 repo owner 添加 HH613P 为 collaborator）
+
+### ⚠️ 需 P1 协调
+- GitHub 仓库 `eeeedddduuuu/EngineeringTrainingGit` 需将 `HH613P` 添加为 collaborator 后才能推送
 
 ### 问题与风险
 - 当前网络无法连接 GitHub（443端口被阻断），初始化在本地完成，网络恢复后推送
+- HuggingFace 需通过镜像 `hf-mirror.com` 下载 Embedding 模型
 
 ### 明日计划
 - Day 2 上午：各角色继续开发
