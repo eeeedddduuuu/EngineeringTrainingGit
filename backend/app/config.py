@@ -9,3 +9,4 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "data/chroma_db")
+HF_ENDPOINT = os.getenv("HF_ENDPOINT", "https://hf-mirror.com")
