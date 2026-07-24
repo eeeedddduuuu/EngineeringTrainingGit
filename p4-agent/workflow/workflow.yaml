@@ -51,7 +51,7 @@ pipeline:
       content: "$stage.script.answer"
 
   # Stage 4: 发布策略（可选）
-  - agent: publish
+  - agent: strategy
     label: "发布策略建议"
     description: "为生成的内容制定发布策略和跨平台适配方案"
     required: false

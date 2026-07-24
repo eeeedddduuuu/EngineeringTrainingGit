@@ -11,7 +11,7 @@
       "trend": "趋势分析Bot ID",
       "script": "脚本创作Bot ID",
       "review": "合规审查Bot ID",
-      "publish": "发布策略Bot ID"
+      "strategy": "发布策略Bot ID"
     },
     "user": "agent-dev-user",
     "description": "字节跳动Coze扣子平台 (Day10已配置3个Agent)"

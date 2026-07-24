@@ -62,7 +62,7 @@ def run_agent(
     统一的 Agent 运行接口。
 
     Args:
-        agent_name: Agent 名称 (trend / script / review / publish)
+        agent_name: Agent 名称 (trend / script / review / strategy)
         user_input: 用户输入
         provider: Provider 名称 (mock / coze / dify / deepseek)
         provider_config: Provider 配置
@@ -135,7 +135,7 @@ def run_agent_pipeline(
     provider_config: dict | None = None,
     enable_trend: bool = True,
     enable_review: bool = True,
-    enable_publish: bool = True,
+    enable_strategy: bool = True,
 ) -> dict[str, Any]:
     """
     运行完整的 Agent 流水线：热点分析 → 脚本创作 → 合规审查 → 发布策略。
@@ -173,12 +173,12 @@ def run_agent_pipeline(
         results["agents"]["review"] = review_result
 
     # Agent 4: 发布策略（可选）
-    if enable_publish and script_result.get("ok"):
-        publish_result = run_agent(
-            "publish",
+    if enable_strategy and script_result.get("ok"):
+        strategy_result = run_agent(
+            "strategy",
             f"内容：{script_result['answer'][:1500]}\n用户原始需求：{user_input}",
             provider, provider_config,
         )
-        results["agents"]["publish"] = publish_result
+        results["agents"]["strategy"] = strategy_result
 
     return results

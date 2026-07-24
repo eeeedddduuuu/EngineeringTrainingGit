@@ -46,7 +46,7 @@ def demo_pipeline():
     test_input = "我想做一期关于AI工具的视频，最近这个话题很火"
 
     print(f"\n[输入] {test_input}")
-    print("\n[运行] 流水线: trend -> script -> review -> publish\n")
+    print("\n[运行] 流水线: trend -> script -> review -> strategy\n")
 
     pipeline_result = run_agent_pipeline(test_input, provider="mock")
 

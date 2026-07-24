@@ -24,7 +24,10 @@ def score_scheme(scheme: dict[str, Any]) -> dict[str, Any]:
     """
     对单个候选方案进行评分。
 
-    输入: scheme = {
+    输入格式（兼容旧格式 + Parser 产出格式）:
+
+    # 旧格式（手动构造，demo scoring 用）
+    scheme = {
         "version": "A",
         "hook": "开头钩子文案",
         "structure": "脚本结构描述",
@@ -32,6 +35,18 @@ def score_scheme(scheme: dict[str, Any]) -> dict[str, Any]:
         "content": "完整内容",
         "feasibility": "可执行性描述",
     }
+
+    # Parser 产出格式（与 P3 Scheme 表对齐）
+    scheme = {
+        "version": "A",
+        "title": "...",
+        "hook": "...",
+        "scenes": [{"seq":1, "time":"0-3s", "type":"钩子", "content":"..."}],
+        "hashtags": ["#tag1"],
+        "cover_text": "...",
+    }
+
+    评分函数会自动检测并适配两种格式。
 
     输出: 附加评分字段
     """
@@ -44,19 +59,35 @@ def score_scheme(scheme: dict[str, Any]) -> dict[str, Any]:
 
     # 2. 结构匹配度评分
     structure = str(scheme.get("structure", ""))
+    if not structure:
+        # 兼容 Parser 输出：从 scenes 列表推导结构
+        scenes = scheme.get("scenes", [])
+        structure = f"{len(scenes)}个场景片段"
     structure_score = _score_structure(structure)
     scores["structure_score"] = structure_score
 
     # 3. 受众匹配度评分
-    audience = str(scheme.get("audience_match", ""))
-    scores["audience_score"] = _score_audience(audience)
+    audience_info = str(scheme.get("audience_match", ""))
+    if not audience_info:
+        # 兼容：从 title + hook 间接评估
+        audience_info = f"{scheme.get('title', '')} {scheme.get('hook', '')}"
+    scores["audience_score"] = _score_audience(audience_info)
 
     # 4. 原创性评分
     content = str(scheme.get("content", ""))
+    if not content:
+        # 兼容：从 title + hook + scenes 文本评估
+        scenes = scheme.get("scenes", [])
+        scenes_text = " ".join(s.get("content", "") for s in scenes)
+        content = f"{scheme.get('title', '')} {scheme.get('hook', '')} {scenes_text}"
     scores["originality_score"] = _score_originality(content)
 
     # 5. 可执行性评分
     feasibility = str(scheme.get("feasibility", ""))
+    if not feasibility:
+        # 兼容：从 scenes 复杂度评估
+        scenes = scheme.get("scenes", [])
+        feasibility = f"{len(scenes)}个场景" + ("，单人口播简单" if len(scenes) <= 3 else "，多场景切换复杂")
     scores["feasibility_score"] = _score_feasibility(feasibility)
 
     # 加权总分
