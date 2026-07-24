@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -12,8 +13,8 @@ class CreationRequest(BaseModel):
 class TaskStatusResponse(BaseModel):
     task_id: str
     status: str  # pending / processing / completed / failed
-    progress: str | None
-    result: dict | None
+    progress: Optional[str]
+    result: Optional[dict]
 
 
 class CompareRequest(BaseModel):

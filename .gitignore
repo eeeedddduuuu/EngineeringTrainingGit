@@ -15,3 +15,6 @@ uploads/
 *.log
 .DS_Store
 Thumbs.db
+
+# Chroma 向量数据库（二进制文件，通过 build_knowledge_base.py 本地重建）
+backend/data/chroma_db/

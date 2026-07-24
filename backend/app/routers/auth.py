@@ -8,6 +8,11 @@ from app.utils.security import hash_password, verify_password, create_access_tok
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 
+def __extract_token(authorization: str = ""):
+    """从 Header 提取 token — 简单实现，后续用 OAuth2PasswordBearer 替换"""
+    return authorization
+
+
 @router.post("/register")
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.username == req.username).first()
@@ -47,9 +52,3 @@ def get_me(token: str = Depends(__extract_token), db: Session = Depends(get_db))
         email=user.email or None,
         created_at=str(user.created_at)
     ).model_dump()
-
-
-def __extract_token(authorization: str = ""):
-    """简单 token 提取，实际项目用 FastAPI 的 Depends 配合 OAuth2PasswordBearer"""
-    # TODO: 替换为标准 OAuth2PasswordBearer 方式
-    return authorization
