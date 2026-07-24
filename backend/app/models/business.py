@@ -1,0 +1,69 @@
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, Float
+from app.database import Base
+
+
+class CreationSession(Base):
+    """创作会话表"""
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    topic = Column(String(255), nullable=False)
+    target_audience = Column(String(100))
+    platform = Column(String(50), nullable=False)       # douyin / xiaohongshu / bilibili
+    duration = Column(String(10), nullable=False)        # 30s / 60s / 3min
+    style = Column(String(100))
+    status = Column(String(20), default="pending")       # pending / processing / completed / failed
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Scheme(Base):
+    """创作方案表（一次会话生成多个候选方案）"""
+    __tablename__ = "schemes"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    version = Column(String(1), nullable=False)          # A / B / C
+    title = Column(String(255))
+    hook = Column(String(500))
+    scenes = Column(JSON)                                # [{"seq":1, "type":"...", ...}]
+    hashtags = Column(JSON)                              # ["#tag1", ...]
+    cover_text = Column(String(500))
+    score = Column(Float, default=0.0)
+    rank = Column(Integer, default=0)
+    recommendation_reason = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AgentLog(Base):
+    """Agent 调用日志表"""
+    __tablename__ = "agent_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    agent_name = Column(String(50), nullable=False)      # trend / script / review / strategy
+    input_json = Column(JSON)
+    output_json = Column(JSON)
+    tools_called = Column(JSON)
+    latency_ms = Column(Integer)
+    tokens_used = Column(Integer)
+    status = Column(String(20), default="success")       # success / failed
+    error_message = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KnowledgeItem(Base):
+    """知识库条目表"""
+    __tablename__ = "knowledge_items"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    content = Column(String(2000))
+    tags = Column(JSON)
+    platform = Column(String(50))
+    source = Column(String(255))
+    source_url = Column(String(500))
+    embedding_id = Column(String(100))
+    published_at = Column(DateTime)
+    collected_at = Column(DateTime, default=datetime.utcnow)
