@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
@@ -8,8 +8,10 @@ from app.utils.security import hash_password, verify_password, create_access_tok
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 
-def __extract_token(authorization: str = ""):
-    """从 Header 提取 token — 简单实现，后续用 OAuth2PasswordBearer 替换"""
+def __extract_token(authorization: str = Header(default="")):
+    """从 Authorization Header 提取 token，自动去除 Bearer 前缀"""
+    if authorization.startswith("Bearer "):
+        return authorization[7:]
     return authorization
 
 

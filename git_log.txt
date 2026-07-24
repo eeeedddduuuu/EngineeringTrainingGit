@@ -1,0 +1,18 @@
+﻿465eb9b docs(p5): Day1终版 — 回应PM审查，逐项验证交付物
+7b28566 feat(frontend): 完成AI数字媒体创作前端页面开发（登录/注册/工作台/历史/数据看板）
+eaaa94e feat(data): P5 知识库+统计+测试模块 — 基于develop集成
+8986a37 docs(p5): 更新推送状态 - feature/data-kb 已推送至GitHub
+436c709 docs(p5): 统一进度汇报格式，对齐P4文档风格
+9a0f9f5 docs(p5): 更新进度日志 + 知识库交付通知文档
+fb55ed0 feat(data-kb): P5 知识库+统计+测试模块初始交付
+004abdd feat(agent): P3对接 — Agent命名统一(strategy)、Markdown→JSON Parser、Pipeline入口封装
+e38a9ff docs(p3): P3 Day1日报、组员清单同步、接口协调确认、对话记录
+ddd9e4e feat(db): 数据库初始化脚本 — 一键建表 + 10条知识库种子数据 + 测试用户
+c717fc3 feat(schema): 新增5个Pydantic Schema模块，注册全部路由到main.py
+be6451f feat(api): 实现全部15个API端点 — 创作异步任务/Mock Agent/方案CRUD/历史分页/导出/统计/知识库检索/审核
+c4b4d75 feat(auth): 修复OAuth2认证中间件，新增get_current_user依赖注入
+ecdc295 feat(db): 完善数据库模型 — User.preferences、Scheme.storyboard_json、新增Review审核表
+5dbd3ab feat(agent): P4 Agent模块初始化 — Provider层、工具集、4个Agent、Prompt模板、工作流编排、评分算法
+b0ea370 refactor: 清理PM个人文档，新增定稿API规范和角色任务清单
+174d5ed docs(pm): 添加PM初步计划与任务分发文档
+0c8ddaf chore(init): 初始化项目结构和 PM Day1 产出物

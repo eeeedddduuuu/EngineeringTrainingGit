@@ -1,0 +1,11 @@
+﻿  agent
+  backend
+  develop
+* feature/data-kb
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/develop
+  remotes/origin/feature/agent
+  remotes/origin/feature/backend
+  remotes/origin/feature/data-kb
+  remotes/origin/feature/frontend
+  remotes/origin/main
