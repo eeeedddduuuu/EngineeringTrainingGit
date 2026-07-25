@@ -42,7 +42,7 @@ def _try_p4_create_content(topic: str, target_audience: str, platform: str, dura
             platform=platform,
             duration=duration,
             style=style,
-            provider="mock",  # Day 1-2 用 Mock，联调时切 "deepseek"
+            provider="deepseek",  # 已切真实 LLM；API Key 缺省时自动回退 Mock
         )
         if result.get("ok"):
             return result
