@@ -333,7 +333,8 @@ def dify_provider(prompt: str, config: dict, on_chunk: Callable | None = None) -
 # DeepSeek Provider — OpenAI 兼容接口直连
 # 来源：Day13 deepseek_client.py
 # ---------------------------------------------------------------------------
-def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None) -> dict[str, Any]:
+def deepseek_provider(prompt, config: dict, tools: list[dict] | None = None) -> dict[str, Any]:
+    """DeepSeek API 直连。prompt 可以是字符串（首轮）或 messages 列表（多轮）。"""
     api_key = str(config.get("api_key", "")).strip()
     if not api_key:
         raise ValueError("DeepSeek 配置不完整，请填写 api_key")
@@ -346,10 +347,14 @@ def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None
         "Content-Type": "application/json",
     }
 
-    messages: list[dict] = [
-        {"role": "system", "content": config.get("system_prompt", "你是一名专业的数字媒体创作助手。")},
-        {"role": "user", "content": prompt},
-    ]
+    # 支持两种传参方式：字符串（首轮，自动构建 messages）或 messages 列表（多轮）
+    if isinstance(prompt, list):
+        messages = prompt
+    else:
+        messages = [
+            {"role": "system", "content": config.get("system_prompt", "你是一名专业的数字媒体创作助手。")},
+            {"role": "user", "content": str(prompt)},
+        ]
 
     payload: dict[str, Any] = {
         "model": model,

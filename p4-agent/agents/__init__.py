@@ -94,12 +94,19 @@ def run_agent(
     tool_names = prompt_config.get("tools_required", [])
     tools = [t for t in TOOL_DEFINITIONS if t["function"]["name"] in tool_names] if tool_names else None
 
-    # 4. 调用 Provider
+    # 4. 调用 Provider (支持 Function Calling 多轮循环)
     result = run_provider(provider, full_prompt, provider_config, on_chunk=on_chunk, tools=tools)
 
-    # 5. 处理 Function Calling（DeepSeek 专有）
+    # 5. 处理 Function Calling（DeepSeek 专有 — 执行工具后把结果送回模型要最终答案）
     tools_called: list[dict] = []
-    if result.get("tool_calls"):
+    max_rounds = 3  # 最多 3 轮工具调用，防止无限循环
+
+    for _round in range(max_rounds):
+        if not result.get("tool_calls"):
+            break
+
+        # 执行所有工具调用
+        tool_results = []
         for tc in result["tool_calls"]:
             func_name = tc.get("function", {}).get("name", "")
             func_args = json.loads(tc.get("function", {}).get("arguments", "{}"))
@@ -109,6 +116,47 @@ def run_agent(
                 "arguments": func_args,
                 "result": tool_result,
             })
+            tool_results.append({
+                "tool_call_id": tc.get("id", ""),
+                "function_name": func_name,
+                "result": json.dumps(tool_result, ensure_ascii=False),
+            })
+
+        # 把工具结果送回 DeepSeek 继续生成
+        if provider in ("deepseek",):
+            from providers import deepseek_provider, _load_providers_json
+
+            cfg = provider_config or _load_providers_json()
+            # 构建 messages：system + user + assistant(tool_calls) + tool results
+            prompt_config = _load_prompt(agent_name)
+            system_prompt = _build_system_prompt(prompt_config, extra_context)
+            messages: list[dict] = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input},
+            ]
+            # 上一轮的 assistant 消息（含 tool_calls）
+            raw = result.get("raw", {})
+            last_choice = raw.get("choices", [{}])[0]
+            last_msg = last_choice.get("message", {})
+            if last_msg:
+                messages.append({
+                    "role": "assistant",
+                    "content": last_msg.get("content") or "",
+                    "tool_calls": last_msg.get("tool_calls", []),
+                })
+            # 每条工具结果一条 tool 消息
+            for tr in tool_results:
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tr["tool_call_id"],
+                    "content": tr["result"],
+                })
+
+            # 二次调用（不带 tools，让模型直接输出最终文本）
+            deepseek_config = cfg.get("deepseek", {})
+            result = deepseek_provider(messages, deepseek_config)
+        else:
+            break  # 非 DeepSeek provider 不处理多轮
 
     # 6. 计算耗时
     end_time = datetime.now(CST)
