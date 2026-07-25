@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserInfo
-from app.utils.security import hash_password, verify_password, create_access_token, decode_token
+from app.utils.security import hash_password, verify_password, create_access_token
+from app.utils.deps import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
@@ -24,7 +25,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     return {"id": user.id, "username": user.username, "message": "注册成功"}
 
 
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == req.username).first()
     if not user or not verify_password(req.password, user.password_hash):
@@ -34,22 +35,10 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def get_me(token: str = Depends(__extract_token), db: Session = Depends(get_db)):
-    payload = decode_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail={"error": "invalid_token", "detail": "Token 无效或已过期"})
-    user = db.query(User).filter(User.id == payload["user_id"]).first()
-    if not user:
-        raise HTTPException(status_code=404, detail={"error": "user_not_found", "detail": "用户不存在"})
+def get_me(current_user: User = Depends(get_current_user)):
     return UserInfo(
-        id=user.id,
-        username=user.username,
-        email=user.email or None,
-        created_at=str(user.created_at)
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email or None,
+        created_at=str(current_user.created_at)
     ).model_dump()
-
-
-def __extract_token(authorization: str = ""):
-    """简单 token 提取，实际项目用 FastAPI 的 Depends 配合 OAuth2PasswordBearer"""
-    # TODO: 替换为标准 OAuth2PasswordBearer 方式
-    return authorization

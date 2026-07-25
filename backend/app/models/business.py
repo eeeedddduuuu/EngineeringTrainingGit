@@ -28,6 +28,7 @@ class Scheme(Base):
     title = Column(String(255))
     hook = Column(String(500))
     scenes = Column(JSON)                                # [{"seq":1, "type":"...", ...}]
+    storyboard_json = Column(JSON)                       # 分镜表 JSON
     hashtags = Column(JSON)                              # ["#tag1", ...]
     cover_text = Column(String(500))
     score = Column(Float, default=0.0)
@@ -67,3 +68,15 @@ class KnowledgeItem(Base):
     embedding_id = Column(String(100))
     published_at = Column(DateTime)
     collected_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Review(Base):
+    """审核记录表"""
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    scheme_id = Column(Integer, ForeignKey("schemes.id"), nullable=False)
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(String(20), default="pending")       # pending / approved / rejected
+    comment = Column(String(1000))
+    created_at = Column(DateTime, default=datetime.utcnow)
