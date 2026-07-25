@@ -1,34 +1,37 @@
-# AI 数字媒体创作助手 — 工程实训项目
+# P4 Agent 模块 — 工程实训项目
 
-## 项目简介
+## 模块简介
 
 面向游戏策划、短视频创作、社交媒体运营等场景，基于 Coze/Dify/DeepSeek 的 AI Agent 数字媒体创作平台。支持输入主题、受众、平台、时长、风格，自动生成脚本、分镜、封面文案和发布策略。
 
-## 技术栈
-
-- **后端**: Python + FastAPI
-- **前端**: Streamlit
-- **Agent**: LangChain + Dify + Coze + DeepSeek API
-- **数据库**: MySQL + SQLAlchemy
-- **知识库**: ChromaDB + nomic-embed-text (Embedding)
-- **工具**: Web Search, Knowledge Retrieval, Sensitive Word Filter, Template Matcher
-
-## 项目结构
+## 目录结构
 
 ```
-Final/
-├── backend/        # P3 FastAPI 后端
-├── frontend/       # P2 Streamlit 前端
-├── agents/         # P4 Agent 模块
-├── tools/          # P4 工具模块
-├── providers/      # P4 Provider 适配层
-├── prompts/        # P4 Prompt 模板
-├── workflow/       # P4 工作流编排
-├── knowledge_base/ # P5 知识库
-├── docs/           # P1 文档
-├── tests/          # P5 测试
-└── outputs/        # Agent 调用日志 & 输出
+p4-agent/
+├── agents/         # 4 个专业 Agent (trend/script/review/strategy)
+├── tools/          # 5 个模拟工具 (Search/Memory/ErrorReporter/TemplateMatcher/SensitiveFilter)
+├── providers/      # Provider 适配层 (Mock/DeepSeek/Coze/Dify)
+├── prompts/        # Prompt 模板 (4 个 YAML 文件)
+├── workflow/       # 工作流编排 + 评分算法
+├── config/         # Provider 配置
+├── parser/         # Markdown → JSON 解析器
+├── main.py         # CLI 入口 & 演示脚本
+├── pipeline_adapter.py  # Pipeline 外部调用封装
+├── outputs/        # Agent 调用日志 & 输出
+└── requirements.txt
 ```
+
+## 集成状态 (Day 2)
+
+| 项目 | 状态 |
+|------|:--:|
+| P3 `feature/backend` 已集成 `backend/p4_agent/` | ✅ 18 个文件完全一致 |
+| 4 个 YAML Prompt 模板 | ✅ v1 最新版 |
+| Mock 模式可跑通 | ✅ `python main.py --mode all` |
+| `create_content()` 一行调用 | ✅ P3 已对接 `creation.py` |
+| `feature/agent` 原始分支 | 📌 不再合并，以 P3 集成为准 |
+
+> **核实结论 (2026-07-25)**：P3 在 `origin/feature/backend` 中集成的 `backend/p4_agent/` 与 `feature/agent` 中的 `p4-agent/` **18 个文件逐字节一致**，无需任何更新。原始 `feature/agent` 分支保留作参考，后续开发以 P3 集成为准。
 
 ## 快速启动
 
@@ -36,11 +39,14 @@ Final/
 # 1. 安装依赖
 pip install -r requirements.txt
 
-# 2. 启动后端
-cd backend && python app.py
+# 2. 单 Agent 验证
+python main.py --mode single
 
-# 3. 启动前端
-cd frontend && streamlit run app.py
+# 3. 完整流水线
+python main.py --mode pipeline
+
+# 4. 方案评分
+python main.py --mode scoring
 ```
 
 ## 小组分工
