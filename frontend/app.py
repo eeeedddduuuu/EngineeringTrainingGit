@@ -285,7 +285,6 @@ def api_request(path, method="GET", json_data=None, files=None):
 # ====================== 页面1：登录/注册页面（全屏居中卡片） ======================
 def render_login_page():
     st.markdown('<div class="main-header">🎬 AI 数字媒体创作助手</div>', unsafe_allow_html=True)
-    # 修改副标题，移除五人项目字样
     st.markdown('<div class="sub-header">MULTIMEDIA AI CREATOR | AI数字媒体创作平台</div>', unsafe_allow_html=True)
     
     col_left, col_center, col_right = st.columns([1, 2.4, 1])
@@ -306,8 +305,8 @@ def render_login_page():
                         resp = api_request("/auth/login", "POST", {"username": uname, "password": pwd})
                         if resp and resp.status_code == 200:
                             data = resp.json()
-                            st.session_state.token = data["token"]
-                            st.session_state.user = data["user"]
+                            st.session_state.token = data["access_token"]
+                            st.session_state.user = {"username": data["username"]}
                             st.success("🎉 登录成功，正在跳转工作台...")
                             time.sleep(1.2)
                             st.rerun()
@@ -333,8 +332,6 @@ def render_login_page():
                         elif resp:
                             st.error(resp.json().get("detail", "注册失败，用户名已存在"))
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    # ========== 重点改动：直接删除了下方【项目说明卡片】整块代码 ==========
 
 # ====================== 侧边栏导航（带用户信息+页面切换） ======================
 def render_sidebar():
@@ -342,7 +339,10 @@ def render_sidebar():
         st.markdown("## 🎬 AI创作助手")
         st.divider()
         if st.session_state.user:
-            st.markdown(f"👤 当前用户：**{st.session_state.user['username']}**")
+            if isinstance(st.session_state.user, dict):
+                st.markdown(f"👤 当前用户：**{st.session_state.user.get('username', '未知')}**")
+            else:
+                st.markdown(f"👤 当前用户：**{st.session_state.user}**")
         st.divider()
         page_list = [
             "📝 工作台",
@@ -355,7 +355,6 @@ def render_sidebar():
                 st.session_state.current_page = page
                 st.rerun()
         st.divider()
-        # 退出按钮
         if st.button("🚪 退出登录", use_container_width=True):
             st.session_state.token = None
             st.session_state.user = None
@@ -363,14 +362,13 @@ def render_sidebar():
             st.session_state.task_running = False
             st.rerun()
 
-# ====================== 页面2：创作工作台（核心业务页，文档要求全功能） ======================
+# ====================== 页面2：创作工作台（核心业务页） ======================
 def render_workbench():
-    # 1. 创作参数输入卡片
     st.markdown('<div class="primary-card">', unsafe_allow_html=True)
     st.markdown('<div class="card-title">🚀 智能创作工作台</div>', unsafe_allow_html=True)
     col_input, col_tips = st.columns([3, 1])
     with col_input:
-        with st.form("create_form", clear_on_submit=False):
+        with st.form("create_form"):
             topic = st.text_input("创作主题 *", placeholder="例：秋季平价护肤攻略、二次元游戏剧情脚本")
             audience = st.text_input("目标受众", placeholder="例：20-30岁学生、数码发烧友、宝妈群体")
             col_a, col_b, col_c = st.columns(3)
@@ -380,7 +378,6 @@ def render_workbench():
                 duration = st.selectbox("视频时长", ["15秒", "30秒", "60秒"])
             with col_c:
                 style = st.selectbox("内容风格", ["干货科普", "轻娱乐", "情感走心", "剧情故事", "测评种草"])
-            # 素材上传（文档要求：图片/音频素材输入）
             upload_file = st.file_uploader("上传参考素材（图片/音频）", accept_multiple_files=True)
             submit_gen = st.form_submit_button("✨ 一键启动AI创作", use_container_width=True)
             
@@ -388,55 +385,62 @@ def render_workbench():
                 if not topic:
                     st.error("创作主题为必填项，请完善！")
                 else:
-                    # 调用后端异步创作接口
+                    import requests
+                    platform_map = {
+                        "抖音": "douyin",
+                        "小红书": "xiaohongshu",
+                        "B站": "bilibili"
+                    }
+                    duration_map = {
+                        "15秒": "15s",
+                        "30秒": "30s",
+                        "60秒": "60s"
+                    }
                     payload = {
                         "topic": topic,
                         "target_audience": audience,
-                        "platform": platform,
-                        "duration": duration,
+                        "platform": platform_map.get(platform, "douyin"),
+                        "duration": duration_map.get(duration, "30s"),
                         "style": style
                     }
-                    resp = api_request("/creation/start", "POST", json_data=payload)
-                    if resp and resp.status_code == 200:
-                        task_data = resp.json()
-                        st.session_state.task_id = task_data["task_id"]
-                        st.session_state.task_running = True
-                        st.session_state.task_progress = 0
-                        st.success(f"任务已提交，任务ID：{st.session_state.task_id}，AI正在多Agent协同生成方案...")
-                        # 模拟轮询进度（对接后端/task/{id}/status接口）
-                        progress_bar = st.progress(0)
-                        for p in range(0, 101, 8):
-                            progress_bar.progress(p)
-                            st.session_state.task_progress = p
-                            time.sleep(0.35)
-                        # 模拟获取生成方案（后端返回3套A/B/C方案）
-                        mock_scheme = [
-                            {
-                                "version": "A",
-                                "title": f"{topic}｜简洁干货版",
-                                "description": "开篇直击痛点，结构简短清晰，适配短视频快节奏流量逻辑，镜头切换少，拍摄成本低。",
-                                "platform": platform,
-                                "reason": "适配平台算法推荐逻辑，钩子开头吸引力评分8.7分，适合新手创作者快速起号。"
-                            },
-                            {
-                                "version": "B",
-                                "title": f"{topic}｜剧情种草版",
-                                "description": "以生活化小故事切入，搭配情绪递进台词，搭配画面分镜，自带互动引导，评论转化率更高。",
-                                "platform": platform,
-                                "reason": "综合加权评分最高（9.2），受众匹配度、原创性、可执行性全部拉满，系统优先推荐。"
-                            },
-                            {
-                                "version": "C",
-                                "title": f"{topic}｜深度测评版",
-                                "description": "多角度拆解主题细节，包含数据对比、避坑指南，适合垂直领域深度粉丝，留存时长更高。",
-                                "platform": platform,
-                                "reason": "适合私域沉淀粉丝，内容专业度高，但开头节奏较慢，自然流量略低于B方案。"
-                            }
-                        ]
-                        st.session_state.schemes_list = mock_scheme
-                        st.session_state.task_running = False
-                        progress_bar.empty()
-                        st.rerun()
+                    try:
+                        resp = requests.post(
+                            "http://127.0.0.1:8000/api/creation/start",
+                            json=payload,
+                            headers={"Authorization": f"Bearer {st.session_state.token}"}
+                        )
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            st.success(f"✅ 任务已提交，任务ID：{data.get('task_id', '未知')}")
+                            mock_scheme = [
+                                {
+                                    "version": "A",
+                                    "title": f"{topic}｜简洁干货版",
+                                    "description": "开篇直击痛点，结构简短清晰",
+                                    "platform": platform,
+                                    "reason": "钩子吸引力强，适合新手创作者"
+                                },
+                                {
+                                    "version": "B",
+                                    "title": f"{topic}｜剧情种草版",
+                                    "description": "以生活化小故事切入，搭配情绪递进",
+                                    "platform": platform,
+                                    "reason": "综合评分最高，推荐首选"
+                                },
+                                {
+                                    "version": "C",
+                                    "title": f"{topic}｜深度测评版",
+                                    "description": "多角度拆解主题细节，数据对比",
+                                    "platform": platform,
+                                    "reason": "适合深度粉丝，留存率高"
+                                }
+                            ]
+                            st.session_state.schemes_list = mock_scheme
+                            st.rerun()
+                        else:
+                            st.error(f"请求失败：{resp.text}")
+                    except Exception as e:
+                        st.error(f"请求异常：{e}")
     with col_tips:
         st.markdown("""
         <div class="info-tip">
@@ -449,7 +453,7 @@ def render_workbench():
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 2. 生成方案展示卡片（文档要求3个候选方案并排展示）
+    # 方案展示卡片
     st.markdown('<div class="primary-card">', unsafe_allow_html=True)
     st.markdown('<div class="card-title">📄 AI生成创作方案（A/B/C三套）</div>', unsafe_allow_html=True)
     if len(st.session_state.schemes_list) > 0:
@@ -468,7 +472,6 @@ def render_workbench():
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-        # 导出 & 对比按钮
         col_export, col_compare = st.columns([1,1])
         with col_export:
             if st.button("📥 导出全部方案 Markdown", use_container_width=True):
@@ -480,7 +483,7 @@ def render_workbench():
         st.markdown('<div class="empty-container">暂无创作方案，填写上方参数点击「一键创作」生成内容 🎬</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ====================== 页面3：历史记录页面（文档要求历史会话、版本回看） ======================
+# ====================== 页面3：历史记录页面 ======================
 def render_history_page():
     st.markdown('<div class="primary-card">', unsafe_allow_html=True)
     st.markdown('<div class="card-title">📋 历史创作会话记录</div>', unsafe_allow_html=True)
@@ -491,7 +494,7 @@ def render_history_page():
         st.download_button("导出历史记录CSV", data=pd.DataFrame(st.session_state.schemes_list).to_csv(index=False), file_name="创作历史记录.csv")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ====================== 页面4：数据看板（文档要求ECharts/Plotly统计图表） ======================
+# ====================== 页面4：数据看板 ======================
 def render_dashboard_page():
     st.markdown('<div class="primary-card">', unsafe_allow_html=True)
     st.markdown('<div class="card-title">📊 创作数据统计看板</div>', unsafe_allow_html=True)
@@ -507,12 +510,10 @@ def render_dashboard_page():
 
 # ====================== 主路由分发逻辑 ======================
 def main():
-    # 未登录跳转登录页
     if not st.session_state.token:
         render_login_page()
     else:
         render_sidebar()
-        # 根据当前页面渲染对应模块
         if st.session_state.current_page == "📝 工作台":
             render_workbench()
         elif st.session_state.current_page == "📋 历史记录":
