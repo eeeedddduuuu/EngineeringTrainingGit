@@ -16,10 +16,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from agents import run_agent, run_agent_pipeline
 
 
-def demo_single_agent():
+def demo_single_agent(provider: str = "mock"):
     """演示单个 Agent 运行。"""
     print("=" * 60)
-    print("P4 Agent 单跑验证 - Mock 模式")
+    print(f"P4 Agent 单跑验证 - {provider.upper()} 模式")
     print("=" * 60)
 
     test_input = "主题：秋季护肤好物推荐 | 平台：抖音 | 受众：25-35岁职场女性 | 时长：60秒 | 风格：干货+轻娱乐"
@@ -28,7 +28,7 @@ def demo_single_agent():
 
     # 测试脚本创作 Agent
     print("[运行] script Agent...")
-    result = run_agent("script", test_input, provider="mock")
+    result = run_agent("script", test_input, provider=provider)
     print(f"  状态: {'[OK] 成功' if result['ok'] else '[FAIL] 失败'}")
     print(f"  耗时: {result['latency_ms']}ms")
     print(f"  Prompt版本: {result['prompt_version']}")
@@ -37,10 +37,10 @@ def demo_single_agent():
     print()
 
 
-def demo_pipeline():
+def demo_pipeline(provider: str = "mock"):
     """演示完整流水线。"""
     print("=" * 60)
-    print("P4 Agent 流水线验证 - Mock 模式")
+    print(f"P4 Agent 流水线验证 - {provider.upper()} 模式")
     print("=" * 60)
 
     test_input = "我想做一期关于AI工具的视频，最近这个话题很火"
@@ -48,7 +48,7 @@ def demo_pipeline():
     print(f"\n[输入] {test_input}")
     print("\n[运行] 流水线: trend -> script -> review -> strategy\n")
 
-    pipeline_result = run_agent_pipeline(test_input, provider="mock")
+    pipeline_result = run_agent_pipeline(test_input, provider=provider)
 
     for agent_name, result in pipeline_result["agents"].items():
         status = "[OK]" if result["ok"] else "[FAIL]"
@@ -115,9 +115,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.mode in ("single", "all"):
-        demo_single_agent()
+        demo_single_agent(provider=args.provider)
     if args.mode in ("pipeline", "all"):
-        demo_pipeline()
+        demo_pipeline(provider=args.provider)
     if args.mode in ("scoring", "all"):
         demo_scoring()
 

@@ -19,6 +19,9 @@ venv/
 .DS_Store
 Thumbs.db
 
+# API Key 配置文件（每人自己填，禁止提交）
+**/config/providers.json
+
 # 临时文件
 *.tmp
 *.swp

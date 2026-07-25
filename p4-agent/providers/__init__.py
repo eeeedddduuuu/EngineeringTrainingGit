@@ -9,9 +9,22 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from pathlib import Path
 from typing import Any, Callable
 
 import requests
+
+
+# ---------------------------------------------------------------------------
+# 配置加载
+# ---------------------------------------------------------------------------
+def _load_providers_json() -> dict:
+    """从 config/providers.json 读取 Provider 配置。"""
+    config_path = Path(__file__).resolve().parent.parent / "config" / "providers.json"
+    if config_path.exists():
+        with open(config_path, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 
 # ---------------------------------------------------------------------------
@@ -383,7 +396,9 @@ def run_provider(
     provider: str, prompt: str, config: dict | None = None,
     on_chunk: Callable | None = None, tools: list[dict] | None = None,
 ) -> dict[str, Any]:
-    """统一的 Provider 调度入口。"""
+    """统一的 Provider 调度入口。未传 config 时自动从 config/providers.json 加载。"""
+    if config is None:
+        config = _load_providers_json()
     cfg = config or {}
     provider = provider.lower().strip()
 

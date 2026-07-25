@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1400, initial-scale=1.0">
+<title>P4 Agent 架构图 — 工程实训</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: #f5f6f8;
+    color: #2c3e50;
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 36px;
+  }
+
+  .page {
+    max-width: 1240px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 44px 48px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* ===== Header ===== */
+  .header {
+    border-bottom: 2px solid #eef0f4;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: 1px;
+  }
+  .header .subtitle {
+    margin-top: 6px;
+    font-size: 14px;
+    color: #8b919e;
+  }
+
+  /* ===== Section ===== */
+  .section { margin-bottom: 36px; }
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eef0f4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    background: #4f6ef7;
+    flex-shrink: 0;
+  }
+
+  /* ===== 架构总览 ===== */
+  .arch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+
+  .arch-card {
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .arch-card.wide { grid-column: 1 / -1; }
+
+  .arch-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .arch-card h3 .ico { font-size: 16px; }
+
+  .tag-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .tag {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #f0f2f7;
+    color: #4a5568;
+    border: 1px solid #e5e7eb;
+  }
+  .tag.hl { background:#eef1fd; color:#3d5ce5; border-color:#d4daf8; }
+  .tag.ok { background:#ecfaf1; color:#1f8b4c; border-color:#c6f0d4; }
+  .tag.wa { background:#fef9ee; color:#b76e0e; border-color:#fce7b8; }
+
+  .tag-list-v { display:flex; flex-direction:column; gap:4px; }
+
+  /* ===== 流水线 ===== */
+  .pipeline-row {
+    display: flex;
+    gap: 0;
+    align-items: stretch;
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .pipe-node {
+    flex: 1;
+    padding: 22px 14px;
+    text-align: center;
+    border-right: 1px solid #eef0f4;
+    position: relative;
+  }
+  .pipe-node:last-child { border-right: none; }
+  .pipe-node .step {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #4f6ef7;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 8px;
+  }
+  .pipe-node h4 { font-size: 14px; color: #1a1a2e; margin-bottom: 6px; }
+  .pipe-node .desc { font-size: 12px; color: #6b7280; line-height: 1.7; }
+  .pipe-node .output { margin-top: 10px; font-size:11px; color:#4f6ef7; font-weight:500; }
+
+  .pipe-divider {
+    display: flex; align-items: center; flex-shrink: 0;
+    color: #c5cad4; font-size: 20px;
+    margin: 0 -1px; z-index: 1;
+  }
+
+  /* ===== 评分 ===== */
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .score-card {
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 18px 14px;
+    text-align: center;
+  }
+  .score-card .weight {
+    font-size: 30px;
+    font-weight: 700;
+    color: #4f6ef7;
+  }
+  .score-card .name { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-top: 4px; }
+  .score-card .note { font-size: 11px; color: #8b919e; margin-top: 6px; line-height: 1.6; }
+
+  /* ===== 表格 ===== */
+  .table-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .table-wrap th {
+    background: #f8f9fb;
+    color: #4a5568;
+    font-weight: 600;
+    padding: 11px 14px;
+    text-align: left;
+    border-bottom: 1px solid #eef0f4;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .table-wrap td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #4a5568;
+  }
+  .table-wrap tr:last-child td { border-bottom: none; }
+  .table-wrap code { font-size:12px; background:#f0f2f7; padding:1px 6px; border-radius:3px; color:#3d5ce5; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-done { background: #ecfaf1; color: #1f8b4c; }
+  .badge-ref  { background: #fef9ee; color: #b76e0e; }
+
+  /* ===== 数据流 ===== */
+  .flow-row {
+    display: flex;
+    gap: 0;
+    align-items: center;
+    justify-content: center;
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px 12px;
+  }
+  .flow-step {
+    padding: 10px 16px;
+    font-size: 12px;
+    text-align: center;
+    color: #4a5568;
+  }
+  .flow-step strong { color: #1a1a2e; font-size:13px; }
+  .flow-step small { display:block; color:#8b919e; margin-top:2px; }
+  .flow-arrow {
+    color: #c5cad4;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* ===== 统计 ===== */
+  .stats-row {
+    display: flex;
+    gap: 14px;
+  }
+  .stat-card {
+    flex: 1;
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+  }
+  .stat-card .num {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+  .stat-card .label { font-size: 12px; color: #8b919e; margin-top: 4px; }
+
+  /* ===== Footer ===== */
+  .footer {
+    margin-top: 32px;
+    padding-top: 18px;
+    border-top: 1px solid #eef0f4;
+    text-align: center;
+    font-size: 12px;
+    color: #a0a7b4;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>P4 Agent 模块架构</h1>
+    <div class="subtitle">工程实训 · AI 数字媒体创作助手 · 2026.07.25 &nbsp;|&nbsp; Developer: 罗欢</div>
+  </div>
+
+  <!-- 1. 架构总览 -->
+  <div class="section">
+    <div class="section-title"><span class="dot"></span>整体架构</div>
+
+    <div class="arch-grid">
+
+      <!-- 接入层 -->
+      <div class="arch-card wide">
+        <h3><span class="ico">│</span>接入层 — P3 调用入口</h3>
+        <div class="tag-row">
+          <span class="tag hl">create_content(topic, audience, platform, duration, style)</span>
+          <span class="tag">→ P3 creation.py 调用</span>
+          <span class="tag">→ POST /api/creation/start</span>
+          <span class="tag ok">→ agent_logs + schemes 自动入库</span>
+        </div>
+      </div>
+
+      <!-- Agent 层 -->
+      <div class="arch-card">
+        <h3><span class="ico">│</span>Agent 层 — 4 个专业 Agent</h3>
+        <div class="tag-list-v">
+          <span class="tag hl">Trend 热点趋势分析</span>
+          <span class="tag hl">Script 脚本创作（核心）</span>
+          <span class="tag hl">Review 合规审查</span>
+          <span class="tag hl">Strategy 发布策略</span>
+        </div>
+      </div>
+
+      <!-- 核心引擎 -->
+      <div class="arch-card">
+        <h3><span class="ico">│</span>核心引擎</h3>
+        <div style="font-size:12px;color:#8b919e;margin-bottom:6px;">Provider 适配 (4)</div>
+        <div class="tag-row" style="margin-bottom:10px;">
+          <span class="tag ok">Mock</span>
+          <span class="tag hl">DeepSeek</span>
+          <span class="tag">Coze</span>
+          <span class="tag">Dify</span>
+        </div>
+        <div style="font-size:12px;color:#8b919e;margin-bottom:6px;">工具集 (5)</div>
+        <div class="tag-row" style="margin-bottom:10px;">
+          <span class="tag">web_search</span>
+          <span class="tag">knowledge_search</span>
+          <span class="tag">sensitive_filter</span>
+          <span class="tag">template_matcher</span>
+          <span class="tag">get_current_time</span>
+        </div>
+        <div style="font-size:12px;color:#8b919e;margin-bottom:6px;">评分 & 解析</div>
+        <div class="tag-row">
+          <span class="tag ok">5维度加权评分</span>
+          <span class="tag ok">Markdown→JSON Parser</span>
+        </div>
+      </div>
+
+      <!-- Prompt 层 -->
+      <div class="arch-card">
+        <h3><span class="ico">│</span>Prompt 层 — YAML 模板</h3>
+        <div class="tag-list-v">
+          <span class="tag">trend_agent_v1.yaml</span>
+          <span class="tag">script_agent_v1.yaml</span>
+          <span class="tag">review_agent_v1.yaml</span>
+          <span class="tag">strategy_agent_v1.yaml</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 2. 流水线 -->
+  <div class="section">
+    <div class="section-title"><span class="dot"></span>Agent 流水线</div>
+
+    <div class="pipeline-row">
+      <div class="pipe-node">
+        <div class="step">1</div>
+        <h4>Trend</h4>
+        <div class="desc">搜索热门话题<br>分析趋势方向<br>推荐切入角度</div>
+        <div class="output">趋势报告</div>
+      </div>
+      <div class="pipe-divider">→</div>
+      <div class="pipe-node">
+        <div class="step">2</div>
+        <h4>Script</h4>
+        <div class="desc">结合热点+用户需求<br>生成 A/B/C 三版本<br>分镜表·标签·封面</div>
+        <div class="output">3 候选方案</div>
+      </div>
+      <div class="pipe-divider">→</div>
+      <div class="pipe-node">
+        <div class="step">3</div>
+        <h4>Review</h4>
+        <div class="desc">敏感词扫描<br>隐私信息检测<br>平台规范校验</div>
+        <div class="output">pass / review / block</div>
+      </div>
+      <div class="pipe-divider">→</div>
+      <div class="pipe-node">
+        <div class="step">4</div>
+        <h4>Strategy</h4>
+        <div class="desc">最佳发布时机<br>标签组合策略<br>流量最大化建议</div>
+        <div class="output">发布计划</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 评分 -->
+  <div class="section">
+    <div class="section-title"><span class="dot"></span>五维度评分体系</div>
+
+    <div class="score-grid">
+      <div class="score-card">
+        <div class="weight">25%</div>
+        <div class="name">开头钩子吸引力</div>
+        <div class="note">前3秒能否抓住注意力<br>疑问句式 / 反差冲突<br>人称代入感</div>
+      </div>
+      <div class="score-card">
+        <div class="weight">20%</div>
+        <div class="name">结构与平台匹配</div>
+        <div class="note">时长 / 节奏 / 格式<br>是否符合平台规范<br>镜头标注完整性</div>
+      </div>
+      <div class="score-card">
+        <div class="weight">20%</div>
+        <div class="name">目标受众匹配</div>
+        <div class="note">语言风格契合度<br>年龄段 / 兴趣偏好<br>情感共鸣程度</div>
+      </div>
+      <div class="score-card">
+        <div class="weight">15%</div>
+        <div class="name">内容原创性</div>
+        <div class="note">与知识库差异化<br>独特切入角度<br>创新表达方式</div>
+      </div>
+      <div class="score-card">
+        <div class="weight">20%</div>
+        <div class="name">可执行性</div>
+        <div class="note">拍摄难度评估<br>成本预算合理性<br>场景复杂度</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 交付物清单 -->
+  <div class="section">
+    <div class="section-title"><span class="dot"></span>交付物清单</div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>模块</th>
+            <th>文件路径</th>
+            <th>核心职责</th>
+            <th>集成状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Agent 调度</td>
+            <td><code>agents/__init__.py</code></td>
+            <td>4 Agent 统一入口 · Prompt 加载 · 流水线编排</td>
+            <td><span class="badge badge-done">已集成</span></td>
+          </tr>
+          <tr>
+            <td>Provider 适配</td>
+            <td><code>providers/__init__.py</code></td>
+            <td>Mock · DeepSeek · Coze · Dify 四后端统一接口</td>
+            <td><span class="badge badge-done">已集成</span></td>
+          </tr>
+          <tr>
+            <td>工具集</td>
+            <td><code>tools/__init__.py</code></td>
+            <td>5 工具 · DDGS → Bing 三级降级搜索</td>
+            <td><span class="badge badge-done">已集成</span></td>
+          </tr>
+          <tr>
+            <td>评分算法</td>
+            <td><code>workflow/scoring.py</code></td>
+            <td>5 维度加权评分 · 方案排名 · Markdown 报告</td>
+            <td><span class="badge badge-done">已集成</span></td>
+          </tr>
+          <tr>
+            <td>Markdown 解析</td>
+            <td><code>parser/__init__.py</code></td>
+            <td>Markdown 表格 → JSON scene 数组</td>
+            <td><span class="badge badge-done">已集成</span></td>
+          </tr>
+          <tr>
+            <td>P3 对接入口</td>
+            <td><code>pipeline_adapter.py</code></td>
+            <td>create_content() · 输出 agent_logs + schemes 入表</td>
+            <td><span class="badge badge-done">已集成</span></td>
+          </tr>
+          <tr>
+            <td>Prompt 模板</td>
+            <td><code>prompts/*.yaml</code> (×4)</td>
+            <td>trend · script · review · strategy (v1)</td>
+            <td><span class="badge badge-done">已集成</span></td>
+          </tr>
+          <tr>
+            <td>CLI 演示</td>
+            <td><code>main.py</code></td>
+            <td>本地验证：--mode single / pipeline / scoring / all</td>
+            <td><span class="badge badge-ref">参考用</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. 数据流 -->
+  <div class="section">
+    <div class="section-title"><span class="dot"></span>前后端数据流</div>
+
+    <div class="flow-row">
+      <div class="flow-step">
+        <strong>P2 前端</strong>
+        <small>用户输入创作需求</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <strong>P3 后端</strong>
+        <small>POST /api/creation/start</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <strong>P4 Agent</strong>
+        <small>create_content()<br>流水线 → 评分 → 输出</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <strong>SQLite</strong>
+        <small>agent_logs 表<br>schemes 表</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <strong>P2 前端</strong>
+        <small>GET /task/{id}/status<br>方案展示 & 排名</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 关键指标 -->
+  <div class="section">
+    <div class="section-title"><span class="dot"></span>模块指标</div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="num">4</div><div class="label">专业 Agent</div></div>
+      <div class="stat-card"><div class="num">5</div><div class="label">工具函数</div></div>
+      <div class="stat-card"><div class="num">4</div><div class="label">Provider 后端</div></div>
+      <div class="stat-card"><div class="num">5</div><div class="label">评分维度</div></div>
+      <div class="stat-card"><div class="num">18</div><div class="label">源文件</div></div>
+      <div class="stat-card"><div class="num">~1,800</div><div class="label">代码总行数</div></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    P4 Agent 模块 · feature/agent · P3 已集成至 backend/p4_agent/ · 2026.07.25
+  </div>
+
+</div>
+</body>
+</html>

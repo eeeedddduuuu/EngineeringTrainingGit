@@ -14,7 +14,7 @@
       "strategy": "发布策略Bot ID"
     },
     "user": "agent-dev-user",
-    "description": "字节跳动Coze扣子平台 (Day10已配置3个Agent)"
+    "description": "字节跳动Coze扣子平台"
   },
   "dify": {
     "enabled": false,
@@ -22,18 +22,18 @@
     "api_key": "你的_Dify_API_Key",
     "mode": "workflow",
     "user": "agent-dev-user",
-    "description": "Dify自托管平台 (Day11 Docker部署)"
+    "description": "Dify自托管平台"
   },
   "deepseek": {
-    "enabled": false,
+    "enabled": true,
     "base_url": "https://api.deepseek.com/v1",
     "api_key": "你的_DeepSeek_API_Key",
     "model": "deepseek-chat",
     "temperature": 0.7,
     "max_tokens": 4096,
-    "description": "DeepSeek API直连，OpenAI兼容接口 (Day09/13经验)"
+    "description": "DeepSeek API直连，OpenAI兼容接口。申请地址: https://platform.deepseek.com"
   },
 
   "default_provider": "mock",
-  "note": "开发阶段使用mock，联调时切coze/dify，答辩演示mo​​ck做兜底防翻车"
+  "note": "启动前把上面「你的_XXX_Key」替换为自己的真实 Key。providers.json 已加入 .gitignore，不会提交到仓库。"
 }
