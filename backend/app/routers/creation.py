@@ -8,6 +8,7 @@ import uuid
 import sys
 import threading
 from pathlib import Path
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db, SessionLocal
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api", tags=["创作"])
 _task_store: dict[str, dict] = {}
 
 
-def _try_p4_create_content(topic: str, target_audience: str, platform: str, duration: str, style: str) -> dict | None:
+def _try_p4_create_content(topic: str, target_audience: str, platform: str, duration: str, style: str) -> Optional[dict]:
     """
     尝试调用 P4 的 create_content()（Mock 模式）。
     成功返回结果 dict，失败返回 None（触发内置回退）。
