@@ -1,0 +1,19 @@
+﻿=== Chroma 向量库状态 ===
+Collection: knowledge_items
+条目数: 50
+Embedding模型: BAAI/bge-small-zh-v1.5
+相似度算法: 余弦相似度 (cosine)
+存储路径: data/chroma_db/
+向量维度: 512
+模型大小: ~100MB (首次自动下载)
+运行模式: 本地持久化 (零运维)
+
+=== 知识库构建命令 ===
+cd backend
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+python ../scripts/build_knowledge_base.py
+
+=== 构建日志 ===
+[KnowledgeBase] 加载 Embedding 模型: BAAI/bge-small-zh-v1.5
+[KnowledgeBase] 已写入 50 条记录
+知识库构建完成！共 50 条

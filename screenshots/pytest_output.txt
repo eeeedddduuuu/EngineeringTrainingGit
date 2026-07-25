@@ -1,0 +1,28 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.9.13, pytest-8.4.2, pluggy-1.6.0 -- D:\Git\pyenv-win\pyenv-win\versions\3.9.13\python.exe
+cachedir: .pytest_cache
+rootdir: D:\Desktop\EngineeringTrainingGit-main
+plugins: anyio-4.12.1, langsmith-0.4.37
+collecting ... collected 19 items
+
+tests/test_auth_api.py::TestAuth::test_register_success PASSED           [  5%]
+tests/test_auth_api.py::TestAuth::test_register_duplicate_rejected PASSED [ 10%]
+tests/test_auth_api.py::TestAuth::test_login_success_returns_token PASSED [ 15%]
+tests/test_auth_api.py::TestAuth::test_login_wrong_password_rejected PASSED [ 21%]
+tests/test_auth_api.py::TestAuth::test_login_nonexistent_user_rejected PASSED [ 26%]
+tests/test_auth_api.py::TestAuth::test_me_with_valid_token PASSED        [ 31%]
+tests/test_auth_api.py::TestAuth::test_me_without_token_rejected PASSED  [ 36%]
+tests/test_auth_api.py::TestAuth::test_me_with_invalid_token_rejected PASSED [ 42%]
+tests/test_knowledge_api.py::TestKnowledgeSearch::test_search_returns_results PASSED [ 47%]
+tests/test_knowledge_api.py::TestKnowledgeSearch::test_search_similarity_descending PASSED [ 52%]
+tests/test_knowledge_api.py::TestKnowledgeSearch::test_search_top_k_limit PASSED [ 57%]
+tests/test_knowledge_api.py::TestKnowledgeSearch::test_search_empty_query_rejected PASSED [ 63%]
+tests/test_knowledge_api.py::TestKnowledgeSearch::test_search_missing_query_rejected PASSED [ 68%]
+tests/test_knowledge_api.py::TestKnowledgeSearch::test_search_different_topics PASSED [ 73%]
+tests/test_stats_api.py::TestStatsSamples::test_stats_returns_200 PASSED [ 78%]
+tests/test_stats_api.py::TestStatsSamples::test_total_samples_positive PASSED [ 84%]
+tests/test_stats_api.py::TestStatsSamples::test_topic_distribution_format PASSED [ 89%]
+tests/test_stats_api.py::TestStatsSamples::test_platform_distribution_format PASSED [ 94%]
+tests/test_stats_api.py::TestStatsSamples::test_monthly_trends_format PASSED [100%]
+
+======================= 19 passed in 109.15s (0:01:49) ========================

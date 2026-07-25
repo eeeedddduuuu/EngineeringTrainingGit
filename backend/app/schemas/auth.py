@@ -1,10 +1,11 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=20, pattern=r"^[a-zA-Z0-9_]+$")
     password: str = Field(..., min_length=6, max_length=50)
-    email: str | None = Field(default=None, max_length=100)
+    email: Optional[str] = Field(default=None, max_length=100)
 
 
 class LoginRequest(BaseModel):
@@ -21,5 +22,5 @@ class TokenResponse(BaseModel):
 class UserInfo(BaseModel):
     id: int
     username: str
-    email: str | None
+    email: Optional[str]
     created_at: str
