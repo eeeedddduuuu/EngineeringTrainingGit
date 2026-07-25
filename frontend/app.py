@@ -37,6 +37,24 @@ st.markdown("""
     z-index: 999999;
     box-shadow: 0 2px 14px rgba(124,58,237,0.35);
 }
+/* 压缩标题下方的多余间距 */
+.block-container {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+/* 强制移除顶部所有多余空间 */
+.stApp > div:first-child {
+    padding-top: 0 !important;
+}
+/* 调整主内容区顶部边距 */
+.stMarkdown {
+    margin-bottom: 0 !important;
+}
+/* 移除 sub-header 下方多余间距 */
+.sub-header {
+    margin-bottom: 12px !important;
+}
+
 /* 主标题样式 */
 .main-header {
     font-size: 44px;
@@ -286,7 +304,17 @@ def api_request(path, method="GET", json_data=None, files=None):
 def render_login_page():
     st.markdown('<div class="main-header">🎬 AI 数字媒体创作助手</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">MULTIMEDIA AI CREATOR | AI数字媒体创作平台</div>', unsafe_allow_html=True)
-    
+    st.markdown("""
+<div style="text-align: center; margin: 16px 0 28px 0;">
+    <p style="color: #64748b; font-size: 14px; letter-spacing: 1px; line-height: 1.8;">
+        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">🎮 游戏</span>
+        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">🎬 短视频</span>
+        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">📱 社交媒体</span>
+        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">📺 品牌宣发</span>
+    </p>
+    <p style="color: #94a3b8; font-size: 13px; margin-top: 8px;">AI 驱动 · 一键生成 · 多平台适配</p>
+</div>
+""", unsafe_allow_html=True)
     col_left, col_center, col_right = st.columns([1, 2.4, 1])
     with col_center:
         st.markdown('<div class="primary-card">', unsafe_allow_html=True)
