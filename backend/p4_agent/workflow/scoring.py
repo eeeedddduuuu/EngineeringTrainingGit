@@ -212,7 +212,7 @@ def rank_schemes(schemes: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def scoring_report(ranked_schemes: list[dict[str, Any]]) -> str:
-    """生成评分对比报告（Markdown）。"""
+    """生成评分对比报告（Markdown），含每个方案各维度的迭代建议。"""
     lines = [
         "## 候选方案评分报告",
         "",
@@ -234,4 +234,74 @@ def scoring_report(ranked_schemes: list[dict[str, Any]]) -> str:
         lines.append("")
         lines.append(f"**推荐方案: {rec.get('best', '?')}**")
         lines.append(f"**理由: {rec.get('reason', '')}**")
+
+    # 迭代建议：对每个方案的低分维度生成建议
+    lines.append("")
+    lines.append("## 迭代优化建议")
+    lines.append("")
+    for s in ranked_schemes:
+        ver = s.get("version", "?")
+        scores = s.get("scores", {})
+        total = s.get("total_score", 0)
+        weaknesses = []
+
+        for d in SCORING_DIMENSIONS:
+            key = d["key"]
+            dim_score = scores.get(key, 5)
+            if dim_score < 6:
+                weaknesses.append((d["name"], dim_score, _suggest_improvement(key, dim_score)))
+
+        if weaknesses:
+            lines.append(f"### 方案 {ver}（总分 {total:.1f}）")
+            lines.append("")
+            for dim_name, score_val, suggestion in weaknesses:
+                lines.append(f"- **{dim_name}**（{score_val:.1f}分）：{suggestion}")
+            lines.append("")
+        else:
+            lines.append(f"### 方案 {ver}（总分 {total:.1f}）")
+            lines.append("所有维度表现均衡，建议根据实际拍摄反馈微调。")
+            lines.append("")
+
     return "\n".join(lines)
+
+
+def _suggest_improvement(dim_key: str, score: float) -> str:
+    """根据评分维度和得分生成具体迭代建议。"""
+    suggestions = {
+        "hook_score": {
+            (0, 4): "开头太平淡，建议加入疑问句或反差句式，制造好奇缺口。",
+            (4, 6): "钩子有一定吸引力但不够强，尝试在开头加入具体数字或人物代入。",
+            (6, 8): "钩子不错，可进一步缩短到30字以内，增强前3秒的冲击力。",
+            (8, 11): "钩子优秀，保持此风格。",
+        },
+        "structure_score": {
+            (0, 4): "结构缺失，建议参照平台模板补充时间分段，标注每段的镜头类型和时长。",
+            (4, 6): "结构有雏形但缺细节，加上起承转合标注，明确每段时长。",
+            (6, 8): "结构较完整，可补充景别标注和运镜建议。",
+            (8, 11): "结构规范完整，可考虑增加一个出人意料的转折点提升完播率。",
+        },
+        "audience_score": {
+            (0, 4): "内容与目标受众脱节，重新审视受众画像，调整语言风格和切入角度。",
+            (4, 6): "基本匹配但针对性不够，在文案中加入受众熟悉的行业用语或生活场景。",
+            (6, 8): "受众匹配度尚可，可针对特定人群增加更精准的兴趣标签和场景化描述。",
+            (8, 11): "受众定位精准，根据评论反馈持续优化即可。",
+        },
+        "originality_score": {
+            (0, 4): "内容同质化严重，参考知识库中同类案例后，找到一个独特的切入角度或对比视角。",
+            (4, 6): "有一定差异但不够突出，尝试加入个人经历、独家数据或反常识观点。",
+            (6, 8): "原创性良好，可进一步强化个人风格或品牌调性。",
+            (8, 11): "内容独特，注意知识产权保护和首发优势。",
+        },
+        "feasibility_score": {
+            (0, 4): "执行难度过高或成本不现实，简化场景、减少演员、使用手机拍摄替代专业设备。",
+            (4, 6): "有一定执行门槛，考虑将复杂场景拆分为多次拍摄，或使用替代方案降低预算。",
+            (6, 8): "可执行性较好，制定详细的拍摄清单和备用方案以应对意外。",
+            (8, 11): "极易落地，保持低成本高效率的优势。",
+        },
+    }
+
+    mapping = suggestions.get(dim_key, {})
+    for (lo, hi), text in mapping.items():
+        if lo <= score < hi:
+            return text
+    return "建议针对此维度进一步优化。"
