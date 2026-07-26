@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api", tags=["创作"])
 _task_store: dict[str, dict] = {}
 
 # P4 Agent 调用超时（秒）
-P4_TIMEOUT = 30
+P4_TIMEOUT = 300
 
 
 def _try_p4_create_content(
@@ -54,6 +54,9 @@ def _try_p4_create_content(
             duration=duration,
             style=style,
             provider=provider,
+            enable_trend=False,    # 跳过热分析
+            enable_review=False,   # 跳过合规审查
+            enable_strategy=False, # 跳过发布策略（脚本Agent已含推荐）
         )
         if result.get("ok"):
             return result
@@ -180,7 +183,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
     - Mock 模式：直接用内置动态 Mock（秒出结果，内容匹配用户主题）
     - DeepSeek 模式：调用 P4 Agent → 超时/失败回退动态 Mock
     """
-    PROVIDER = "mock"  # 改为 "deepseek" 以使用真实 LLM
+    PROVIDER = "deepseek"  # 改为 "mock" 以使用离线模式
 
     _task_store[task_id]["status"] = "processing"
 

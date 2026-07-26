@@ -90,9 +90,12 @@ def run_agent(
     # 2. 构建完整输入
     full_prompt = f"{system_prompt}\n\n用户输入：{user_input}"
 
-    # 3. 选择需要的工具
+    # 3. 选择需要的工具（DeepSeek v4 使用 DSML 格式，不走标准 function calling）
     tool_names = prompt_config.get("tools_required", [])
-    tools = [t for t in TOOL_DEFINITIONS if t["function"]["name"] in tool_names] if tool_names else None
+    if provider in ("deepseek",):
+        tools = None  # v4 模型直接生成内容，不传 tools
+    else:
+        tools = [t for t in TOOL_DEFINITIONS if t["function"]["name"] in tool_names] if tool_names else None
 
     # 4. 调用 Provider
     result = run_provider(provider, full_prompt, provider_config, on_chunk=on_chunk, tools=tools)

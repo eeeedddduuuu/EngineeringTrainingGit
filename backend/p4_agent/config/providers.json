@@ -28,9 +28,9 @@
     "enabled": true,
     "base_url": "https://api.deepseek.com/v1",
     "api_key": "你的_DeepSeek_API_Key",
-    "model": "deepseek-v4-flash",
+    "model": "deepseek-v4-pro",
     "temperature": 0.7,
-    "max_tokens": 4096,
+    "max_tokens": 8192,
     "description": "DeepSeek API直连，OpenAI兼容接口"
   },
 
