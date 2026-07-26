@@ -15,3 +15,4 @@ uploads/
 *.log
 .DS_Store
 Thumbs.db
+docs/P4-*.md

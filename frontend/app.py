@@ -10,6 +10,7 @@ import plotly.express as px
 
 # ====================== 配置 ======================
 API = "http://127.0.0.1:8000/api"
+API_BASE = API  # 兼容远程 P5 数据看板的变量名
 
 st.set_page_config(page_title="AI 数字媒体创作助手", page_icon="🎬", layout="wide")
 
@@ -183,6 +184,140 @@ def show_scheme_cards(schemes, show_detail=True, show_export=True):
                         mime="text/markdown", key=f"dl_{s.get('id','')}",
                         use_container_width=True,
                     )
+
+# ====================== 页面4：数据看板（P5 真实数据驱动） ======================
+def render_dashboard_page():
+    st.markdown('<div class="card-title">📊 样例数据统计看板</div>', unsafe_allow_html=True)
+
+    # ── 从后端加载真实数据 ──
+    try:
+        resp = requests.get(
+            f"{API_BASE}/stats/samples",
+            headers={"Authorization": f"Bearer {st.session_state.token}"},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            stats = resp.json()
+        else:
+            st.error(f"统计数据加载失败: HTTP {resp.status_code}")
+            return
+    except Exception as e:
+        st.error(f"无法连接后端: {e}")
+        return
+
+    total = stats.get("total_samples", 0)
+    topics = stats.get("topic_distribution", [])
+    platforms = stats.get("platform_distribution", [])
+    trends = stats.get("monthly_trends", [])
+
+    if total == 0:
+        st.warning("暂无统计数据，请先运行 init_db.py 导入样例数据")
+        return
+
+    # ── 指标卡 ──
+    cols = st.columns(4)
+    with cols[0]:
+        st.metric("📦 样例总数", f"{total} 条")
+    with cols[1]:
+        st.metric("🏷️ 类别数", f"{len(topics)} 类")
+    with cols[2]:
+        st.metric("📱 平台数", f"{len(platforms)} 个")
+    with cols[3]:
+        st.metric("🗓️ 月度跨度", f"{len(trends)} 个月")
+
+    st.divider()
+
+    # ── 第一行：主题分布 + 平台分布 ──
+    st.markdown("### 🎨 主题与平台分布")
+    r1l, r1r = st.columns(2)
+
+    with r1l:
+        df_topic = pd.DataFrame(topics)
+        colors = ["#4ECDC4", "#FF6B6B", "#FFE66D", "#95E1D3", "#F38181", "#AA96DA"]
+        fig = px.pie(
+            df_topic, values="count", names="name",
+            color_discrete_sequence=colors, hole=0.4,
+            title="样例主题分布",
+        )
+        fig.update_traces(textposition="inside", textinfo="percent+label")
+        fig.update_layout(height=420, margin=dict(t=40, b=10, l=10, r=10))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with r1r:
+        df_plat = pd.DataFrame(platforms)
+        plat_names = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
+        df_plat["平台名"] = df_plat["platform"].map(plat_names).fillna(df_plat["platform"])
+        fig = px.bar(
+            df_plat, x="平台名", y="count", color="平台名",
+            color_discrete_sequence=["#FF6B6B", "#4ECDC4", "#FFE66D"],
+            text="count", title="各平台样例数量",
+        )
+        fig.update_traces(textposition="outside", textfont_size=14)
+        fig.update_layout(height=420, showlegend=False, xaxis_title="", yaxis_title="",
+                          margin=dict(t=40, b=10, l=10, r=10))
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ── 第二行：月度趋势 + 类别对比 ──
+    st.markdown("### 📅 趋势与对比")
+    r2l, r2r = st.columns(2)
+
+    with r2l:
+        if trends:
+            df_trend = pd.DataFrame(trends)
+            fig = px.area(
+                df_trend, x="month", y="count",
+                title="月度发布趋势",
+                markers=True,
+            )
+            fig.update_traces(line_color="#FF6B6B", fillcolor="rgba(255,107,107,0.15)")
+            fig.update_layout(height=420, xaxis_title="", yaxis_title="",
+                              margin=dict(t=40, b=10, l=10, r=10))
+            fig.update_xaxes(tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("暂无趋势数据")
+
+    with r2r:
+        df_sorted = df_topic.sort_values("count", ascending=True)
+        fig = px.bar(
+            df_sorted, y="name", x="count", orientation="h",
+            color="name", color_discrete_sequence=colors,
+            text="count", title="类别数量对比",
+        )
+        fig.update_traces(textposition="outside", textfont_size=14)
+        fig.update_layout(height=420, showlegend=False, xaxis_title="", yaxis_title="",
+                          margin=dict(t=40, b=10, l=10, r=10))
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ── 第三行：占比环形图 + 数据表 ──
+    st.markdown("### 🔍 多维度明细")
+    r3l, r3r = st.columns([1, 1.2])
+
+    with r3l:
+        fig = px.pie(
+            df_topic, values="count", names="name",
+            color_discrete_sequence=colors, hole=0.6,
+            title="类别占比总览",
+        )
+        fig.update_traces(textposition="outside", textinfo="percent+label",
+                          pull=[0.03] * len(df_topic))
+        fig.update_layout(height=400, showlegend=False,
+                          margin=dict(t=40, b=10, l=10, r=60))
+        fig.add_annotation(text=f"总计<br>{total}条", x=0.5, y=0.5, font_size=22, showarrow=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with r3r:
+        if trends:
+            df_m = pd.DataFrame(trends).tail(12).sort_values("month", ascending=False)
+            df_m.columns = ["月份", "数量"]
+            df_m["环比变化"] = df_m["数量"].diff(-1).fillna(0).astype(int)
+            st.dataframe(df_m, use_container_width=True, hide_index=True, height=400)
+
+    st.caption(f"数据来源: samples.xlsx（{total} 条样例）| P5 数据/知识库模块 | Plotly 图表实时渲染")
 
 # ====================== 创作工作台 ======================
 def workbench_page():
