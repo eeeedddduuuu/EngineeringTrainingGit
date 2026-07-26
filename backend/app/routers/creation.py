@@ -4,13 +4,16 @@
 - 联调时切换 provider="deepseek" 调用真实 LLM
 - 超时/失败时自动回退到内置 Mock 方案
 """
+import os
 import uuid
 import sys
+import shutil
 import threading
 import concurrent.futures
 from pathlib import Path
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional, List
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db, SessionLocal
 from app.models.user import User
@@ -19,6 +22,13 @@ from app.schemas.creation import CreationRequest, TaskStatusResponse
 from app.utils.deps import get_current_user
 
 router = APIRouter(prefix="/api", tags=["创作"])
+
+# 上传文件存储目录
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# 已上传文件暂存（session 级别，供 Agent 上下文注入）
+_uploaded_files: dict[int, list[dict]] = {}  # user_id → [{path, filename, type, size, uploaded_at}]
 
 # 简易内存任务存储
 _task_store: dict[str, dict] = {}
@@ -370,3 +380,109 @@ def get_task_status(task_id: str, current_user: User = Depends(get_current_user)
         progress=task.get("progress"),
         result=task.get("result"),
     )
+
+
+@router.post("/creation/upload")
+async def upload_creation_file(
+    file: UploadFile = File(..., description="上传素材文件（图片/视频/文档）"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    上传多模态素材文件，供创作 Agent 参考。
+
+    - 支持格式：png, jpg, jpeg, gif, webp, mp4, mov, pdf, txt, md, docx
+    - 单文件最大 50MB
+    - 上传后可在创作请求中通过 uploaded_file_ids 引用
+    """
+    # 校验扩展名
+    ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov", ".pdf", ".txt", ".md", ".docx"}
+    ext = Path(file.filename or "unknown").suffix.lower()
+    if ext not in ALLOWED_EXT:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_file_type", "detail": f"不支持的文件类型 '{ext}'，允许: {', '.join(sorted(ALLOWED_EXT))}"},
+        )
+
+    # 保存文件
+    safe_name = f"{uuid.uuid4().hex}_{file.filename}"
+    dest = UPLOAD_DIR / safe_name
+    try:
+        with open(dest, "wb") as f:
+            while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                f.write(chunk)
+    except Exception as e:
+        if dest.exists():
+            dest.unlink()
+        raise HTTPException(status_code=500, detail={"error": "upload_failed", "detail": str(e)})
+
+    file_size = dest.stat().st_size
+    file_type = file.content_type or "application/octet-stream"
+
+    # 记录到用户上传清单（供 Agent 上下文注入）
+    uid = current_user.id
+    if uid not in _uploaded_files:
+        _uploaded_files[uid] = []
+    file_record = {
+        "file_id": uuid.uuid4().hex[:12],
+        "filename": file.filename,
+        "path": str(dest),
+        "type": file_type,
+        "ext": ext,
+        "size": file_size,
+        "uploaded_at": datetime.now().isoformat(),
+    }
+    _uploaded_files[uid].append(file_record)
+
+    return {
+        "file_id": file_record["file_id"],
+        "filename": file.filename,
+        "type": file_type,
+        "size": file_size,
+        "message": "上传成功，可在创作请求中引用此文件",
+    }
+
+
+@router.get("/creation/uploads")
+def list_uploaded_files(current_user: User = Depends(get_current_user)):
+    """列出当前用户已上传的所有素材文件"""
+    files = _uploaded_files.get(current_user.id, [])
+    return {
+        "total": len(files),
+        "files": [
+            {
+                "file_id": f["file_id"],
+                "filename": f["filename"],
+                "type": f["type"],
+                "ext": f["ext"],
+                "size": f["size"],
+                "uploaded_at": f["uploaded_at"],
+            }
+            for f in files
+        ],
+    }
+
+
+@router.delete("/creation/uploads/{file_id}")
+def delete_uploaded_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """删除已上传的素材文件"""
+    uid = current_user.id
+    files = _uploaded_files.get(uid, [])
+    target = None
+    for f in files:
+        if f["file_id"] == file_id:
+            target = f
+            break
+    if not target:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "detail": "文件不存在"})
+
+    # 删除磁盘文件
+    try:
+        Path(target["path"]).unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    _uploaded_files[uid] = [f for f in files if f["file_id"] != file_id]
+    return {"message": f"文件 {target['filename']} 已删除"}
