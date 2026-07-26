@@ -177,10 +177,11 @@ def _run_fallback_mock(task_id: str, session_id: int, topic: str, platform: str,
 def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
     """
     后台线程执行 Agent 流水线：
+    - Coze 模式（默认）：调用 P4 Agent → Coze 平台 4 个 Bot
     - Mock 模式：直接用内置动态 Mock（秒出结果，内容匹配用户主题）
-    - DeepSeek 模式：调用 P4 Agent → 超时/失败回退动态 Mock
+    - 超时/失败回退动态 Mock
     """
-    PROVIDER = "mock"  # 改为 "deepseek" 以使用真实 LLM
+    PROVIDER = "coze"  # mock=离线秒出 / coze=Coze平台(题目3要求) / deepseek=直连(备选)
 
     _task_store[task_id]["status"] = "processing"
 
@@ -190,7 +191,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
         _run_fallback_mock(task_id, session_id, req.topic, req.platform, req.style)
         return
 
-    # DeepSeek 模式：调用 P4 Agent 流水线
+    # Coze / DeepSeek 模式：调用 P4 Agent 流水线
     _task_store[task_id]["progress"] = "🚀 Agent 流水线启动..."
 
     try:

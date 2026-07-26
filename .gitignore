@@ -16,3 +16,4 @@ uploads/
 .DS_Store
 Thumbs.db
 docs/P4-*.md
+backend/p4_agent/config/providers.json

@@ -172,14 +172,24 @@ def mock_provider(prompt: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Coze Provider — 字节跳动扣子平台
-# 来源：Day12 app.py L329-364
+# Coze Provider — 字节跳动扣子平台（题目3主平台）
+# 支持按 Agent 名称自动路由到对应的 Bot
+# 来源：Day12 app.py L329-364 + P4 多 Agent 路由
 # ---------------------------------------------------------------------------
-def coze_provider(prompt: str, config: dict) -> dict[str, Any]:
+def coze_provider(prompt: str, config: dict, agent_name: str = "script") -> dict[str, Any]:
+    """调用 Coze Bot API，自动根据 agent_name 选择对应 Bot。"""
     token = str(config.get("token", "")).strip()
-    bot_id = str(config.get("bot_id", "")).strip()
-    if not token or not bot_id:
-        raise ValueError("Coze 配置不完整，请填写 token 和 bot_id")
+    bot_ids: dict = config.get("bot_ids", {})
+    bot_id = str(bot_ids.get(agent_name, bot_ids.get("_default", ""))).strip()
+
+    if not token:
+        raise ValueError("Coze 配置不完整，请填写 token")
+    if not bot_id:
+        raise ValueError(
+            f"Coze 未配置 Agent '{agent_name}' 的 bot_id，"
+            f"请在 providers.json 的 coze.bot_ids 中填入该 Agent 对应的 Bot ID。"
+            f"当前已配置: {list(bot_ids.keys())}"
+        )
 
     response = requests.post(
         config.get("base_url", "https://api.coze.cn/open_api/v2/chat"),
@@ -189,26 +199,45 @@ def coze_provider(prompt: str, config: dict) -> dict[str, Any]:
         },
         json={
             "bot_id": bot_id,
-            "user": config.get("user", "day12-user"),
+            "user": config.get("user", "p4-agent"),
             "query": prompt,
             "stream": False,
         },
-        timeout=60,
+        timeout=120,
     )
     if not response.ok:
         raise RuntimeError(
-            f"Coze 请求失败：HTTP {response.status_code} {response.text[:300]}"
+            f"Coze 请求失败（Agent={agent_name} Bot={bot_id}）："
+            f"HTTP {response.status_code} {response.text[:300]}"
         )
 
     data = response.json()
+    # Coze v2/v3 API — 提取 assistant 中 type=answer 的 content
+    messages = data.get("messages", [])
     answers = []
-    for message in data.get("messages", []):
-        if message.get("role") in {None, "assistant"} and message.get("content"):
-            answers.append(text_from_value(message["content"]))
+
+    if messages:
+        for m in messages:
+            if m.get("role") in {None, "assistant"}:
+                msg_type = m.get("type", "")
+                content = m.get("content", "")
+                # 优先取 type=answer，取 type=verbose
+                if msg_type == "answer" and content:
+                    answers.append(text_from_value(content))
+                elif msg_type != "answer" and content:
+                    # verbose 消息作为备选（可能含 tool_call、knowledge_recall 等）
+                    pass
+
+    # fallback: 直接取 content/answer 字段
+    if not answers:
+        content = data.get("content", "") or data.get("answer", "")
+        if content:
+            answers.append(text_from_value(content))
+
     return {
         "ok": True,
         "answer": "\n\n".join(answers) or "Coze 没有返回可展示的消息。",
-        "run_id": str(data.get("conversation_id", "")),
+        "run_id": str(data.get("conversation_id", data.get("id", ""))),
         "raw": data,
     }
 
@@ -320,10 +349,8 @@ def dify_provider(prompt: str, config: dict, on_chunk: Callable | None = None) -
 # DeepSeek Provider — OpenAI 兼容接口直连
 # 来源：Day13 deepseek_client.py
 # ---------------------------------------------------------------------------
-def deepseek_provider(
-    prompt: str, config: dict, tools: list[dict] | None = None,
-    tool_results: list[dict] | None = None,
-) -> dict[str, Any]:
+def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None,
+                      messages_override: list[dict] | None = None) -> dict[str, Any]:
     api_key = str(config.get("api_key", "")).strip()
     if not api_key:
         raise ValueError("DeepSeek 配置不完整，请填写 api_key")
@@ -336,10 +363,13 @@ def deepseek_provider(
         "Content-Type": "application/json",
     }
 
-    messages: list[dict] = [
-        {"role": "system", "content": config.get("system_prompt", "你是一名专业的数字媒体创作助手。")},
-        {"role": "user", "content": prompt},
-    ]
+    if messages_override:
+        messages = messages_override
+    else:
+        messages: list[dict] = [
+            {"role": "system", "content": config.get("system_prompt", "你是一名专业的数字媒体创作助手。")},
+            {"role": "user", "content": prompt},
+        ]
 
     payload: dict[str, Any] = {
         "model": model,
@@ -353,7 +383,6 @@ def deepseek_provider(
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    # 第一轮调用
     response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=120)
     if not response.ok:
         raise RuntimeError(f"DeepSeek 请求失败：HTTP {response.status_code} {response.text[:300]}")
@@ -362,80 +391,27 @@ def deepseek_provider(
     choice = data.get("choices", [{}])[0]
     message = choice.get("message", {})
 
-    # 处理 Function Calling：自动执行工具并回传结果
-    if message.get("tool_calls") and not tool_results:
-        tool_calls = message["tool_calls"]
-        # 将第一条 assistant 消息 + tool 结果加入对话
-        messages.append({"role": "assistant", "content": message.get("content") or "", "tool_calls": tool_calls})
+    # 推理模型内容在 reasoning_content 中
+    content = message.get("content", "") or message.get("reasoning_content", "")
 
-        # 执行工具（内联，避免循环依赖）
-        for tc in tool_calls:
-            func_name = tc.get("function", {}).get("name", "")
-            func_args = {}
-            try:
-                func_args = json.loads(tc.get("function", {}).get("arguments", "{}"))
-            except Exception:
-                pass
-            # 调用本地工具
-            tool_output = _execute_local_tool(func_name, func_args)
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.get("id", ""),
-                "content": json.dumps(tool_output, ensure_ascii=False),
-            })
-
-        # 第二轮调用：发送工具结果获取最终答案
-        payload2 = {**payload, "messages": messages}
-        resp2 = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload2, timeout=120)
-        if resp2.ok:
-            data2 = resp2.json()
-            choice2 = data2.get("choices", [{}])[0]
-            msg2 = choice2.get("message", {})
-            answer2 = text_from_value(msg2.get("content", ""))
-            if answer2:
-                return {
-                    "ok": True,
-                    "answer": answer2,
-                    "run_id": data2.get("id", ""),
-                    "raw": data2,
-                }
-
-        # 工具调用失败 → 降级：不带工具重新请求
-        fallback_payload = {k: v for k, v in payload.items() if k not in ("tools", "tool_choice")}
-        resp3 = requests.post(f"{base_url}/chat/completions", headers=headers, json=fallback_payload, timeout=120)
-        if resp3.ok:
-            data3 = resp3.json()
-            choice3 = data3.get("choices", [{}])[0]
-            msg3 = choice3.get("message", {})
-            return {
-                "ok": True,
-                "answer": text_from_value(msg3.get("content", "")) or "DeepSeek 没有返回内容。",
-                "run_id": data3.get("id", ""),
-                "raw": data3,
-            }
-
+    # 处理 Function Calling 返回
+    if message.get("tool_calls"):
         return {
             "ok": True,
-            "answer": text_from_value(message.get("content", "")),
+            "answer": text_from_value(content),
+            "tool_calls": message["tool_calls"],
             "run_id": data.get("id", ""),
             "raw": data,
         }
 
+    # 推理模型（如 deepseek-v4-pro）内容在 reasoning_content 中
+    content = message.get("content", "") or message.get("reasoning_content", "")
     return {
         "ok": True,
-        "answer": text_from_value(message.get("content", "")) or "DeepSeek 没有返回内容。",
+        "answer": text_from_value(content) or "DeepSeek 没有返回内容。",
         "run_id": data.get("id", ""),
         "raw": data,
     }
-
-
-def _execute_local_tool(name: str, args: dict) -> dict:
-    """本地工具执行（内联版，供 deepseek_provider 内部使用）"""
-    try:
-        from p4_agent.tools import execute_tool
-        return execute_tool(name, args)
-    except Exception:
-        return {"error": f"工具 {name} 执行失败", "args": args}
 
 
 # ---------------------------------------------------------------------------
@@ -444,26 +420,20 @@ def _execute_local_tool(name: str, args: dict) -> dict:
 def run_provider(
     provider: str, prompt: str, config: dict | None = None,
     on_chunk: Callable | None = None, tools: list[dict] | None = None,
+    messages_override: list[dict] | None = None,
+    agent_name: str = "script",
 ) -> dict[str, Any]:
-    """统一的 Provider 调度入口。config 为 None 时自动加载 providers.json。"""
-    if config is None:
-        import os as _os
-        _config_path = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "config", "providers.json")
-        try:
-            with open(_config_path, "r", encoding="utf-8") as _f:
-                config = json.load(_f)
-        except Exception:
-            config = {}
+    """统一的 Provider 调度入口。agent_name 用于 Coze 多 Bot 路由。"""
     cfg = config or {}
     provider = provider.lower().strip()
 
     if provider == "mock":
         return mock_provider(prompt)
     elif provider == "coze":
-        return coze_provider(prompt, cfg.get("coze", {}))
+        return coze_provider(prompt, cfg.get("coze", {}), agent_name=agent_name)
     elif provider == "dify":
         return dify_provider(prompt, cfg.get("dify", {}), on_chunk=on_chunk)
     elif provider == "deepseek":
-        return deepseek_provider(prompt, cfg.get("deepseek", {}), tools=tools)
+        return deepseek_provider(prompt, cfg.get("deepseek", {}), tools=tools, messages_override=messages_override)
     else:
         raise ValueError(f"不支持的 Provider: {provider}，可选: mock / coze / dify / deepseek")

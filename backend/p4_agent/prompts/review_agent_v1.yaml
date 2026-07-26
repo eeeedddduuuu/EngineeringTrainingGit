@@ -50,4 +50,4 @@ system_prompt: |
   - 不对外泄露审查内容
 
 output_format: "markdown"
-tools_required: ["sensitive_word_filter", "knowledge_search"]
+tools_required: []

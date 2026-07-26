@@ -55,4 +55,4 @@ system_prompt: |
   - 不涉及刷量、买粉等违规操作建议
 
 output_format: "markdown"
-tools_required: ["template_matcher", "get_current_time"]
+tools_required: []

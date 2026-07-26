@@ -13,6 +13,7 @@ from typing import Any
 
 import yaml
 
+from config import load_config
 from providers import run_provider
 from tools import TOOL_DEFINITIONS, execute_tool
 
@@ -83,7 +84,11 @@ def run_agent(
     """
     start_time = datetime.now(CST)
 
-    # 1. 加载 Prompt
+    # 1. 自动加载 Provider 配置（未显式传入时）
+    if provider_config is None and provider != "mock":
+        provider_config = load_config()
+
+    # 2. 加载 Prompt
     prompt_config = _load_prompt(agent_name)
     system_prompt = _build_system_prompt(prompt_config, extra_context)
 
@@ -94,24 +99,43 @@ def run_agent(
     tool_names = prompt_config.get("tools_required", [])
     tools = [t for t in TOOL_DEFINITIONS if t["function"]["name"] in tool_names] if tool_names else None
 
-    # 4. 调用 Provider
-    result = run_provider(provider, full_prompt, provider_config, on_chunk=on_chunk, tools=tools)
+    # 4. 调用 Provider（支持 Function Calling 多轮回环）
+    result = run_provider(provider, full_prompt, provider_config, on_chunk=on_chunk, tools=tools, agent_name=agent_name)
 
-    # 5. 记录工具调用（deepseek_provider 已内置 tool calling 循环）
+    # 5. Function Calling 回环：工具结果没送回模型，需再调一次让模型真正输出
     tools_called: list[dict] = []
-    if result.get("tool_calls"):
+    _fc_loop = 0
+    while result.get("tool_calls") and _fc_loop < 3:
+        _fc_loop += 1
         for tc in result["tool_calls"]:
             func_name = tc.get("function", {}).get("name", "")
-            try:
-                func_args = json.loads(tc.get("function", {}).get("arguments", "{}"))
-            except Exception:
-                func_args = {}
+            func_args = json.loads(tc.get("function", {}).get("arguments", "{}"))
             tool_result = execute_tool(func_name, func_args)
             tools_called.append({
                 "tool": func_name,
                 "arguments": func_args,
                 "result": tool_result,
             })
+
+        # 构建包含工具调用的 messages 发给 Provider
+        tool_messages: list[dict] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input},
+            {"role": "assistant", "content": result.get("answer", ""), "tool_calls": result["tool_calls"]},
+        ]
+        for tc in tools_called:
+            tool_messages.append({
+                "role": "tool",
+                "tool_call_id": result["tool_calls"][0].get("id", "unknown"),
+                "content": json.dumps(tc["result"], ensure_ascii=False),
+            })
+
+        result = run_provider(
+            provider, "", provider_config,
+            on_chunk=on_chunk, tools=tools,
+            messages_override=tool_messages,
+            agent_name=agent_name,
+        )
 
     # 6. 计算耗时
     end_time = datetime.now(CST)

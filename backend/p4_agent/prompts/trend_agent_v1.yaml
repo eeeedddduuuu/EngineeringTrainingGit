@@ -49,4 +49,4 @@ system_prompt: |
   - 不涉及政治敏感、社会负面情绪的选题引导
 
 output_format: "markdown"
-tools_required: ["web_search", "get_current_time"]
+tools_required: []
