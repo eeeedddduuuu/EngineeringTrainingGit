@@ -1,0 +1,139 @@
+{
+  "model": "BAAI/bge-small-zh-v1.5",
+  "total_samples": 158,
+  "test_queries": 10,
+  "top1_hit_rate": "80.0%",
+  "top3_hit_rate": "90.0%",
+  "top5_hit_rate": "90.0%",
+  "avg_response_time_s": 2.119,
+  "details": [
+    {
+      "query": "游戏策划角色",
+      "expected_kw": [
+        "游戏",
+        "策划"
+      ],
+      "top1_title": "游戏人设怎么做？资深策划分享角色设定表创作方法",
+      "top1_sim": 0.662,
+      "elapsed": 2.146,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "短视频脚本创作",
+      "expected_kw": [
+        "短视频",
+        "创作"
+      ],
+      "top1_title": "短视频脚本创作：先“抄”竞品找对标，减少试错成本",
+      "top1_sim": 0.7776,
+      "elapsed": 2.123,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "宣传片拍摄",
+      "expected_kw": [
+        "宣传片",
+        "制作"
+      ],
+      "top1_title": "宣传（汉语词语）_百度百科",
+      "top1_sim": 0.6273,
+      "elapsed": 2.185,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "社交媒体运营技巧",
+      "expected_kw": [
+        "社交",
+        "媒体",
+        "运营"
+      ],
+      "top1_title": "公众号",
+      "top1_sim": 0.6941,
+      "elapsed": 2.124,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "如何写一个抖音视频脚本",
+      "expected_kw": [
+        "短视频",
+        "创作"
+      ],
+      "top1_title": "短视频脚本创作：先“抄”竞品找对标，减少试错成本",
+      "top1_sim": 0.7362,
+      "elapsed": 2.145,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "小红书种草文案",
+      "expected_kw": [
+        "社交",
+        "媒体"
+      ],
+      "top1_title": "小红书",
+      "top1_sim": 0.6301,
+      "elapsed": 2.096,
+      "top1_hit": false,
+      "top3_hit": false,
+      "top5_hit": false
+    },
+    {
+      "query": "B站品牌宣传怎么做",
+      "expected_kw": [
+        "宣传片"
+      ],
+      "top1_title": "宣传（汉语词语）_百度百科",
+      "top1_sim": 0.613,
+      "elapsed": 2.091,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "游戏剧情世界观设计",
+      "expected_kw": [
+        "游戏",
+        "策划"
+      ],
+      "top1_title": "育碧服务型游戏叙事设计：向美剧取经的编剧方法论",
+      "top1_sim": 0.5726,
+      "elapsed": 2.089,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "抖音热门话题",
+      "expected_kw": [
+        "短视频"
+      ],
+      "top1_title": "抖音-记录美好生活",
+      "top1_sim": 0.6483,
+      "elapsed": 2.072,
+      "top1_hit": true,
+      "top3_hit": true,
+      "top5_hit": true
+    },
+    {
+      "query": "B站创作教程",
+      "expected_kw": [
+        "B站"
+      ],
+      "top1_title": "哔哩哔哩",
+      "top1_sim": 0.6187,
+      "elapsed": 2.121,
+      "top1_hit": false,
+      "top3_hit": true,
+      "top5_hit": true
+    }
+  ]
+}
