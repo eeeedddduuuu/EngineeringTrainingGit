@@ -3,13 +3,18 @@ from typing import Optional
 
 
 class SchemeBrief(BaseModel):
-    """方案摘要（列表用）"""
+    """方案摘要（列表用，含完整数据供前端渲染）"""
     id: int
     version: str
     title: Optional[str] = None
     hook: Optional[str] = None
+    scenes: Optional[list] = None
+    hashtags: Optional[list] = None
+    cover_text: Optional[str] = None
+    storyboard_json: Optional[dict] = None
     score: float = 0.0
     rank: int = 0
+    recommendation_reason: Optional[str] = None
 
 
 class SceneDetail(BaseModel):

@@ -97,12 +97,15 @@ def run_agent(
     # 4. 调用 Provider
     result = run_provider(provider, full_prompt, provider_config, on_chunk=on_chunk, tools=tools)
 
-    # 5. 处理 Function Calling（DeepSeek 专有）
+    # 5. 记录工具调用（deepseek_provider 已内置 tool calling 循环）
     tools_called: list[dict] = []
     if result.get("tool_calls"):
         for tc in result["tool_calls"]:
             func_name = tc.get("function", {}).get("name", "")
-            func_args = json.loads(tc.get("function", {}).get("arguments", "{}"))
+            try:
+                func_args = json.loads(tc.get("function", {}).get("arguments", "{}"))
+            except Exception:
+                func_args = {}
             tool_result = execute_tool(func_name, func_args)
             tools_called.append({
                 "tool": func_name,

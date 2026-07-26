@@ -184,10 +184,24 @@ def _score_feasibility(feasibility: str) -> float:
 
 def rank_schemes(schemes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """对多个方案评分并排序，返回排名结果。"""
+    # 如果已有 total_score（DeepSeek 自带评分），保留原始评分
+    has_scores = all("total_score" in s for s in schemes)
+    if has_scores:
+        for s in schemes:
+            # 映射 total_score → score（API schema 字段名）
+            s["score"] = s.get("total_score", s.get("score", 5.0))
+        ranked = sorted(schemes, key=lambda s: s["total_score"], reverse=True)
+        for i, s in enumerate(ranked):
+            s["rank"] = i + 1
+        if ranked:
+            ranked[0]["recommendation_reason"] = f'综合得分最高（{ranked[0]["total_score"]}分）'
+        return ranked
+
     scored = [score_scheme(s) for s in schemes]
     ranked = sorted(scored, key=lambda s: s["total_score"], reverse=True)
     for i, s in enumerate(ranked):
         s["rank"] = i + 1
+        s["score"] = s.get("total_score", 5.0)
     if ranked:
         ranked[0]["recommendation"] = {
             "best": ranked[0].get("version", "?"),

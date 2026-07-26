@@ -1,553 +1,492 @@
+"""
+AI 数字媒体创作助手 — 前端 v4
+完整功能 · 全后端对接 · 专业 UI
+"""
 import streamlit as st
 import requests
-import json
 import time
 import pandas as pd
 import plotly.express as px
-from io import BytesIO
-from streamlit.components.v1 import html
 
-# ====================== 全局页面基础配置 ======================
-st.set_page_config(
-    page_title="AI 数字媒体创作助手 | 实训项目",
-    page_icon="🎬",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# ====================== 配置 ======================
+API = "http://127.0.0.1:8000/api"
 
-# ====================== 顶配高级CSS美化（紫堇渐变主题，全页面动效） ======================
+st.set_page_config(page_title="AI 数字媒体创作助手", page_icon="🎬", layout="wide")
+
+# ====================== 主题 CSS ======================
 st.markdown("""
 <style>
-/* 全局基础 */
-* {
-    font-family: 'Inter', 'Microsoft YaHei', sans-serif;
-}
-.stApp {
-    background: linear-gradient(180deg, #f7f9ff 0%, #f5f7fb 100%);
-}
-/* 顶部渐变装饰条 */
-.stApp::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 5px;
-    background: linear-gradient(90deg, #6d28d9, #8b5cf6, #a78bfa, #7c3aed);
-    z-index: 999999;
-    box-shadow: 0 2px 14px rgba(124,58,237,0.35);
-}
-/* 压缩标题下方的多余间距 */
-.block-container {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-}
-/* 强制移除顶部所有多余空间 */
-.stApp > div:first-child {
-    padding-top: 0 !important;
-}
-/* 调整主内容区顶部边距 */
-.stMarkdown {
-    margin-bottom: 0 !important;
-}
-/* 移除 sub-header 下方多余间距 */
-.sub-header {
-    margin-bottom: 12px !important;
-}
-
-/* 主标题样式 */
-.main-header {
-    font-size: 44px;
-    font-weight: 800;
-    color: #1e293b;
-    text-align: center;
-    padding: 32px 0 8px;
-    letter-spacing: 1.2px;
-    background: linear-gradient(90deg, #6d28d9, #8b5cf6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.sub-header {
-    text-align: center;
-    color: #64748b;
-    font-size: 16px;
-    letter-spacing: 4px;
-    margin-bottom: 36px;
-}
-/* 通用卡片容器 带悬浮动画 */
-.primary-card {
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 30px 36px;
-    margin-bottom: 28px;
-    box-shadow: 0 3px 16px rgba(0,0,0,0.05);
-    border: 1px solid #eef2ff;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.primary-card:hover {
-    box-shadow: 0 8px 28px rgba(124,58,237,0.12);
-    transform: translateY(-2px);
-}
-.card-title {
-    color: #1e293b;
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-/* 输入控件美化 */
-.stTextInput input, .stTextArea textarea, .stSelectbox select, .stFileUploader {
-    background: #fff !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 12px !important;
-    padding: 12px 16px !important;
-    font-size: 15px !important;
-    transition: all 0.25s ease !important;
-}
-.stTextInput input:focus, .stTextArea textarea:focus {
-    border-color: #8b5cf6 !important;
-    box-shadow: 0 0 0 4px rgba(139,92,246,0.1) !important;
-    outline: none;
-}
-/* 主按钮紫色渐变 */
-.stButton button {
-    background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
-    color: white !important;
-    font-weight: 600 !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 12px 32px !important;
-    font-size: 15px !important;
-    transition: all 0.25s ease !important;
-    box-shadow: 0 4px 12px rgba(124,58,237,0.22) !important;
-}
-.stButton button:hover {
-    background: linear-gradient(135deg, #6d28d9, #7c3aed) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(124,58,237,0.28) !important;
-}
-.stButton button:active {
-    transform: translateY(0);
-}
-/* 侧边栏样式重写 */
-section[data-testid="stSidebar"] {
-    background: #ffffff !important;
-    border-right: 1px solid #eef2ff !important;
-}
-section[data-testid="stSidebar"] .stButton button {
-    background: transparent !important;
-    color: #475569 !important;
-    box-shadow: none !important;
-    text-align: left !important;
-    padding: 12px 18px !important;
-    border-radius: 12px !important;
-    font-weight: 500 !important;
-    margin: 4px 0;
-}
-section[data-testid="stSidebar"] .stButton button:hover {
-    background: #f3f0ff !important;
-    color: #7c3aed !important;
-}
-/* 方案卡片（3列展示） */
-.scheme-wrap {
-    background: #f8faff;
-    border-radius: 18px;
-    padding: 24px;
-    border: 1px solid #eef2ff;
-    height: 100%;
-    transition: all 0.3s ease;
-}
-.scheme-wrap:hover {
-    border-color: #c4b5fd;
-    box-shadow: 0 4px 16px rgba(124,58,237,0.08);
-}
-.version-badge {
-    display: inline-block;
-    padding: 4px 16px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 700;
-    background: #ede9fe;
-    color: #6d28d9;
-    margin-bottom: 12px;
-}
-.scheme-name {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 8px;
-}
-.scheme-desc {
-    color: #475569;
-    font-size: 14px;
-    line-height: 1.75;
-}
-.platform-tag {
-    display: inline-block;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    background: #f3f0ff;
-    color: #7c3aed;
-    margin-right: 6px;
-    margin-top: 10px;
-}
-/* 推荐高亮框 */
-.recommend-panel {
-    background: linear-gradient(90deg, #f3f0ff, #f8faff);
-    border-left: 4px solid #8b5cf6;
-    padding: 16px 20px;
-    border-radius: 0 14px 14px 0;
-    margin-top: 16px;
-}
-.rec-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: #7c3aed;
-    letter-spacing: 1px;
-}
-.rec-text {
-    font-size: 14px;
-    color: #334155;
-    margin-top: 4px;
-    line-height: 1.7;
-}
-/* 空状态页面 */
-.empty-container {
-    text-align: center;
-    padding: 80px 20px;
-    color: #94a3b8;
-    font-size: 16px;
-}
-/* 提示信息框 */
-.info-tip {
-    background: #f3f0ff;
-    border-radius: 16px;
-    padding: 22px;
-    border: 1px solid #e0d8f5;
-    color: #4c1d95;
-    line-height: 1.8;
-}
-/* 进度条美化 */
-div[data-testid="stProgress"] > div {
-    background: linear-gradient(90deg, #7c3aed, #a78bfa) !important;
-    border-radius: 999px !important;
-}
-/* 滚动条美化 */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-::-webkit-scrollbar-track {
-    background: #f1f5f9;
-}
-::-webkit-scrollbar-thumb {
-    background: #c4b5fd;
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #8b5cf6;
-}
+    [data-testid="stSidebar"] { background: rgba(124,58,237,0.02); }
+    .stButton > button {
+        background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+        color: #fff !important; border: none !important;
+        border-radius: 10px !important; font-weight: 600 !important;
+    }
+    .stButton > button:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed) !important; }
+    .card {
+        border: 1px solid rgba(128,128,128,0.15); border-radius: 14px;
+        padding: 20px 24px; margin-bottom: 16px; height: 100%;
+    }
+    .card:hover { border-color: rgba(124,58,237,0.3); }
+    .metric-box {
+        text-align: center; padding: 20px; border-radius: 14px;
+        background: rgba(124,58,237,0.04); border: 1px solid rgba(124,58,237,0.1);
+    }
+    .metric-box h2 { margin: 0; color: #7c3aed; }
 </style>
 """, unsafe_allow_html=True)
 
-# ====================== 全局常量 & Session状态初始化 ======================
-API_BASE = "http://127.0.0.1:8000/api"
+# ====================== 数据清洗 ======================
+def safe_list(v): return v if isinstance(v, list) else []
+def safe_dict(v): return v if isinstance(v, dict) else {}
+def safe_str(v): return v if isinstance(v, str) else ""
 
-def init_session():
-    """初始化全局会话缓存"""
-    default_state = {
-        "token": None,
-        "user": None,
-        "current_page": "📝 工作台",
-        "task_id": None,
-        "task_progress": 0,
-        "task_running": False,
-        "schemes_list": [],
-        "history_records": [],
-        "sample_stats": pd.DataFrame({
-            "平台": ["抖音","小红书","B站","抖音","小红书","B站","抖音"],
-            "主题": ["护肤","美食","数码","旅行","测评","剧情","好物"],
-            "数量": [28,36,22,18,24,16,30]
-        })
+def clean_scheme(s):
+    """确保 scheme 数据字段非 None"""
+    return {
+        **s,
+        "scenes": safe_list(s.get("scenes")),
+        "hashtags": safe_list(s.get("hashtags")),
+        "storyboard_json": safe_dict(s.get("storyboard_json")),
+        "raw_markdown": safe_str(s.get("raw_markdown")),
+        "cover_text": safe_str(s.get("cover_text")),
+        "hook": safe_str(s.get("hook")),
+        "title": safe_str(s.get("title")),
+        "recommendation_reason": safe_str(s.get("recommendation_reason")),
     }
-    for key, val in default_state.items():
-        if key not in st.session_state:
-            st.session_state[key] = val
 
-init_session()
+# ====================== Session ======================
+def init():
+    for k, v in {
+        "token": None, "user": None, "page": "工作台",
+        "task_id": None, "task_status": None, "schemes": [],
+    }.items():
+        if k not in st.session_state: st.session_state[k] = v
+init()
 
-# ====================== 工具函数：统一请求封装（带JWT鉴权） ======================
-def api_request(path, method="GET", json_data=None, files=None):
-    headers = {}
-    if st.session_state.token:
-        headers["Authorization"] = f"Bearer {st.session_state.token}"
-    full_url = f"{API_BASE}{path}"
+# ====================== API ======================
+def api(path, method="GET", data=None):
+    h = {}
+    if st.session_state.token: h["Authorization"] = f"Bearer {st.session_state.token}"
     try:
         if method == "GET":
-            res = requests.get(full_url, headers=headers, timeout=15)
-        elif method == "POST":
-            if files:
-                res = requests.post(full_url, headers=headers, json=json_data, files=files, timeout=15)
-            else:
-                res = requests.post(full_url, headers=headers, json=json_data, timeout=15)
-        elif method == "PUT":
-            res = requests.put(full_url, headers=headers, json=json_data, timeout=15)
-        return res
+            r = requests.get(f"{API}{path}", headers=h, params=data, timeout=30)
+        else:
+            r = requests.post(f"{API}{path}", headers=h, json=data, timeout=60)
+        return r
+    except requests.exceptions.ConnectionError:
+        return None
     except Exception as e:
-        st.error(f"接口请求失败：{str(e)}，请检查后端服务是否启动")
+        st.error(f"请求异常: {e}")
         return None
 
-# ====================== 页面1：登录/注册页面（全屏居中卡片） ======================
-def render_login_page():
-    st.markdown('<div class="main-header">🎬 AI 数字媒体创作助手</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">MULTIMEDIA AI CREATOR | AI数字媒体创作平台</div>', unsafe_allow_html=True)
-    st.markdown("""
-<div style="text-align: center; margin: 16px 0 28px 0;">
-    <p style="color: #64748b; font-size: 14px; letter-spacing: 1px; line-height: 1.8;">
-        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">🎮 游戏</span>
-        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">🎬 短视频</span>
-        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">📱 社交媒体</span>
-        <span style="background: #f3f0ff; padding: 4px 14px; border-radius: 20px; color: #6d28d9; font-weight: 500; margin: 0 4px;">📺 品牌宣发</span>
-    </p>
-    <p style="color: #94a3b8; font-size: 13px; margin-top: 8px;">AI 驱动 · 一键生成 · 多平台适配</p>
-</div>
-""", unsafe_allow_html=True)
-    col_left, col_center, col_right = st.columns([1, 2.4, 1])
-    with col_center:
-        st.markdown('<div class="primary-card">', unsafe_allow_html=True)
-        tab_login, tab_register = st.tabs(["🔐 用户登录", "📝 新用户注册"])
-        
-        # 登录表单
-        with tab_login:
-            with st.form("login_form", clear_on_submit=False):
-                uname = st.text_input("用户名", placeholder="输入你的账号")
-                pwd = st.text_input("登录密码", type="password", placeholder="输入密码")
-                submit_login = st.form_submit_button("立即登录", use_container_width=True)
-                if submit_login:
-                    if not uname or not pwd:
-                        st.warning("请填写完整账号密码！")
-                    else:
-                        resp = api_request("/auth/login", "POST", {"username": uname, "password": pwd})
-                        if resp and resp.status_code == 200:
-                            data = resp.json()
-                            st.session_state.token = data["access_token"]
-                            st.session_state.user = {"username": data["username"]}
-                            st.success("🎉 登录成功，正在跳转工作台...")
-                            time.sleep(1.2)
-                            st.rerun()
-                        elif resp:
-                            st.error(resp.json().get("detail", "账号或密码错误"))
-        
-        # 注册表单
-        with tab_register:
-            with st.form("reg_form"):
-                reg_user = st.text_input("设置用户名", placeholder="自定义账号")
-                reg_pwd = st.text_input("设置密码", type="password", placeholder="6位以上字符")
-                reg_pwd2 = st.text_input("确认密码", type="password", placeholder="再次输入密码")
-                submit_reg = st.form_submit_button("完成注册", use_container_width=True)
-                if submit_reg:
-                    if not reg_user or not reg_pwd:
-                        st.warning("账号密码不能为空！")
-                    elif reg_pwd != reg_pwd2:
-                        st.error("两次输入密码不一致，请重新填写")
-                    else:
-                        resp = api_request("/auth/register", "POST", {"username": reg_user, "password": reg_pwd})
-                        if resp and resp.status_code == 200:
-                            st.success("✅ 注册完成！切换登录标签页登录系统")
-                        elif resp:
-                            st.error(resp.json().get("detail", "注册失败，用户名已存在"))
-        st.markdown('</div>', unsafe_allow_html=True)
+# ====================== 登录 ======================
+def login_page():
+    _, c, _ = st.columns([1, 1.5, 1])
+    with c:
+        st.title("🎬 AI 数字媒体创作助手")
+        st.caption("智能脚本生成 · 多平台适配 · 数据驱动的创作决策")
 
-# ====================== 侧边栏导航（带用户信息+页面切换） ======================
-def render_sidebar():
-    with st.sidebar:
-        st.markdown("## 🎬 AI创作助手")
-        st.divider()
-        if st.session_state.user:
-            if isinstance(st.session_state.user, dict):
-                st.markdown(f"👤 当前用户：**{st.session_state.user.get('username', '未知')}**")
-            else:
-                st.markdown(f"👤 当前用户：**{st.session_state.user}**")
-        st.divider()
-        page_list = [
-            "📝 工作台",
-            "📋 历史记录",
-            "📊 数据看板"
-        ]
-        for page in page_list:
-            btn = st.button(page, use_container_width=True, key=f"nav_{page}")
-            if btn:
-                st.session_state.current_page = page
-                st.rerun()
-        st.divider()
-        if st.button("🚪 退出登录", use_container_width=True):
-            st.session_state.token = None
-            st.session_state.user = None
-            st.session_state.schemes_list = []
-            st.session_state.task_running = False
-            st.rerun()
-
-# ====================== 页面2：创作工作台（核心业务页） ======================
-def render_workbench():
-    st.markdown('<div class="primary-card">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">🚀 智能创作工作台</div>', unsafe_allow_html=True)
-    col_input, col_tips = st.columns([3, 1])
-    with col_input:
-        with st.form("create_form"):
-            topic = st.text_input("创作主题 *", placeholder="例：秋季平价护肤攻略、二次元游戏剧情脚本")
-            audience = st.text_input("目标受众", placeholder="例：20-30岁学生、数码发烧友、宝妈群体")
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                platform = st.selectbox("发布平台", ["抖音", "小红书", "B站"])
-            with col_b:
-                duration = st.selectbox("视频时长", ["15秒", "30秒", "60秒"])
-            with col_c:
-                style = st.selectbox("内容风格", ["干货科普", "轻娱乐", "情感走心", "剧情故事", "测评种草"])
-            upload_file = st.file_uploader("上传参考素材（图片/音频）", accept_multiple_files=True)
-            submit_gen = st.form_submit_button("✨ 一键启动AI创作", use_container_width=True)
-            
-            if submit_gen:
-                if not topic:
-                    st.error("创作主题为必填项，请完善！")
-                else:
-                    import requests
-                    platform_map = {
-                        "抖音": "douyin",
-                        "小红书": "xiaohongshu",
-                        "B站": "bilibili"
-                    }
-                    duration_map = {
-                        "15秒": "15s",
-                        "30秒": "30s",
-                        "60秒": "60s"
-                    }
-                    payload = {
-                        "topic": topic,
-                        "target_audience": audience,
-                        "platform": platform_map.get(platform, "douyin"),
-                        "duration": duration_map.get(duration, "30s"),
-                        "style": style
-                    }
-                    try:
-                        resp = requests.post(
-                            "http://127.0.0.1:8000/api/creation/start",
-                            json=payload,
-                            headers={"Authorization": f"Bearer {st.session_state.token}"}
-                        )
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            st.success(f"✅ 任务已提交，任务ID：{data.get('task_id', '未知')}")
-                            mock_scheme = [
-                                {
-                                    "version": "A",
-                                    "title": f"{topic}｜简洁干货版",
-                                    "description": "开篇直击痛点，结构简短清晰",
-                                    "platform": platform,
-                                    "reason": "钩子吸引力强，适合新手创作者"
-                                },
-                                {
-                                    "version": "B",
-                                    "title": f"{topic}｜剧情种草版",
-                                    "description": "以生活化小故事切入，搭配情绪递进",
-                                    "platform": platform,
-                                    "reason": "综合评分最高，推荐首选"
-                                },
-                                {
-                                    "version": "C",
-                                    "title": f"{topic}｜深度测评版",
-                                    "description": "多角度拆解主题细节，数据对比",
-                                    "platform": platform,
-                                    "reason": "适合深度粉丝，留存率高"
-                                }
-                            ]
-                            st.session_state.schemes_list = mock_scheme
+        t1, t2 = st.tabs(["🔐 登录", "📝 注册"])
+        with t1:
+            with st.form("login"):
+                u = st.text_input("用户名")
+                p = st.text_input("密码", type="password")
+                if st.form_submit_button("登录", use_container_width=True):
+                    if not u or not p:
+                        st.warning("请填写完整")
+                    else:
+                        r = api("/auth/login", "POST", {"username": u, "password": p})
+                        if r and r.status_code == 200:
+                            d = r.json()
+                            st.session_state.token = d["access_token"]
+                            st.session_state.user = d["username"]
                             st.rerun()
                         else:
-                            st.error(f"请求失败：{resp.text}")
-                    except Exception as e:
-                        st.error(f"请求异常：{e}")
-    with col_tips:
-        st.markdown("""
-        <div class="info-tip">
-        <b>💡 创作优化提示</b><br/>
-        • 主题描述越具体，生成脚本质量越高<br/>
-        • 抖音适配短平快钩子，小红书侧重图文氛围感<br/>
-        • B站适合长剧情、深度科普类内容<br/>
-        • 每次自动生成3套差异化方案，附带量化评分推荐
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+                            st.error("用户名或密码错误")
+        with t2:
+            with st.form("register"):
+                ru = st.text_input("用户名", placeholder="3-20位字母数字")
+                rp = st.text_input("密码", type="password", placeholder="至少6位")
+                rp2 = st.text_input("确认密码", type="password")
+                if st.form_submit_button("注册", use_container_width=True):
+                    if not ru or not rp: st.warning("请填写完整")
+                    elif rp != rp2: st.error("两次密码不一致")
+                    elif len(rp) < 6: st.error("密码至少6位")
+                    else:
+                        r = api("/auth/register", "POST", {"username": ru, "password": rp})
+                        if r and r.status_code == 200: st.success("注册成功，请登录")
+                        else: st.error("注册失败，用户名可能已存在")
 
-    # 方案展示卡片
-    st.markdown('<div class="primary-card">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">📄 AI生成创作方案（A/B/C三套）</div>', unsafe_allow_html=True)
-    if len(st.session_state.schemes_list) > 0:
-        scheme_cols = st.columns(3)
-        for idx, item in enumerate(st.session_state.schemes_list):
-            with scheme_cols[idx]:
-                st.markdown(f"""
-                <div class="scheme-wrap">
-                    <div class="version-badge">方案 {item['version']}</div>
-                    <div class="scheme-name">{item['title']}</div>
-                    <div class="scheme-desc">{item['description']}</div>
-                    <span class="platform-tag">{item['platform']}</span>
-                    <div class="recommend-panel">
-                        <div class="rec-title">⭐ 系统推荐理由</div>
-                        <div class="rec-text">{item['reason']}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        col_export, col_compare = st.columns([1,1])
-        with col_export:
-            if st.button("📥 导出全部方案 Markdown", use_container_width=True):
-                st.info("正在请求后端导出接口 /api/export，文件下载中...")
-        with col_compare:
-            if st.button("🔍 A/B方案对比分析", use_container_width=True):
-                st.info("跳转方案对比模块，调用后端/compare接口进行维度打分对比")
-    else:
-        st.markdown('<div class="empty-container">暂无创作方案，填写上方参数点击「一键创作」生成内容 🎬</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+# ====================== 公共组件 ======================
+def show_scheme_cards(schemes, show_detail=True, show_export=True):
+    """展示方案卡片（三列布局）"""
+    if not schemes: return
+    schemes = [clean_scheme(s) for s in schemes]
+    cols = st.columns(len(schemes))
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    for i, s in enumerate(schemes):
+        rank = s.get("rank", i + 1)
+        with cols[i]:
+            st.markdown(f"""
+            <div class="card">
+                <span style="color:#7c3aed;font-weight:700;font-size:14px;">
+                    方案 {s.get('version', '?')} {medals.get(rank, '')}
+                </span>
+                <h4>{s.get('title', '未命名')}</h4>
+                <p style="font-size:13px;opacity:0.7;line-height:1.6;">{s.get('hook', '')[:120]}</p>
+                <p>
+                    <b style="color:#16a34a;">⭐ {s.get('score', 0)}</b>
+                    &nbsp; 🎬 {len(s['scenes'])} 场景 &nbsp;
+                    {rank}/{len(schemes)}
+                </p>
+                <p style="font-size:12px;opacity:0.5;">🏷️ {' '.join(s['hashtags'][:3])}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-# ====================== 页面3：历史记录页面 ======================
-def render_history_page():
-    st.markdown('<div class="primary-card">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">📋 历史创作会话记录</div>', unsafe_allow_html=True)
-    if len(st.session_state.schemes_list) == 0:
-        st.markdown('<div class="empty-container">暂无历史创作记录，前往工作台生成第一条内容</div>', unsafe_allow_html=True)
-    else:
-        st.dataframe(pd.DataFrame(st.session_state.schemes_list), use_container_width=True)
-        st.download_button("导出历史记录CSV", data=pd.DataFrame(st.session_state.schemes_list).to_csv(index=False), file_name="创作历史记录.csv")
-    st.markdown('</div>', unsafe_allow_html=True)
+            if show_detail:
+                with st.expander("📋 完整详情"):
+                    st.markdown(f"**标题：** {s.get('title')}")
+                    st.markdown(f"**钩子：** {s.get('hook')}")
+                    st.markdown(f"**封面：** {s.get('cover_text', '无')}")
+                    st.markdown(f"**标签：** {' '.join(s.get('hashtags') or [])}")
+                    st.divider()
+                    st.markdown("**🎬 分镜脚本：**")
+                    scenes = s.get("scenes") or []
+                    # 优先展示结构化 scenes；无 scenes 则从 storyboard_json/raw_markdown 渲染
+                    raw_md = s.get("raw_markdown") or (s.get("storyboard_json") or {}).get("raw_markdown", "")
+                    if scenes:
+                        for sc in scenes:
+                            vo = sc.get('voiceover', '')
+                            st.markdown(
+                                f"**{sc.get('seq')}.** [{sc.get('type','')}] "
+                                f"`{sc.get('duration','')}` — {sc.get('description','')}"
+                            )
+                            if vo: st.caption(f"🎤 {vo[:200]}")
+                    if raw_md:
+                        st.markdown("**📝 完整脚本预览：**")
+                        st.markdown(raw_md[:3000])
+                        if len(raw_md) > 3000:
+                            st.caption(f"（共 {len(raw_md)} 字符，下载 Markdown 查看完整内容）")
+                    if not scenes and not raw_md:
+                        st.info("暂无详细脚本数据")
+                    reason = s.get('recommendation_reason', '')
+                    if reason:
+                        st.markdown(f"**推荐理由：** {reason}")
 
-# ====================== 页面4：数据看板 ======================
-def render_dashboard_page():
-    st.markdown('<div class="primary-card">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">📊 创作数据统计看板</div>', unsafe_allow_html=True)
-    df = st.session_state.sample_stats
-    col1, col2 = st.columns(2)
-    with col1:
-        fig_bar = px.bar(df, x="平台", y="数量", color="平台", title="各平台样例素材数量分布", color_discrete_sequence=["#7c3aed","#a78bfa","#c4b5fd"])
-        st.plotly_chart(fig_bar, use_container_width=True)
-    with col2:
-        fig_pie = px.pie(df, values="数量", names="主题", title="创作主题分类占比")
-        st.plotly_chart(fig_pie, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+            if show_export and s.get("id"):
+                r = api(f"/export/{s['id']}?format=md")
+                if r and r.status_code == 200:
+                    st.download_button(
+                        f"📥 下载方案 {s.get('version','?')}",
+                        r.text, f"方案{s.get('version','')}_{s['id']}.md",
+                        mime="text/markdown", key=f"dl_{s.get('id','')}",
+                        use_container_width=True,
+                    )
 
-# ====================== 主路由分发逻辑 ======================
-def main():
-    if not st.session_state.token:
-        render_login_page()
-    else:
-        render_sidebar()
-        if st.session_state.current_page == "📝 工作台":
-            render_workbench()
-        elif st.session_state.current_page == "📋 历史记录":
-            render_history_page()
-        elif st.session_state.current_page == "📊 数据看板":
-            render_dashboard_page()
+# ====================== 创作工作台 ======================
+def workbench_page():
+    st.title("🚀 创作工作台")
+    st.caption("填写创作参数，AI Agent 流水线将自动生成 3 套差异化方案")
 
-if __name__ == "__main__":
-    main()
+    # 输入区
+    with st.container(border=True):
+        with st.form("create"):
+            c1, c2 = st.columns(2)
+            with c1:
+                topic = st.text_input("创作主题 *", placeholder="例：秋季护肤好物推荐")
+                audience = st.text_input("目标受众", placeholder="例：25-35岁职场女性")
+            with c2:
+                platform = st.selectbox("发布平台", ["抖音", "小红书", "B站"])
+                duration = st.selectbox("视频时长", ["30秒", "60秒", "3分钟"])
+            style = st.selectbox("内容风格", ["干货科普", "轻娱乐", "情感走心", "剧情故事", "测评种草"])
+            go = st.form_submit_button("✨ 一键启动 AI 创作", use_container_width=True)
+
+            if go:
+                if not topic:
+                    st.error("请填写创作主题")
+                else:
+                    pm = {"抖音": "douyin", "小红书": "xiaohongshu", "B站": "bilibili"}
+                    dm = {"30秒": "30s", "60秒": "60s", "3分钟": "3min"}
+                    r = api("/creation/start", "POST", {
+                        "topic": topic, "target_audience": audience or "通用",
+                        "platform": pm[platform], "duration": dm[duration], "style": style,
+                    })
+                    if r is None:
+                        st.error("❌ 无法连接后端服务 (http://127.0.0.1:8000)")
+                    elif r.status_code in (200, 202):
+                        d = r.json()
+                        st.session_state.task_id = d["task_id"]
+                        st.session_state.task_status = d["status"]
+                        st.session_state.schemes = []
+                        st.success("任务已提交，Agent 正在创作中...")
+                        st.rerun()
+                    else:
+                        st.error(f"提交失败 HTTP {r.status_code}: {r.text[:200]}")
+
+    # 任务轮询
+    if st.session_state.task_id and st.session_state.task_status not in ("completed", "failed"):
+        placeholder = st.empty()
+        progress_bar = st.progress(0, "Agent 流水线处理中...")
+        for i in range(30):
+            r = api(f"/task/{st.session_state.task_id}/status")
+            if not r: break
+            d = r.json()
+            st.session_state.task_status = d["status"]
+            progress_bar.progress(min((i + 1) / 15, 0.95), d.get("progress", "处理中..."))
+            if d["status"] == "completed":
+                result = d.get("result", {})
+                st.session_state.schemes = result.get("schemes", [])
+                st.session_state.task_status = "completed"
+                placeholder.empty(); progress_bar.empty()
+                st.success(f"🎉 创作完成！AI 生成了 {len(st.session_state.schemes)} 个方案")
+                st.rerun()
+            elif d["status"] == "failed":
+                placeholder.error(f"创作失败：{d.get('result', {}).get('detail', '未知错误')}")
+                st.session_state.task_status = "failed"
+                progress_bar.empty()
+                st.rerun()
+            time.sleep(3)
+        else:
+            progress_bar.empty()
+            st.warning("处理时间较长，后台仍在运行，稍后刷新查看")
+
+    # 方案展示
+    if st.session_state.schemes:
+        st.divider()
+        st.subheader(f"📄 生成方案（{len(st.session_state.schemes)} 个）")
+        show_scheme_cards(st.session_state.schemes)
+
+        # 操作栏
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            ids = [s["id"] for s in st.session_state.schemes if "id" in s]
+            if len(ids) >= 2 and st.button("🔍 A/B 方案对比分析", use_container_width=True):
+                r = api("/schemes/compare", "POST", {"scheme_ids": ids[:2]})
+                if r and r.status_code == 200:
+                    st.info(r.json().get("diff_summary", "对比结果获取中..."))
+        with c2:
+            if st.button("📦 导出全部方案 JSON", use_container_width=True):
+                import json as _json
+                st.download_button("下载 JSON", _json.dumps(st.session_state.schemes, ensure_ascii=False, indent=2),
+                                   "全部方案.json", "application/json", use_container_width=True)
+        with c3:
+            if st.button("🔄 开始新创作", use_container_width=True):
+                st.session_state.task_id = None
+                st.session_state.task_status = None
+                st.session_state.schemes = []
+                st.rerun()
+
+    if not st.session_state.task_id:
+        st.info("👆 填写主题和参数，点击「一键启动 AI 创作」")
+
+# ====================== 方案浏览 ======================
+def schemes_page():
+    st.title("📋 方案浏览")
+    st.caption("查看历史会话的所有生成方案，支持对比和导出")
+
+    r = api("/history?page=1&size=50")
+    if not r or r.status_code != 200:
+        st.error("无法加载历史记录")
+        return
+
+    items = r.json().get("items", [])
+    if not items:
+        st.info("暂无创作记录，请前往工作台生成内容")
+        return
+
+    # 选会话
+    sid = st.selectbox(
+        "选择创作会话",
+        [it["session_id"] for it in items],
+        format_func=lambda x: f"#{x} — {next((i['topic'] for i in items if i['session_id'] == x), '')} ({next((i.get('scheme_count', 0) for i in items if i['session_id'] == x), 0)}个方案)"
+    )
+
+    if st.button("🔍 加载方案", use_container_width=True, type="primary"):
+        r2 = api(f"/schemes?session_id={sid}")
+        if r2 and r2.status_code == 200:
+            data = r2.json()
+            schemes = data.get("schemes", [])
+            if schemes:
+                st.success(f"会话 #{sid} — {data.get('topic', '')}")
+                show_scheme_cards(schemes)
+                # 一键对比
+                ids = [s["id"] for s in schemes if "id" in s]
+                if len(ids) >= 2 and st.button("🔍 A/B 方案对比", use_container_width=True):
+                    r3 = api("/schemes/compare", "POST", {"scheme_ids": ids[:2]})
+                    if r3 and r3.status_code == 200:
+                        st.info(r3.json().get("diff_summary", ""))
+            else:
+                st.warning("该会话无方案数据")
+
+# ====================== 历史记录 ======================
+def history_page():
+    st.title("📜 历史记录")
+    st.caption("浏览和管理所有创作会话")
+
+    page = st.number_input("页码", 1, 100, 1, key="hist_page")
+    r = api("/history", "GET", {"page": page, "size": 10})
+    if not r or r.status_code != 200:
+        st.error("无法加载历史记录")
+        return
+
+    data = r.json()
+    items = data.get("items", [])
+    total = data.get("total", 0)
+    if not items:
+        st.info("暂无创作记录")
+        return
+
+    st.metric("总创作会话", total)
+    st.divider()
+
+    rows = []
+    for it in items:
+        rows.append({
+            "会话ID": it["session_id"],
+            "主题": it.get("topic", ""),
+            "平台": {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}.get(it.get("platform", ""), ""),
+            "方案数": f"{it.get('scheme_count', 0)}个",
+            "状态": {"completed": "✅完成", "pending": "⏳排队", "processing": "🔄处理中", "failed": "❌失败"}.get(it.get("status", ""), it.get("status", "")),
+            "创建时间": it.get("created_at", "")[:19],
+        })
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    # 选会话查看方案
+    st.divider()
+    sel = st.selectbox("选择一个会话查看详情", [it["session_id"] for it in items],
+                       format_func=lambda x: f"#{x} — {next((i['topic'] for i in items if i['session_id'] == x), '')}")
+    if st.button("📋 查看方案", use_container_width=True):
+        r2 = api(f"/schemes?session_id={sel}")
+        if r2 and r2.status_code == 200:
+            schemes = r2.json().get("schemes", [])
+            if schemes:
+                show_scheme_cards(schemes)
+
+# ====================== 数据看板 ======================
+def dashboard_page():
+    st.title("📊 数据看板")
+    st.caption("知识库样例数据统计分析")
+
+    r = api("/stats/samples")
+    if not r or r.status_code != 200:
+        st.warning("无法获取统计数据")
+        return
+
+    d = r.json()
+
+    # 指标行
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.markdown(f'<div class="metric-box"><h3>{d.get("total_samples", 0)}</h3><p>样例总数</p></div>', unsafe_allow_html=True)
+    td = d.get("topic_distribution", [])
+    with m2:
+        st.markdown(f'<div class="metric-box"><h3>{len(td)}</h3><p>主题分类</p></div>', unsafe_allow_html=True)
+    pd_data = d.get("platform_distribution", [])
+    with m3:
+        st.markdown(f'<div class="metric-box"><h3>{len(pd_data)}</h3><p>覆盖平台</p></div>', unsafe_allow_html=True)
+    md = d.get("monthly_trends", [])
+    with m4:
+        st.markdown(f'<div class="metric-box"><h3>{len(md)}</h3><p>月度数据点</p></div>', unsafe_allow_html=True)
+
+    # 图表
+    c1, c2 = st.columns(2)
+    with c1:
+        if td:
+            st.plotly_chart(
+                px.pie(pd.DataFrame(td), values="count", names="name", title="主题分布",
+                       color_discrete_sequence=px.colors.sequential.Purples_r),
+                use_container_width=True
+            )
+        if md:
+            st.plotly_chart(
+                px.line(pd.DataFrame(md), x="month", y="count", title="月度趋势", markers=True,
+                        color_discrete_sequence=["#7c3aed"]),
+                use_container_width=True
+            )
+    with c2:
+        if pd_data:
+            labels = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
+            df = pd.DataFrame(pd_data)
+            df["平台"] = df["platform"].map(labels).fillna(df["platform"])
+            st.plotly_chart(
+                px.bar(df, x="平台", y="count", color="平台", title="平台分布",
+                       color_discrete_sequence=["#7c3aed", "#a78bfa", "#c4b5fd"]),
+                use_container_width=True
+            )
+
+# ====================== 知识库搜索 ======================
+def knowledge_page():
+    st.title("🔍 知识库搜索")
+    st.caption("语义检索 50 条样例数据，查看相似内容和引用来源")
+
+    with st.container(border=True):
+        q = st.text_input("搜索关键词", placeholder="例：短视频脚本、游戏剧情、品牌宣传")
+        top = st.slider("返回条数", 1, 20, 5)
+        if st.button("🔍 搜索", use_container_width=True, type="primary"):
+            if q:
+                r = api(f"/knowledge/search?q={q}&top_k={top}")
+                if r and r.status_code == 200:
+                    results = r.json().get("results", [])
+                    if results:
+                        st.success(f"找到 {len(results)} 条结果")
+                        for item in results:
+                            with st.container(border=True):
+                                c1, c2 = st.columns([4, 1])
+                                with c1:
+                                    st.markdown(f"**{item.get('title', '')}**")
+                                    st.caption(item.get("content_snippet", "")[:200])
+                                    st.markdown(
+                                        f"🏷️ {' '.join(item.get('tags') or [])}  "
+                                        f"| 📱 {item.get('platform', '')}  "
+                                        f"| 📅 {item.get('published_at', '')}"
+                                    )
+                                with c2:
+                                    st.metric("相似度", f"{item.get('similarity', 0):.3f}")
+                                st.caption(f"来源：{item.get('source', '')}")
+                    else:
+                        st.info("未找到相关结果")
+                else:
+                    st.error("搜索失败，请确认知识库服务可用")
+            else:
+                st.warning("请输入搜索关键词")
+
+# ====================== 主路由 ======================
+if not st.session_state.token:
+    login_page()
+else:
+    with st.sidebar:
+        st.markdown("## 🎬 AI 创作助手")
+        st.markdown(f"👤 **{st.session_state.user}**")
+        st.divider()
+
+        # 导航（用 radio 保证单一选中）
+        page = st.radio(
+            "导航",
+            ["🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"],
+            index=["🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"].index(
+                {"工作台": "🚀 工作台", "方案浏览": "📋 方案浏览", "历史记录": "📜 历史记录",
+                 "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"}.get(
+                    st.session_state.page, "🚀 工作台"
+                )
+            ) if st.session_state.page in {"工作台": "🚀 工作台", "方案浏览": "📋 方案浏览",
+                "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"} else 0,
+            label_visibility="collapsed",
+        )
+        # 更新 page
+        page_map = {"🚀 工作台": "工作台", "📋 方案浏览": "方案浏览", "📜 历史记录": "历史记录",
+                     "📊 数据看板": "数据看板", "🔍 知识库搜索": "知识库搜索"}
+        st.session_state.page = page_map[page]
+
+        st.divider()
+        if st.button("🚪 退出登录", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
+
+    # 页面路由
+    routers = {
+        "工作台": workbench_page, "方案浏览": schemes_page,
+        "历史记录": history_page, "数据看板": dashboard_page,
+        "知识库搜索": knowledge_page,
+    }
+    routers.get(st.session_state.page, workbench_page)()

@@ -320,7 +320,10 @@ def dify_provider(prompt: str, config: dict, on_chunk: Callable | None = None) -
 # DeepSeek Provider — OpenAI 兼容接口直连
 # 来源：Day13 deepseek_client.py
 # ---------------------------------------------------------------------------
-def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None) -> dict[str, Any]:
+def deepseek_provider(
+    prompt: str, config: dict, tools: list[dict] | None = None,
+    tool_results: list[dict] | None = None,
+) -> dict[str, Any]:
     api_key = str(config.get("api_key", "")).strip()
     if not api_key:
         raise ValueError("DeepSeek 配置不完整，请填写 api_key")
@@ -350,6 +353,7 @@ def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
+    # 第一轮调用
     response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=120)
     if not response.ok:
         raise RuntimeError(f"DeepSeek 请求失败：HTTP {response.status_code} {response.text[:300]}")
@@ -358,12 +362,61 @@ def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None
     choice = data.get("choices", [{}])[0]
     message = choice.get("message", {})
 
-    # 处理 Function Calling 返回
-    if message.get("tool_calls"):
+    # 处理 Function Calling：自动执行工具并回传结果
+    if message.get("tool_calls") and not tool_results:
+        tool_calls = message["tool_calls"]
+        # 将第一条 assistant 消息 + tool 结果加入对话
+        messages.append({"role": "assistant", "content": message.get("content") or "", "tool_calls": tool_calls})
+
+        # 执行工具（内联，避免循环依赖）
+        for tc in tool_calls:
+            func_name = tc.get("function", {}).get("name", "")
+            func_args = {}
+            try:
+                func_args = json.loads(tc.get("function", {}).get("arguments", "{}"))
+            except Exception:
+                pass
+            # 调用本地工具
+            tool_output = _execute_local_tool(func_name, func_args)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc.get("id", ""),
+                "content": json.dumps(tool_output, ensure_ascii=False),
+            })
+
+        # 第二轮调用：发送工具结果获取最终答案
+        payload2 = {**payload, "messages": messages}
+        resp2 = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload2, timeout=120)
+        if resp2.ok:
+            data2 = resp2.json()
+            choice2 = data2.get("choices", [{}])[0]
+            msg2 = choice2.get("message", {})
+            answer2 = text_from_value(msg2.get("content", ""))
+            if answer2:
+                return {
+                    "ok": True,
+                    "answer": answer2,
+                    "run_id": data2.get("id", ""),
+                    "raw": data2,
+                }
+
+        # 工具调用失败 → 降级：不带工具重新请求
+        fallback_payload = {k: v for k, v in payload.items() if k not in ("tools", "tool_choice")}
+        resp3 = requests.post(f"{base_url}/chat/completions", headers=headers, json=fallback_payload, timeout=120)
+        if resp3.ok:
+            data3 = resp3.json()
+            choice3 = data3.get("choices", [{}])[0]
+            msg3 = choice3.get("message", {})
+            return {
+                "ok": True,
+                "answer": text_from_value(msg3.get("content", "")) or "DeepSeek 没有返回内容。",
+                "run_id": data3.get("id", ""),
+                "raw": data3,
+            }
+
         return {
             "ok": True,
             "answer": text_from_value(message.get("content", "")),
-            "tool_calls": message["tool_calls"],
             "run_id": data.get("id", ""),
             "raw": data,
         }
@@ -376,6 +429,15 @@ def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None
     }
 
 
+def _execute_local_tool(name: str, args: dict) -> dict:
+    """本地工具执行（内联版，供 deepseek_provider 内部使用）"""
+    try:
+        from p4_agent.tools import execute_tool
+        return execute_tool(name, args)
+    except Exception:
+        return {"error": f"工具 {name} 执行失败", "args": args}
+
+
 # ---------------------------------------------------------------------------
 # 统一调度
 # ---------------------------------------------------------------------------
@@ -383,7 +445,15 @@ def run_provider(
     provider: str, prompt: str, config: dict | None = None,
     on_chunk: Callable | None = None, tools: list[dict] | None = None,
 ) -> dict[str, Any]:
-    """统一的 Provider 调度入口。"""
+    """统一的 Provider 调度入口。config 为 None 时自动加载 providers.json。"""
+    if config is None:
+        import os as _os
+        _config_path = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "config", "providers.json")
+        try:
+            with open(_config_path, "r", encoding="utf-8") as _f:
+                config = json.load(_f)
+        except Exception:
+            config = {}
     cfg = config or {}
     provider = provider.lower().strip()
 

@@ -25,15 +25,15 @@
     "description": "Dify自托管平台 (Day11 Docker部署)"
   },
   "deepseek": {
-    "enabled": false,
+    "enabled": true,
     "base_url": "https://api.deepseek.com/v1",
     "api_key": "你的_DeepSeek_API_Key",
-    "model": "deepseek-chat",
+    "model": "deepseek-v4-flash",
     "temperature": 0.7,
     "max_tokens": 4096,
-    "description": "DeepSeek API直连，OpenAI兼容接口 (Day09/13经验)"
+    "description": "DeepSeek API直连，OpenAI兼容接口"
   },
 
-  "default_provider": "mock",
+  "default_provider": "deepseek",
   "note": "开发阶段使用mock，联调时切coze/dify，答辩演示mo​​ck做兜底防翻车"
 }
