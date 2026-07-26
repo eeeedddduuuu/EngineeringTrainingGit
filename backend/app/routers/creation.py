@@ -645,6 +645,48 @@ def delete_uploaded_file(
     return {"message": f"文件 {target['filename']} 已删除"}
 
 
+@router.get("/uploads/{file_id}/analysis")
+def get_upload_analysis(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """获取已上传素材的分析结果（announcement 要求）"""
+    user_files = _uploaded_files.get(current_user.id, [])
+    target = None
+    for f in user_files:
+        if f["file_id"] == file_id:
+            target = f
+            break
+    if not target:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "detail": "文件不存在"})
+
+    image_path = target.get("path", "")
+    analysis_text = _analyze_image(image_path) if image_path else "[无本地文件]"
+
+    # 同时检查是否有 MaterialAnalysis 记录
+    from app.models.business import MaterialAnalysis
+    db = SessionLocal()
+    try:
+        existing = db.query(MaterialAnalysis).filter(
+            MaterialAnalysis.user_id == current_user.id,
+            MaterialAnalysis.file_path == image_path,
+        ).order_by(MaterialAnalysis.created_at.desc()).first()
+        db_analysis = existing.analysis_result if existing else None
+    finally:
+        db.close()
+
+    return {
+        "file_id": file_id,
+        "filename": target.get("filename", ""),
+        "file_type": target.get("type", ""),
+        "file_size": target.get("size", 0),
+        "uploaded_at": target.get("uploaded_at", ""),
+        "analysis": analysis_text,
+        "material_analysis": db_analysis,
+        "status": "completed" if analysis_text else "pending",
+    }
+
+
 # ====================== 多模态素材分析 API ======================
 
 @router.post("/creation/analyze")

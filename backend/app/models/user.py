@@ -11,5 +11,6 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     email = Column(String(100), default="")
     preferences = Column(JSON, default=dict)  # {"platforms":[], "content_types":[], "style":""}
+    coze_api_key = Column(String(255), default=None)  # 扣子 API Token（用户自行绑定）
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

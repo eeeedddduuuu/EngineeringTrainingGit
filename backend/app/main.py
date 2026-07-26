@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import auth, creation, schemes, history, export_routes, stats, knowledge, review
+from app.routers import auth, creation, schemes, history, export_routes, stats, knowledge, review, coze
 
 app = FastAPI(title="AI 数字媒体创作助手", version="0.1.0")
 
@@ -23,6 +23,7 @@ app.include_router(export_routes.router)
 app.include_router(stats.router)       # P5: 真实统计数据（samples.xlsx）
 app.include_router(knowledge.router)    # P5: Chroma向量检索（bge-small-zh-v1.5）
 app.include_router(review.router)
+app.include_router(coze.router)
 
 
 @app.on_event("startup")
