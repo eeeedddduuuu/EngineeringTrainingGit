@@ -48,7 +48,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ### 创作
 | 方法 | 路径 | 说明 | JWT |
 |------|------|------|:--:|
-| POST | `/api/creation/start` | 提交创作任务 | ✅ |
+| POST | `/api/creation/start` | 提交创作任务（支持 `image_url` 多模态） | ✅ |
 | GET | `/api/task/{task_id}/status` | 轮询任务状态 | ✅ |
 | POST | `/api/creation/upload` | 上传素材文件 | ✅ |
 | GET | `/api/creation/uploads` | 列出已上传文件 | ✅ |

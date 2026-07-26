@@ -40,6 +40,7 @@ P4_TIMEOUT = 300
 def _try_p4_create_content(
     topic: str, target_audience: str, platform: str,
     duration: str, style: str, provider: str = "mock",
+    image_url: Optional[str] = None,
 ) -> Optional[dict]:
     """
     尝试调用 P4 的 create_content()。
@@ -64,6 +65,7 @@ def _try_p4_create_content(
             duration=duration,
             style=style,
             provider=provider,
+            image_url=image_url,   # 多模态：素材图片 URL 传入 Agent
             enable_trend=False,    # 跳过热分析
             enable_review=False,   # 跳过合规审查
             enable_strategy=False, # 跳过发布策略（脚本Agent已含推荐）
@@ -192,6 +194,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
     后台线程执行 Agent 流水线：
     - Mock 模式：直接用内置动态 Mock（秒出结果，内容匹配用户主题）
     - DeepSeek 模式：调用 P4 Agent → 超时/失败回退动态 Mock
+    - Coze 模式：调用 P4 Coze Bot → 支持 image_url 多模态
     """
     provider = req.provider  # 用户在前端选择的模式
     provider_names = {"mock": "Mock 离线", "deepseek": "DeepSeek v4", "coze": "Coze 扣子"}
@@ -208,6 +211,8 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
     # DeepSeek / Coze 模式：调用 P4 Agent 流水线
     _task_store[task_id]["progress"] = f"🚀 Agent 流水线启动（{pname}）..."
 
+    image_url = getattr(req, "image_url", None) or None
+
     try:
         _task_store[task_id]["progress"] = f"📊 AI 脚本创作中（{pname}）..."
 
@@ -220,6 +225,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
                 duration=req.duration,
                 style=req.style,
                 provider=provider,
+                image_url=image_url,
             )
             try:
                 p4_result = future.result(timeout=P4_TIMEOUT)
@@ -352,6 +358,7 @@ def start_creation(
         platform=req.platform,
         duration=req.duration,
         style=req.style,
+        image_url=getattr(req, "image_url", None) or None,
         status="pending",
     )
     db.add(session)

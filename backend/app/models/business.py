@@ -14,6 +14,7 @@ class CreationSession(Base):
     platform = Column(String(50), nullable=False)       # douyin / xiaohongshu / bilibili
     duration = Column(String(10), nullable=False)        # 30s / 60s / 3min
     style = Column(String(100))
+    image_url = Column(String(1024))                     # 多模态素材图片 URL（可选）
     status = Column(String(20), default="pending")       # pending / processing / completed / failed
     created_at = Column(DateTime, default=datetime.utcnow)
 
