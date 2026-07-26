@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
@@ -7,6 +8,49 @@ from app.schemas.review import ReviewRequest, ReviewResponse
 from app.utils.deps import get_current_user
 
 router = APIRouter(prefix="/api", tags=["审核"])
+
+
+@router.get("/reviews")
+def list_reviews(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None, pattern=r"^(pending|approved|rejected)$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    审核列表（P2 审核看板使用）
+
+    支持按状态筛选 + 分页，返回审核记录含关联方案信息
+    """
+    q = db.query(Review)
+
+    if status:
+        q = q.filter(Review.status == status)
+
+    total = q.count()
+    reviews = q.order_by(Review.created_at.desc()).offset((page - 1) * size).limit(size).all()
+
+    items = []
+    for r in reviews:
+        scheme = db.query(Scheme).filter(Scheme.id == r.scheme_id).first()
+        items.append({
+            "id": r.id,
+            "scheme_id": r.scheme_id,
+            "scheme_title": scheme.title if scheme else "",
+            "scheme_version": scheme.version if scheme else "",
+            "reviewer_id": r.reviewer_id,
+            "status": r.status,
+            "comment": r.comment,
+            "created_at": str(r.created_at) if r.created_at else None,
+        })
+
+    return {
+        "total": total,
+        "page": page,
+        "size": size,
+        "items": items,
+    }
 
 
 @router.post("/review", response_model=ReviewResponse)

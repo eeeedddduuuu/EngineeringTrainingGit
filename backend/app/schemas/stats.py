@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class TopicDist(BaseModel):
@@ -21,3 +22,12 @@ class StatsResponse(BaseModel):
     topic_distribution: list[TopicDist]
     platform_distribution: list[PlatformDist]
     monthly_trends: list[MonthlyTrend]
+
+
+class DashboardSummary(BaseModel):
+    total_sessions: int          # 总项目
+    in_progress: int             # 进行中
+    pending_review: int          # 待审核
+    completed_this_week: int     # 本周完成
+    total_schemes: int           # 方案总数
+    total_users: int             # 用户总数
