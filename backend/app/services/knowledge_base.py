@@ -63,7 +63,11 @@ class KnowledgeBaseService:
     def embedding_model(self) -> SentenceTransformer:
         if self._embedding_model is None:
             print(f"[KnowledgeBase] 加载 Embedding 模型: {self._model_name}")
-            self._embedding_model = SentenceTransformer(self._model_name)
+            # local_files_only=True: 不从 HuggingFace 拉取，仅用本地缓存
+            # 避免国内网络环境 SSL 验证失败导致 30s+ 超时
+            self._embedding_model = SentenceTransformer(
+                self._model_name, local_files_only=True
+            )
         return self._embedding_model
 
     def embed(self, texts: list[str]) -> list[list[float]]:
