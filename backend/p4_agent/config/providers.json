@@ -1,0 +1,38 @@
+{
+  "mock": {
+    "enabled": true,
+    "description": "本地模拟模式，离线可用，用于开发和演示"
+  },
+  "coze": {
+    "enabled": true,
+    "base_url": "https://api.coze.cn/open_api/v2/chat",
+    "token": "pat_WrQQ0hxQz5gj20RdoxpgDZOCTV0aB1KvpeEcNz7WR1nEfu2LbBTbBPRYaqYJ4t8q",
+    "bot_ids": {
+      "trend":     "7666670347470667819",
+      "script":    "7666671978945789993",
+      "review":    "7666675952436690984",
+      "strategy":  "7666676338371559476"
+    },
+    "user": "p4-agent",
+    "description": "Coze 四 Bot — 全组共用"
+  },
+  "dify": {
+    "enabled": false,
+    "base_url": "http://localhost:8080/v1",
+    "api_key": "你的Dify_Key",
+    "mode": "workflow",
+    "user": "agent-dev-user",
+    "description": "Dify自托管平台（备选）"
+  },
+  "deepseek": {
+    "enabled": false,
+    "base_url": "https://api.deepseek.com/v1",
+    "api_key": "你的DeepSeek_API_Key",
+    "model": "deepseek-chat",
+    "temperature": 0.7,
+    "max_tokens": 4096,
+    "description": "DeepSeek API 直连（备选）"
+  },
+  "default_provider": "coze",
+  "note": "全组共用一份 Coze 配置。Token 2026-08-25 过期，届时更新。"
+}
