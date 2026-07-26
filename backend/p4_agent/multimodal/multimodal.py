@@ -57,7 +57,7 @@ except ImportError:
     HAS_REQUESTS = False
 
 # ── 配置 ──────────────────────────────────────────────────
-API_KEY = os.environ.get("ARK_API_KEY", "你的火山方舟_API_Key")
+API_KEY = _os.environ.get("ARK_API_KEY", "your-ark-api-key-here")
 API_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 MODEL = "doubao-seed-2-0-pro-260215"
 

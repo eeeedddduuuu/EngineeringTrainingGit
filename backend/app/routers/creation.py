@@ -306,6 +306,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
             db.close()
 
             recommendation = p4_result.get("recommendation", {})
+            multimodal_info = p4_result.get("multimodal")  # 多模态分析结果
             _task_store[task_id]["status"] = "completed"
             _task_store[task_id]["progress"] = "✅ 全部完成（P4 Agent 流水线）"
             _task_store[task_id]["result"] = {
@@ -323,6 +324,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
                 ],
                 "recommendation": recommendation,
                 "raw_markdown": raw_md,
+                "multimodal": multimodal_info,
             }
         else:
             # P4 调用失败/超时 → 回退内置 Mock
@@ -402,7 +404,7 @@ async def upload_creation_file(
     - 上传后可在创作请求中通过 uploaded_file_ids 引用
     """
     # 校验扩展名
-    ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov", ".pdf", ".txt", ".md", ".docx"}
+    ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov", ".mp3", ".wav", ".pdf", ".txt", ".md", ".docx"}
     ext = Path(file.filename or "unknown").suffix.lower()
     if ext not in ALLOWED_EXT:
         raise HTTPException(
@@ -493,3 +495,214 @@ def delete_uploaded_file(
 
     _uploaded_files[uid] = [f for f in files if f["file_id"] != file_id]
     return {"message": f"文件 {target['filename']} 已删除"}
+
+
+# ====================== 多模态素材分析 API ======================
+
+@router.post("/creation/analyze")
+async def analyze_material(
+    file: UploadFile = File(..., description="上传素材文件（图片/视频/音频）"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    上传素材文件并调用豆包多模态分析。
+
+    - 图片 → 豆包 2.0 Pro 视觉分析
+    - 视频 → 豆包 2.0 Pro 视频帧分析
+    - 音频 → 本地 Whisper 转录 + 豆包分析
+    - 分析结果保存到 material_analyses 表，支持历史查看
+    """
+    # 校验扩展名
+    image_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+    video_exts = {".mp4", ".mov", ".mkv", ".avi"}
+    audio_exts = {".mp3", ".wav", ".flac", ".ogg", ".m4a"}
+    ALLOWED = image_exts | video_exts | audio_exts
+    ext = Path(file.filename or "unknown").suffix.lower()
+    if ext not in ALLOWED:
+        raise HTTPException(status_code=400, detail={
+            "error": "invalid_file_type", "detail": f"不支持的文件类型 '{ext}'"})
+
+    # 判断类型
+    if ext in image_exts:
+        file_type = "image"
+    elif ext in video_exts:
+        file_type = "video"
+    else:
+        file_type = "audio"
+
+    # 保存文件
+    safe_name = f"{uuid.uuid4().hex}_{file.filename}"
+    dest = UPLOAD_DIR / safe_name
+    try:
+        file_bytes = await file.read()
+        with open(dest, "wb") as f:
+            f.write(file_bytes)
+    except Exception as e:
+        if dest.exists():
+            dest.unlink()
+        raise HTTPException(status_code=500, detail={"error": "upload_failed", "detail": str(e)})
+
+    file_size = len(file_bytes)
+
+    # 创建分析记录
+    from app.models.business import MaterialAnalysis
+    analysis = MaterialAnalysis(
+        user_id=current_user.id,
+        filename=file.filename,
+        file_path=str(dest),
+        file_type=file_type,
+        file_size=file_size,
+        status="processing",
+    )
+    db.add(analysis)
+    db.commit()
+    db.refresh(analysis)
+
+    # 调用多模态分析
+    try:
+        p4_path = Path(__file__).parent.parent.parent / "p4_agent"
+        if str(p4_path) not in sys.path:
+            sys.path.insert(0, str(p4_path))
+
+        from multimodal import analyze_image, analyze_video, transcribe_audio
+
+        if file_type == "image":
+            result = analyze_image(str(dest))
+        elif file_type == "video":
+            result = analyze_video(str(dest))
+        else:
+            result = transcribe_audio(str(dest))
+
+        if result.get("success"):
+            analysis.analysis_result = {
+                "success": True,
+                "content": result.get("content", ""),
+                "usage": result.get("usage", {}),
+                "is_free": result.get("is_free", False),
+                "audio_transcripts": result.get("audio_transcripts", []),
+                "elapsed": result.get("elapsed", 0),
+            }
+            analysis.status = "completed"
+            analysis.provider = "doubao"
+        else:
+            analysis.analysis_result = {"success": False, "error": result.get("error", "不明错误")}
+            analysis.status = "failed"
+            analysis.error_message = result.get("error", "")[:500]
+    except ImportError:
+        analysis.analysis_result = {"success": False, "error": "多模态模块未安装"}
+        analysis.status = "failed"
+        analysis.error_message = "multimodal module not available"
+    except Exception as e:
+        analysis.analysis_result = {"success": False, "error": str(e)}
+        analysis.status = "failed"
+        analysis.error_message = str(e)[:500]
+
+    db.commit()
+    db.refresh(analysis)
+
+    return {
+        "id": analysis.id,
+        "filename": analysis.filename,
+        "file_type": analysis.file_type,
+        "file_size": analysis.file_size,
+        "status": analysis.status,
+        "analysis_result": analysis.analysis_result,
+        "created_at": analysis.created_at.isoformat() if analysis.created_at else None,
+    }
+
+
+@router.get("/creation/analyses")
+def list_material_analyses(
+    page: int = 1,
+    size: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """列出当前用户的所有素材分析记录"""
+    from app.models.business import MaterialAnalysis
+    query = db.query(MaterialAnalysis).filter(
+        MaterialAnalysis.user_id == current_user.id
+    ).order_by(MaterialAnalysis.created_at.desc())
+
+    total = query.count()
+    items = query.offset((page - 1) * size).limit(size).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "size": size,
+        "items": [
+            {
+                "id": a.id,
+                "filename": a.filename,
+                "file_type": a.file_type,
+                "file_size": a.file_size,
+                "status": a.status,
+                "provider": a.provider,
+                "analysis_result": a.analysis_result,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+            }
+            for a in items
+        ],
+    }
+
+
+@router.get("/creation/analyses/{analysis_id}")
+def get_material_analysis(
+    analysis_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取单条素材分析详情"""
+    from app.models.business import MaterialAnalysis
+    a = db.query(MaterialAnalysis).filter(
+        MaterialAnalysis.id == analysis_id,
+        MaterialAnalysis.user_id == current_user.id,
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "detail": "分析记录不存在"})
+
+    return {
+        "id": a.id,
+        "filename": a.filename,
+        "file_type": a.file_type,
+        "file_size": a.file_size,
+        "file_path": a.file_path,
+        "status": a.status,
+        "provider": a.provider,
+        "analysis_result": a.analysis_result,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+    }
+
+
+@router.get("/creation/analyses/{analysis_id}/file")
+def download_material_file(
+    analysis_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """下载/查看原始素材文件（inline 展示图片，attachment 下载视频/音频）"""
+    from app.models.business import MaterialAnalysis
+    from fastapi.responses import FileResponse
+
+    a = db.query(MaterialAnalysis).filter(
+        MaterialAnalysis.id == analysis_id,
+        MaterialAnalysis.user_id == current_user.id,
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "detail": "分析记录不存在"})
+
+    path = Path(a.file_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail={"error": "file_missing", "detail": "原始文件已丢失"})
+
+    # 图片 → inline 预览，视频/音频 → 下载
+    inline_types = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+    disposition = "inline" if path.suffix.lower() in inline_types else "attachment"
+    return FileResponse(
+        path=str(path),
+        filename=a.filename,
+        media_type=a.file_type + "/*" if a.file_type else None,
+        content_disposition_type=disposition,
+    )

@@ -81,3 +81,21 @@ class Review(Base):
     status = Column(String(20), default="pending")       # pending / approved / rejected
     comment = Column(String(1000))
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MaterialAnalysis(Base):
+    """多模态素材分析记录表"""
+    __tablename__ = "material_analyses"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=True)  # 可选关联创作会话
+    filename = Column(String(255), nullable=False)          # 原始文件名
+    file_path = Column(String(500), nullable=False)         # 服务器存储路径
+    file_type = Column(String(50), nullable=False)           # image / video / audio
+    file_size = Column(Integer, default=0)                   # 字节数
+    analysis_result = Column(JSON, nullable=True)            # {"success": True, "content": "...", "usage": {...}}
+    provider = Column(String(20), default="doubao")          # doubao / whisper
+    status = Column(String(20), default="pending")           # pending / processing / completed / failed
+    error_message = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)

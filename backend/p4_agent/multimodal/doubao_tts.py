@@ -50,7 +50,7 @@ except ImportError:
     HAS_REQUESTS = False
 
 # ── 配置 ──────────────────────────────────────────────────
-API_KEY = os.environ.get("TTS_API_KEY", "你的火山引擎_TTS_API_Key")
+API_KEY = os.environ.get("TTS_API_KEY", "769b27b4-b1f7-4eee-b44d-c67c1269c0b7")
 API_BASE = "https://openspeech.bytedance.com/api/v3"
 TTS_URL = f"{API_BASE}/tts/create"
 

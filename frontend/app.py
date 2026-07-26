@@ -64,6 +64,9 @@ def init():
         "token": None, "user": None, "page": "工作台",
         "task_id": None, "task_status": None, "schemes": [],
         "provider": "mock",
+        "uploaded_file_path": None,  # 多模态: 已上传的文件路径
+        "multimodal": None,          # 多模态: AI 分析结果
+        "last_analysis": None,       # 多模态: 本次分析结果（临时展示用）
     }.items():
         if k not in st.session_state: st.session_state[k] = v
 init()
@@ -82,6 +85,16 @@ def api(path, method="GET", data=None):
         return None
     except Exception as e:
         st.error(f"请求异常: {e}")
+        return None
+
+def api_upload(path, files):
+    """文件上传专用"""
+    h = {}
+    if st.session_state.token: h["Authorization"] = f"Bearer {st.session_state.token}"
+    try:
+        r = requests.post(f"{API}{path}", headers=h, files=files, timeout=300)
+        return r
+    except requests.exceptions.ConnectionError:
         return None
 
 # ====================== 登录 ======================
@@ -193,6 +206,66 @@ def workbench_page():
     st.title("🚀 创作工作台")
     st.caption("填写创作参数，AI Agent 流水线将自动生成 3 套差异化方案")
 
+    # ── 多模态素材上传区 ──
+    with st.expander("📎 素材上传（可选 · 多模态分析）", expanded=False):
+        c_up1, c_up2 = st.columns([2, 1])
+        with c_up1:
+            uploaded_file = st.file_uploader(
+                "上传图片/视频/音频，AI 将分析素材内容并生成匹配脚本",
+                type=["png", "jpg", "jpeg", "webp", "gif", "mp4", "mov", "mp3", "wav"],
+                key="file_uploader",
+                label_visibility="collapsed",
+            )
+        with c_up2:
+            st.caption("📷 图片 → 分析画面生成脚本\n🎬 视频 → 分析帧内容\n🎵 音频 → Whisper转录+分析")
+        if uploaded_file:
+            # 上传到后端
+            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+            r = api_upload("/creation/upload", files)
+            if r and r.status_code == 200:
+                data = r.json()
+                st.session_state.uploaded_file_path = data.get("file_path", data.get("filename", ""))
+                st.success(f"✅ 已上传: {uploaded_file.name} ({uploaded_file.size // 1024} KB)")
+            elif r:
+                st.error(f"上传失败: {r.text[:200]}")
+            else:
+                st.error("无法连接后端")
+
+            # ── AI 分析按钮 ──
+            if st.session_state.uploaded_file_path:
+                if st.button("🔍 AI 分析素材内容", use_container_width=True, type="primary",
+                             key="btn_analyze"):
+                    with st.spinner("🤖 豆包 AI 正在分析素材内容..."):
+                        r_ana = api_upload("/creation/analyze", files)
+                    if r_ana and r_ana.status_code == 200:
+                        ana_data = r_ana.json()
+                        st.session_state.last_analysis = ana_data
+                        if ana_data.get("status") == "completed":
+                            st.success("✅ 分析完成！结果已保存至历史记录")
+                    elif r_ana:
+                        st.error(f"分析失败: {r_ana.text[:200]}")
+                    else:
+                        st.error("无法连接后端")
+
+        # ── 展示本次分析结果 ──
+        if st.session_state.get("last_analysis"):
+            ana = st.session_state.last_analysis
+            ar = ana.get("analysis_result") or {}
+            if ana.get("status") == "completed" and ar.get("success"):
+                with st.container(border=True):
+                    st.markdown("**🔍 素材分析结果**")
+                    st.markdown(ar.get("content", "")[:3000])
+                    usage = ar.get("usage", {})
+                    if usage:
+                        free_tag = " [FREE]" if ar.get("is_free") else ""
+                        st.caption(
+                            f"📊 token: {usage.get('total_tokens', '?')} "
+                            f"(in:{usage.get('prompt_tokens', '?')}/out:{usage.get('completion_tokens', '?')}){free_tag}"
+                        )
+            elif ana.get("status") == "failed":
+                st.warning(f"分析失败: {ar.get('error', '未知错误')}")
+    # ── 多模态上传区结束 ──
+
     # 输入区
     with st.container(border=True):
         with st.form("create"):
@@ -212,11 +285,17 @@ def workbench_page():
                 else:
                     pm = {"抖音": "douyin", "小红书": "xiaohongshu", "B站": "bilibili"}
                     dm = {"30秒": "30s", "60秒": "60s", "3分钟": "3min"}
-                    r = api("/creation/start", "POST", {
+                    payload = {
                         "topic": topic, "target_audience": audience or "通用",
                         "platform": pm[platform], "duration": dm[duration], "style": style,
                         "provider": st.session_state.provider,
-                    })
+                    }
+                    # 多模态：传入已上传素材路径
+                    if st.session_state.uploaded_file_path:
+                        payload["image_url"] = st.session_state.uploaded_file_path
+                        st.caption(f"📎 已附加素材: {st.session_state.uploaded_file_path}")
+
+                    r = api("/creation/start", "POST", payload)
                     if r is None:
                         st.error("❌ 无法连接后端服务 (http://127.0.0.1:8000)")
                     elif r.status_code in (200, 202):
@@ -224,6 +303,7 @@ def workbench_page():
                         st.session_state.task_id = d["task_id"]
                         st.session_state.task_status = d["status"]
                         st.session_state.schemes = []
+                        st.session_state.uploaded_file_path = None  # 清空已上传路径
                         st.success("任务已提交，Agent 正在创作中...")
                         st.rerun()
                     else:
@@ -242,6 +322,7 @@ def workbench_page():
             if d["status"] == "completed":
                 result = d.get("result", {})
                 st.session_state.schemes = result.get("schemes", [])
+                st.session_state.multimodal = result.get("multimodal")  # 多模态分析结果
                 st.session_state.task_status = "completed"
                 placeholder.empty(); progress_bar.empty()
                 st.success(f"🎉 创作完成！AI 生成了 {len(st.session_state.schemes)} 个方案")
@@ -258,6 +339,25 @@ def workbench_page():
 
     # 方案展示
     if st.session_state.schemes:
+        # ── 多模态分析结果展示 ──
+        mm = st.session_state.get("multimodal")
+        if mm and mm.get("success"):
+            with st.expander("🔍 AI 素材分析结果", expanded=True):
+                content = mm.get("image_analysis") or mm.get("content") or ""
+                if content:
+                    st.markdown(content)
+                usage = mm.get("usage", {})
+                if usage:
+                    free_tag = " [FREE]" if mm.get("is_free") else ""
+                    st.caption(
+                        f"📊 token: {usage.get('total_tokens', '?')} "
+                        f"(in:{usage.get('prompt_tokens', '?')}/out:{usage.get('completion_tokens', '?')}){free_tag}"
+                    )
+        elif mm and not mm.get("success"):
+            with st.expander("🔍 AI 素材分析结果", expanded=False):
+                st.warning(f"素材分析失败: {mm.get('error', '未知错误')}")
+        # ── 多模态展示结束 ──
+
         st.divider()
         st.subheader(f"📄 生成方案（{len(st.session_state.schemes)} 个）")
         show_scheme_cards(st.session_state.schemes)
@@ -280,6 +380,8 @@ def workbench_page():
                 st.session_state.task_id = None
                 st.session_state.task_status = None
                 st.session_state.schemes = []
+                st.session_state.multimodal = None
+                st.session_state.last_analysis = None
                 st.rerun()
 
     if not st.session_state.task_id:
@@ -693,6 +795,85 @@ def dashboard_page():
     )
     st.components.v1.html(html, height=2900, scrolling=True)
 
+# ====================== 素材分析历史 ======================
+def material_analysis_page():
+    st.title("🔬 素材分析记录")
+    st.caption("浏览历史所有多模态素材分析结果，支持查看原始素材")
+
+    # 分页参数
+    page_num = st.number_input("页码", 1, 100, 1, key="ma_page")
+    r = api("/creation/analyses", "GET", {"page": page_num, "size": 10})
+    if not r or r.status_code != 200:
+        st.error("无法加载素材分析记录")
+        return
+
+    data = r.json()
+    items = data.get("items", [])
+    total = data.get("total", 0)
+    if total == 0:
+        st.info("暂无素材分析记录，前往「🚀 工作台」上传素材并点击 AI 分析")
+        return
+
+    st.metric("总分析次数", total)
+    st.divider()
+
+    # ── 逐条展示 ──
+    for item in items:
+        ar = item.get("analysis_result") or {}
+        status_icon = {"completed": "✅", "failed": "❌", "processing": "🔄", "pending": "⏳"}.get(
+            item.get("status", ""), "❓")
+        type_icon = {"image": "📷", "video": "🎬", "audio": "🎵"}.get(item.get("file_type", ""), "📎")
+        created = (item.get("created_at") or "")[:19]
+
+        with st.expander(
+            f"{status_icon} {type_icon} {item.get('filename', '?')} — {created}",
+            expanded=False,
+        ):
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                st.markdown(f"**文件信息**")
+                st.caption(f"类型: {item.get('file_type')} | {item.get('file_size', 0) // 1024} KB")
+                st.caption(f"状态: {item.get('status')} | 引擎: {item.get('provider', '?')}")
+                st.caption(f"时间: {created}")
+
+                # ── 原始素材预览/下载 ──
+                ft = item.get("file_type", "")
+                aid = item.get("id")
+                if ft == "image" and aid:
+                    # 图片直接用 API 展示
+                    file_url = f"{API}/creation/analyses/{aid}/file"
+                    # 通过 session token 无法直接用 <img>，用 st.image 请求
+                    try:
+                        h_img = {}
+                        if st.session_state.token:
+                            h_img["Authorization"] = f"Bearer {st.session_state.token}"
+                        resp = requests.get(file_url, headers=h_img, timeout=10)
+                        if resp.status_code == 200:
+                            st.image(resp.content, caption=item.get("filename", ""), use_container_width=True)
+                    except Exception:
+                        st.caption("⚠️ 无法加载原始图片")
+                elif aid:
+                    st.markdown(f"[📥 下载原始文件]({API}/creation/analyses/{aid}/file)")
+
+            with c2:
+                st.markdown("**🔍 AI 分析结果**")
+                if item.get("status") == "completed" and ar.get("success"):
+                    st.markdown(ar.get("content", "")[:5000])
+                    usage = ar.get("usage", {})
+                    if usage:
+                        free_tag = " [FREE]" if ar.get("is_free") else ""
+                        st.caption(
+                            f"📊 token: {usage.get('total_tokens', '?')} "
+                            f"(in:{usage.get('prompt_tokens', '?')}/out:{usage.get('completion_tokens', '?')}){free_tag}"
+                        )
+                elif item.get("status") == "failed":
+                    st.warning(f"分析失败: {ar.get('error', '未知错误')}")
+                elif item.get("status") == "processing":
+                    st.info("分析处理中...")
+
+    st.divider()
+    st.caption(f"共 {total} 条记录，第 {page_num} 页")
+
 # ====================== 知识库搜索 ======================
 def knowledge_page():
     st.title("🔍 知识库搜索")
@@ -788,18 +969,21 @@ else:
         # 导航（用 radio 保证单一选中）
         page = st.radio(
             "导航",
-            ["🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"],
-            index=["🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"].index(
+            ["🚀 工作台", "📋 方案浏览", "📜 历史记录", "🔬 素材分析", "📊 数据看板", "🔍 知识库搜索"],
+            index=["🚀 工作台", "📋 方案浏览", "📜 历史记录", "🔬 素材分析", "📊 数据看板", "🔍 知识库搜索"].index(
                 {"工作台": "🚀 工作台", "方案浏览": "📋 方案浏览", "历史记录": "📜 历史记录",
+                 "素材分析": "🔬 素材分析",
                  "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"}.get(
                     st.session_state.page, "🚀 工作台"
                 )
             ) if st.session_state.page in {"工作台": "🚀 工作台", "方案浏览": "📋 方案浏览",
-                "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"} else 0,
+                "历史记录": "📜 历史记录", "素材分析": "🔬 素材分析",
+                "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"} else 0,
             label_visibility="collapsed",
         )
         # 更新 page
         page_map = {"🚀 工作台": "工作台", "📋 方案浏览": "方案浏览", "📜 历史记录": "历史记录",
+                     "🔬 素材分析": "素材分析",
                      "📊 数据看板": "数据看板", "🔍 知识库搜索": "知识库搜索"}
         st.session_state.page = page_map[page]
 
@@ -811,7 +995,7 @@ else:
     # 页面路由
     routers = {
         "工作台": workbench_page, "方案浏览": schemes_page,
-        "历史记录": history_page, "数据看板": dashboard_page,
-        "知识库搜索": knowledge_page,
+        "历史记录": history_page, "素材分析": material_analysis_page,
+        "数据看板": dashboard_page, "知识库搜索": knowledge_page,
     }
     routers.get(st.session_state.page, workbench_page)()
