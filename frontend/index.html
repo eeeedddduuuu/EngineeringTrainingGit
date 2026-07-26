@@ -123,7 +123,7 @@ body.login-view::before {
 body.app-view { background-color: #faf6f0; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
-  border: none; cursor: pointer; font-weight: 600; font-size: 1rem;
+  border: none; cursor: pointer; font-weight: 600; font-size: 1.05rem;
   transition: all 0.25s ease; font-family: inherit;
   padding: 0.85rem 2rem; border-radius: 40px;
 }
@@ -134,9 +134,9 @@ body.app-view { background-color: #faf6f0; }
 .btn-block { width: 100%; }
 .btn-sm { padding: 0.6rem 1.4rem; font-size: 0.95rem; }
 .input, .select, .textarea {
-  width: 100%; font-family: inherit; font-size: 1rem;
+  width: 100%; font-family: inherit; font-size: 1.05rem;
   background: #fff; border: 1px solid #d4c4b0; border-radius: 16px;
-  padding: 0.9rem 1.1rem; color: #2c2c2c;
+  padding: 1rem 1.2rem; color: #2c2c2c;
   transition: all 0.25s ease; outline: none;
 }
 .input:focus, .select:focus, .textarea:focus {
@@ -146,50 +146,54 @@ body.app-view { background-color: #faf6f0; }
 .input::placeholder { color: #c0b0a0; }
 .textarea { resize: vertical; min-height: 90px; }
 .select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a7a6a' fill='none' stroke-width='1.8'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1.2rem center; padding-right: 2.8rem; }
-label.field-label { display: block; font-weight: 600; font-size: 0.95rem; color: #5f4a34; margin-bottom: 0.4rem; }
+label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color: #5f4a34; margin-bottom: 0.4rem; }
 #app-page { display: none; min-height: 100vh; }
 .sidebar {
-  position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+  position: fixed; top: 0; left: 0; bottom: 0; width: 290px;
   background: #fff; border-right: 1px solid #f0e8de;
-  padding: 1.8rem 1.2rem; display: flex; flex-direction: column;
+  padding: 1.8rem 1.8rem; display: flex; flex-direction: column;
   z-index: 100;
 }
-.sidebar-logo { font-weight: 800; font-size: 1.2rem; color: #3d2c1b; margin-bottom: 0.8rem; }
+.sidebar-logo { font-weight: 700; font-size: 28px; color: #3d2c1b; padding: 0 12px 20px 12px; border-bottom: 1px solid #f0e8de; margin-bottom: 0; }
 .sidebar-logo span { color: #d48c5c; }
 .sidebar-user {
-  display: flex; align-items: center; gap: 0.7rem; padding: 1rem 0.8rem;
-  margin-bottom: 1.2rem; border-bottom: 1px solid #f0e8de;
+  display: flex; align-items: center; gap: 12px; padding: 16px 12px 20px 12px;
+  margin-bottom: 0; border-bottom: 1px solid #f0e8de;
 }
 .sidebar-user .avatar {
-  width: 42px; height: 42px; border-radius: 50%; background: #e8d9cc;
+  width: 46px; height: 46px; border-radius: 50%; background: #e8d9cc;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 1.1rem; color: #7a5f45; flex-shrink: 0;
+  font-weight: 600; font-size: 19px; color: #7a5f45; flex-shrink: 0;
 }
-.sidebar-user .uname { font-weight: 600; color: #3d2c1b; font-size: 1rem; }
-.nav-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
+.sidebar-user .uname { font-weight: 600; color: #3d2c1b; font-size: 20px; }
+.sidebar-user .urole { font-size: 15px; color: #8a7a6a; display: block; }
+.nav-group { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 24px 0; }
 .nav-item {
-  display: flex; align-items: center; gap: 0.7rem;
-  padding: 0.9rem 1rem; border-radius: 16px;
-  font-weight: 500; font-size: 1rem; color: #8a7a6a;
-  cursor: pointer; transition: all 0.2s ease; border: none; background: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 14px; border-radius: 10px;
+  font-weight: 500; font-size: 20px; color: #8a7a6a;
+  cursor: pointer; transition: all 0.15s ease; border: none; background: none;
   font-family: inherit; width: 100%; text-align: left;
 }
 .nav-item:hover { background: #fcf0e5; color: #d48c5c; }
 .nav-item.active { background: #fcf0e5; color: #d48c5c; font-weight: 700; }
-.sidebar-footer { border-top: 1px solid #f0e8de; padding-top: 0.8rem; }
-.main-content { margin-left: 240px; padding: 2.5rem 3rem; min-height: 100vh; }
+.nav-item .nav-icon { font-size: 22px; width: 24px; text-align: center; flex-shrink: 0; }
+.nav-item.logout { color: #b8452a; font-weight: 500; }
+.nav-item.logout:hover { background: #fef2f2; color: #991b1b; }
+.sidebar-footer { border-top: 1px solid #f0e8de; padding-top: 12px; margin-top: auto; }
+.main-content { margin-left: 290px; padding: 2.5rem 3rem; min-height: 100vh; }
 .page { display: none; }
 .page.active { display: block; }
 .page-header { margin-bottom: 2rem; }
-.page-header h2 { font-size: 1.8rem; font-weight: 700; color: #3d2c1b; }
-.page-header p { color: #8a7a6a; font-size: 1rem; margin-top: 0.3rem; }
+.page-header h2 { font-size: 2.2rem; font-weight: 700; color: #3d2c1b; }
+.page-header p { color: #8a7a6a; font-size: 1.1rem; margin-top: 0.3rem; }
 .card {
   background: #fff; border-radius: 24px; padding: 2rem 2.2rem;
   margin-bottom: 1.8rem;
   box-shadow: 0 4px 20px rgba(0,0,0,0.03);
   border: 1px solid #f0e8de;
 }
-.card-title { font-size: 1.2rem; font-weight: 700; color: #2c2c2c; margin-bottom: 1.4rem; }
+.card-title { font-size: 1.35rem; font-weight: 700; color: #2c2c2c; margin-bottom: 1.4rem; }
 .info-card {
   background: #fcf9f5; border-radius: 20px; padding: 1.6rem;
   border: 1px solid #f0e8de;
@@ -198,7 +202,7 @@ label.field-label { display: block; font-weight: 600; font-size: 0.95rem; color:
 .info-card p, .info-card li { color: #7a6a5a; font-size: 0.95rem; line-height: 1.9; }
 .info-card ul { list-style: none; padding: 0; }
 .info-card ul li::before { content: '• '; color: #d48c5c; font-weight: 700; }
-.workbench-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 1.8rem; align-items: start; }
+.workbench-grid { display: grid; grid-template-columns: 2.8fr 1fr; gap: 1.4rem; align-items: start; }
 .schemes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; }
 .scheme-card {
   background: #fcf9f5; border-radius: 22px; padding: 1.6rem;
@@ -285,8 +289,8 @@ label.field-label { display: block; font-weight: 600; font-size: 0.95rem; color:
   .charts-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
-  .sidebar { width: 200px; }
-  .main-content { margin-left: 200px; padding: 1.5rem; }
+  .sidebar { width: 220px; }
+  .main-content { margin-left: 220px; padding: 1.5rem; }
   .kpi-grid { grid-template-columns: 1fr; }
   .login-card { padding: 32px 24px 28px; }
   .login-card .logo h1 { font-size: 22px; }
@@ -336,15 +340,18 @@ label.field-label { display: block; font-weight: 600; font-size: 0.95rem; color:
     <div class="sidebar-logo"><span>AI</span> 创作助手</div>
     <div class="sidebar-user">
       <div class="avatar" id="sidebar-avatar">U</div>
-      <span class="uname" id="sidebar-username">用户</span>
+      <div class="user-info">
+        <span class="uname" id="sidebar-username">用户</span>
+        <span class="urole">创作者 · 已登录</span>
+      </div>
     </div>
     <div class="nav-group">
-      <button class="nav-item active" data-page="workbench">工作台</button>
-      <button class="nav-item" data-page="history">历史记录</button>
-      <button class="nav-item" data-page="dashboard">数据看板</button>
+      <button class="nav-item active" data-page="workbench"><span class="nav-icon">📊</span>工作台</button>
+      <button class="nav-item" data-page="history"><span class="nav-icon">📋</span>历史记录</button>
+      <button class="nav-item" data-page="dashboard"><span class="nav-icon">📈</span>数据看板</button>
     </div>
     <div class="sidebar-footer">
-      <button class="btn btn-ghost btn-block" id="btn-logout" style="justify-content: flex-start;">退出登录</button>
+      <button class="nav-item logout" id="btn-logout"><span class="nav-icon">🚪</span>退出登录</button>
     </div>
   </nav>
   <div class="main-content">
@@ -399,7 +406,7 @@ label.field-label { display: block; font-weight: 600; font-size: 0.95rem; color:
               <input type="file" id="file-input" multiple accept="image/*,audio/*" style="display:none;">
               <div class="file-list" id="file-list"></div>
             </div>
-            <button type="submit" class="btn btn-primary" id="btn-submit" style="font-size:1rem; padding:0.9rem 2.5rem;">🚀 一键启动 AI 创作</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit" style="font-size:1.05rem; padding:1rem 2.5rem;">🚀 一键启动 AI 创作</button>
             <span id="submit-status" style="margin-left:1rem; color:#8a7a6a; font-size:0.95rem;"></span>
           </form>
         </div>
