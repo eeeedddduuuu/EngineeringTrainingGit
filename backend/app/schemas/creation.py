@@ -8,6 +8,7 @@ class CreationRequest(BaseModel):
     platform: str = Field(..., pattern=r"^(douyin|xiaohongshu|bilibili)$")
     duration: str = Field(..., pattern=r"^(30s|60s|3min)$")
     style: str = Field(default="通用", max_length=100)
+    provider: str = Field(default="mock", pattern=r"^(mock|deepseek|coze)$")
 
 
 class TaskStatusResponse(BaseModel):

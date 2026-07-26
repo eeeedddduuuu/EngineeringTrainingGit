@@ -63,6 +63,7 @@ def init():
     for k, v in {
         "token": None, "user": None, "page": "工作台",
         "task_id": None, "task_status": None, "schemes": [],
+        "provider": "mock",
     }.items():
         if k not in st.session_state: st.session_state[k] = v
 init()
@@ -214,6 +215,7 @@ def workbench_page():
                     r = api("/creation/start", "POST", {
                         "topic": topic, "target_audience": audience or "通用",
                         "platform": pm[platform], "duration": dm[duration], "style": style,
+                        "provider": st.session_state.provider,
                     })
                     if r is None:
                         st.error("❌ 无法连接后端服务 (http://127.0.0.1:8000)")
@@ -734,6 +736,15 @@ else:
     with st.sidebar:
         st.markdown("## 🎬 AI 创作助手")
         st.markdown(f"👤 **{st.session_state.user}**")
+        st.divider()
+
+        # AI 模式切换
+        st.caption("🤖 AI 引擎")
+        provider_labels = {"mock": "⚡ Mock 离线（秒出）", "deepseek": "🧠 DeepSeek v4（真实AI）", "coze": "🔗 Coze 扣子（平台）"}
+        pidx = list(provider_labels.keys()).index(st.session_state.provider) if st.session_state.provider in provider_labels else 0
+        selected = st.selectbox("AI引擎", list(provider_labels.values()), index=pidx, label_visibility="collapsed")
+        st.session_state.provider = {v: k for k, v in provider_labels.items()}[selected]
+        st.caption(f"当前：{selected}")
         st.divider()
 
         # 导航（用 radio 保证单一选中）
