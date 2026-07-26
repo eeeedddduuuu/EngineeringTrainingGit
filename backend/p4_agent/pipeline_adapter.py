@@ -24,6 +24,9 @@ def create_content(
     enable_trend: bool = True,
     enable_review: bool = True,
     enable_strategy: bool = True,
+    image_url: str = "",       # P3 多模态：图片路径/URL
+    video_path: str = "",      # P3 多模态：视频路径
+    audio_path: str = "",      # P3 多模态：音频路径
 ) -> dict[str, Any]:
     """
     核心创作入口，接收 P3 CreationRequest 字段，返回可直接入库的结构。
@@ -38,6 +41,9 @@ def create_content(
         enable_trend:   是否启用热点分析
         enable_review:  是否启用合规审查
         enable_strategy:是否启用发布策略
+        image_url:      多模态 — 图片文件路径
+        video_path:     多模态 — 视频文件路径
+        audio_path:     多模态 — 音频文件路径
 
     Returns:
         {
@@ -49,12 +55,35 @@ def create_content(
             "schemes": [...],          # → schemes 表 (已评分+排名)
             "recommendation": {...},
             "raw_markdown": str,       # 脚本 Markdown 原文，供前端渲染
+            "multimodal": {...},       # 多模态分析结果（如有素材输入）
         }
     """
     user_input = (
         f"主题：{topic} | 平台：{platform} | "
         f"受众：{target_audience} | 时长：{duration} | 风格：{style}"
     )
+
+    # ▸ 多模态预处理：图片/视频/音频 → 文本分析注入 Prompt
+    multimodal_result = None
+    if image_url or video_path or audio_path:
+        try:
+            from multimodal import image_to_script, analyze_video, transcribe_audio
+
+            if image_url:
+                multimodal_result = image_to_script(image_url, platform, style)
+            elif video_path:
+                multimodal_result = analyze_video(video_path)
+            elif audio_path:
+                multimodal_result = transcribe_audio(audio_path)
+
+            if multimodal_result and multimodal_result.get("success"):
+                analysis = multimodal_result.get("image_analysis") or multimodal_result.get("content", "")
+                user_input += f"\n\n【素材分析结果】\n{analysis[:2000]}"
+        except ImportError:
+            pass  # multimodal 模块不可用时静默跳过
+        except Exception as exc:
+            multimodal_result = {"success": False, "error": str(exc)}
+    # ▸ 多模态预处理结束
 
     try:
         # 执行完整流水线
@@ -83,6 +112,7 @@ def create_content(
             "schemes": schemes,
             "recommendation": parsed["recommendation"],
             "raw_markdown": parsed["raw_markdown"],
+            "multimodal": multimodal_result,
         }
     except Exception as exc:
         return {
@@ -94,6 +124,7 @@ def create_content(
             "schemes": [],
             "recommendation": {},
             "raw_markdown": "",
+            "multimodal": None,
         }
 
 
