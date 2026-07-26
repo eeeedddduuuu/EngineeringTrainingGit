@@ -698,36 +698,74 @@ def knowledge_page():
     st.title("🔍 知识库搜索")
     st.caption("语义检索 50 条样例数据，查看相似内容和引用来源")
 
+    # 初始化 session_state 持久化存储
+    if "kb_results" not in st.session_state:
+        st.session_state.kb_results = None
+    if "kb_query" not in st.session_state:
+        st.session_state.kb_query = ""
+    if "kb_error" not in st.session_state:
+        st.session_state.kb_error = None
+
     with st.container(border=True):
         q = st.text_input("搜索关键词", placeholder="例：短视频脚本、游戏剧情、品牌宣传")
         top = st.slider("返回条数", 1, 20, 5)
         if st.button("🔍 搜索", use_container_width=True, type="primary"):
-            if q:
-                r = api(f"/knowledge/search?q={q}&top_k={top}")
-                if r and r.status_code == 200:
-                    results = r.json().get("results", [])
-                    if results:
-                        st.success(f"找到 {len(results)} 条结果")
-                        for item in results:
-                            with st.container(border=True):
-                                c1, c2 = st.columns([4, 1])
-                                with c1:
-                                    st.markdown(f"**{item.get('title', '')}**")
-                                    st.caption(item.get("content_snippet", "")[:200])
-                                    st.markdown(
-                                        f"🏷️ {' '.join(item.get('tags') or [])}  "
-                                        f"| 📱 {item.get('platform', '')}  "
-                                        f"| 📅 {item.get('published_at', '')}"
-                                    )
-                                with c2:
-                                    st.metric("相似度", f"{item.get('similarity', 0):.3f}")
-                                st.caption(f"来源：{item.get('source', '')}")
-                    else:
-                        st.info("未找到相关结果")
-                else:
-                    st.error("搜索失败，请确认知识库服务可用")
-            else:
+            if not q.strip():
                 st.warning("请输入搜索关键词")
+            else:
+                with st.spinner("正在检索..."):
+                    # 使用 params dict 传递查询参数，确保中文字符正确 URL 编码
+                    r = api("/knowledge/search", "GET", {"q": q.strip(), "top_k": top})
+                if r is None:
+                    st.session_state.kb_error = "❌ 无法连接后端服务，请确认服务已启动 (http://127.0.0.1:8000)"
+                    st.session_state.kb_results = None
+                    st.session_state.kb_query = ""
+                elif r.status_code == 200:
+                    results = r.json().get("results", [])
+                    st.session_state.kb_results = results
+                    st.session_state.kb_query = q.strip()
+                    st.session_state.kb_error = None
+                elif r.status_code == 401:
+                    st.session_state.kb_error = "❌ 登录已过期，请重新登录"
+                    st.session_state.kb_results = None
+                    st.session_state.kb_query = ""
+                elif r.status_code == 503:
+                    st.session_state.kb_error = "❌ 知识库服务暂不可用，请检查 chromadb 和 Embedding 模型是否正确安装"
+                    st.session_state.kb_results = None
+                    st.session_state.kb_query = ""
+                else:
+                    try:
+                        detail = r.json().get("detail", r.text[:200])
+                    except Exception:
+                        detail = r.text[:200]
+                    st.session_state.kb_error = f"❌ 搜索失败 (HTTP {r.status_code}): {detail}"
+                    st.session_state.kb_results = None
+                    st.session_state.kb_query = ""
+
+    # ── 持久化展示搜索结果（不依赖 st.button 的瞬时状态）──
+    if st.session_state.kb_error:
+        st.error(st.session_state.kb_error)
+
+    if st.session_state.kb_results is not None:
+        results = st.session_state.kb_results
+        if results:
+            st.success(f"🔍 「{st.session_state.kb_query}」— 找到 {len(results)} 条结果")
+            for item in results:
+                with st.container(border=True):
+                    c1, c2 = st.columns([4, 1])
+                    with c1:
+                        st.markdown(f"**{item.get('title', '')}**")
+                        st.caption(item.get("content_snippet", "")[:200])
+                        st.markdown(
+                            f"🏷️ {' '.join(item.get('tags') or [])}  "
+                            f"| 📱 {item.get('platform', '')}  "
+                            f"| 📅 {item.get('published_at', '')}"
+                        )
+                    with c2:
+                        st.metric("相似度", f"{item.get('similarity', 0):.3f}")
+                    st.caption(f"来源：{item.get('source', '')}")
+        else:
+            st.info(f"🔍 「{st.session_state.kb_query}」— 未找到相关结果，请尝试其他关键词")
 
 # ====================== 主路由 ======================
 if not st.session_state.token:
