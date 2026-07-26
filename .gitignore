@@ -16,3 +16,4 @@ uploads/
 .DS_Store
 Thumbs.db
 docs/P4-*.md
+backend/data/
