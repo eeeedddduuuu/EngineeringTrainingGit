@@ -296,7 +296,7 @@ def workbench_page():
     if st.session_state.task_id and st.session_state.task_status not in ("completed", "failed"):
         placeholder = st.empty()
         progress_bar = st.progress(0, "Agent 流水线处理中...")
-        for i in range(30):
+        for i in range(60):
             r = api(f"/task/{st.session_state.task_id}/status")
             if not r: break
             d = r.json()
