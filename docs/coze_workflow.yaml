@@ -1,0 +1,133 @@
+# Coze Agent 工作流配置导出
+# 导出日期：2026-07-26
+# 用途：答辩材料 — 展示 Agent 配置
+
+agents:
+
+  - name: trend_agent
+    display_name: 热点分析助手
+    platform: Coze 扣子
+    role: "短视频趋势分析师，擅长追踪各平台热点话题"
+    capabilities:
+      - 搜索当前热门话题和标签
+      - 分析竞品内容策略
+      - 推荐选题角度
+    plugins:
+      - web_search: "必应搜索 — 获取公开热点数据"
+      - knowledge_search: "知识库检索 — 匹配历史爆款模式"
+    input_format:
+      topic: "创作主题"
+      platform: "目标平台"
+      audience: "目标受众"
+    output_format:
+      hot_topics: "3-5个热门选题"
+      trend_direction: "趋势走向分析"
+      angle_suggestions: "角度建议(每个3-5句)"
+    workflow_steps:
+      - step: 1
+        action: "接收用户需求"
+      - step: 2
+        action: "调用 web_search 搜索当前热点"
+      - step: 3
+        action: "调用 knowledge_search 匹配历史模式"
+      - step: 4
+        action: "输出结构化热点分析报告"
+
+  - name: script_agent
+    display_name: 脚本创作助手
+    platform: Coze 扣子
+    role: "资深短视频编剧，5年经验，为百万粉博主供稿"
+    capabilities:
+      - 根据需求生成3个差异化脚本
+      - 输出详细分镜表（8镜/版本）
+      - 生成标签策略和封面文案
+    plugins:
+      - knowledge_search: "知识库检索 — 获取平台创作规范"
+      - template_matcher: "模板匹配 — 根据平台/时长匹配脚本结构"
+    input_format:
+      topic: "创作主题"
+      platform: "发布平台"
+      audience: "目标受众"
+      duration: "视频时长"
+      style: "内容风格"
+    output_format:
+      version_a: "方案A（硬核/专业风格）"
+      version_b: "方案B（情感/故事风格）"
+      version_c: "方案C（争议/话题风格）"
+      recommendation: "推荐方案+理由"
+    workflow_steps:
+      - step: 1
+        action: "接收热点分析结果+用户需求"
+      - step: 2
+        action: "调用 template_matcher 获取平台模板"
+      - step: 3
+        action: "调用 knowledge_search 获取创作规范"
+      - step: 4
+        action: "生成3版本脚本（每个含8镜分镜表）"
+      - step: 5
+        action: "输出结构化Markdown"
+    prompt_version: "v1"
+    prompt_source: "Day10 Coze 游戏宣发Agent V1.2 + Day09 writer_prompt V3"
+
+  - name: review_agent
+    display_name: 合规审查助手
+    platform: Coze 扣子
+    role: "内容审核专家，精通各平台社区规范"
+    capabilities:
+      - 敏感词检测
+      - 平台合规检查
+      - 风险等级评定
+    plugins:
+      - sensitive_word_filter: "敏感词过滤 — 检测违规内容"
+    input_format:
+      content: "待审查的脚本内容"
+      platform: "目标平台"
+    output_format:
+      risk_level: "pass / review / block"
+      flagged_items: "具体问题项"
+      suggestions: "修改建议"
+    workflow_steps:
+      - step: 1
+        action: "接收脚本创作结果"
+      - step: 2
+        action: "调用 sensitive_word_filter 检查"
+      - step: 3
+        action: "输出风险评定 + 修改建议"
+
+  - name: strategy_agent
+    display_name: 发布策略助手
+    platform: Coze 扣子
+    role: "社交媒体运营专家，服务过50+品牌账号"
+    capabilities:
+      - 多维度评分排名
+      - 最佳发布时间推荐
+      - 预估数据表现
+    plugins:
+      - get_current_time: "时间查询 — 判断最佳发布窗口"
+    input_format:
+      schemes: "3个候选方案"
+      platform: "目标平台"
+    output_format:
+      best_version: "推荐方案"
+      ranking: "评分排名(A/B/C)"
+      reason: "推荐理由(3点)"
+      estimated_data: "完播率/互动率/最佳时间"
+    workflow_steps:
+      - step: 1
+        action: "接收3个候选方案"
+      - step: 2
+        action: "5维度加权评分计算"
+      - step: 3
+        action: "调用 get_current_time 确定最佳发布时间"
+      - step: 4
+        action: "输出推荐+预估数据"
+
+pipeline:
+  name: "AI数字媒体创作流水线"
+  flow: "用户输入 → trend_agent → script_agent → review_agent → strategy_agent → 3方案输出"
+  config:
+    provider: "coze"
+    fallback: "mock"
+    timeout_seconds: 300
+    retry_count: 3
+  note: "答辩演示时若网络不稳定，自动切换Mock模式保证演示效果"

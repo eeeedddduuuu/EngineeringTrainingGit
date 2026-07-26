@@ -27,8 +27,8 @@
   "deepseek": {
     "enabled": false,
     "base_url": "https://api.deepseek.com/v1",
-    "api_key": "你的DeepSeek_API_Key",
-    "model": "deepseek-chat",
+    "api_key": "sk-2b45e263f2e74063ac5bd9585eb05ce5",
+    "model": "deepseek-v4-pro",
     "temperature": 0.7,
     "max_tokens": 4096,
     "description": "DeepSeek API 直连（备选）"

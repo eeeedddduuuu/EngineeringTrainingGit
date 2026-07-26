@@ -25,7 +25,11 @@ def list_schemes(session_id: int = Query(...), current_user: User = Depends(get_
         topic=session.topic,
         platform=session.platform,
         created_at=str(session.created_at),
-        schemes=[SchemeBrief(id=s.id, version=s.version, title=s.title, hook=s.hook, score=s.score or 0, rank=s.rank or 0) for s in schemes]
+        schemes=[SchemeBrief(id=s.id, version=s.version, title=s.title, hook=s.hook,
+            scenes=s.scenes, storyboard_json=s.storyboard_json,
+            hashtags=s.hashtags, cover_text=s.cover_text,
+            score=s.score or 0, rank=s.rank or 0,
+            recommendation_reason=s.recommendation_reason) for s in schemes]
     ).model_dump()
 
 

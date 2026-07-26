@@ -1,17 +1,17 @@
 {
   "total_cost": 0.0,
-  "total_tokens": 6045,
-  "calls": 2,
+  "total_tokens": 25191,
+  "calls": 8,
   "daily": {
     "2026-07-26": {
       "cost": 0.0,
-      "tokens": 6045,
-      "calls": 2
+      "tokens": 25191,
+      "calls": 8
     }
   },
   "free_remaining": {
     "2026-07-26": {
-      "daily_doubao-seed-2-0-pro-260215": 6045
+      "daily_doubao-seed-2-0-pro-260215": 25191
     }
   }
 }

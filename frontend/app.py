@@ -1,6 +1,6 @@
 """
-AI 数字媒体创作助手 — 前端 v4
-完整功能 · 全后端对接 · 专业 UI
+灵境智造 — AI 数字媒体创作引擎
+前端 v4 · 多Agent协作 · 多平台适配
 """
 import streamlit as st
 import requests
@@ -14,7 +14,7 @@ from pathlib import Path
 API = "http://127.0.0.1:8000/api"
 API_BASE = API  # 兼容远程 P5 数据看板的变量名
 
-st.set_page_config(page_title="AI 数字媒体创作助手", page_icon="🎬", layout="wide")
+st.set_page_config(page_title="灵境智造", page_icon="🔮", layout="wide")
 
 # ====================== 主题 CSS ======================
 st.markdown("""
@@ -61,12 +61,11 @@ def clean_scheme(s):
 # ====================== Session ======================
 def init():
     for k, v in {
-        "token": None, "user": None, "page": "工作台",
+        "token": None, "user": None, "page": "首页",
         "task_id": None, "task_status": None, "schemes": [],
-        "provider": "mock",
-        "uploaded_file_path": None,  # 多模态: 已上传的文件路径
-        "multimodal": None,          # 多模态: AI 分析结果
-        "last_analysis": None,       # 多模态: 本次分析结果（临时展示用）
+        "provider": "deepseek",
+        "img_analysis": "",
+        "uploaded_img_url": "",
     }.items():
         if k not in st.session_state: st.session_state[k] = v
 init()
@@ -87,22 +86,18 @@ def api(path, method="GET", data=None):
         st.error(f"请求异常: {e}")
         return None
 
-def api_upload(path, files):
-    """文件上传专用"""
-    h = {}
-    if st.session_state.token: h["Authorization"] = f"Bearer {st.session_state.token}"
-    try:
-        r = requests.post(f"{API}{path}", headers=h, files=files, timeout=300)
-        return r
-    except requests.exceptions.ConnectionError:
-        return None
-
 # ====================== 登录 ======================
 def login_page():
     _, c, _ = st.columns([1, 1.5, 1])
     with c:
-        st.title("🎬 AI 数字媒体创作助手")
-        st.caption("智能脚本生成 · 多平台适配 · 数据驱动的创作决策")
+        st.markdown("""
+        <div style="text-align:center; padding:40px 0 20px 0;">
+            <div style="font-size:3rem; margin-bottom:8px;">🔮</div>
+            <h1 style="font-size:2.2rem; margin:0; font-weight:800; letter-spacing:4px;">灵境智造</h1>
+            <p style="font-size:0.85rem; opacity:0.5; margin-top:4px;">LINGJING ZHIZAO</p>
+            <p style="font-size:0.9rem; opacity:0.6; margin-top:16px;">AI 驱动的数字媒体智能创作引擎</p>
+        </div>
+        """, unsafe_allow_html=True)
 
         t1, t2 = st.tabs(["🔐 登录", "📝 注册"])
         with t1:
@@ -136,6 +131,23 @@ def login_page():
                         else: st.error("注册失败，用户名可能已存在")
 
 # ====================== 公共组件 ======================
+
+def _extract_version_md(full_md, version):
+    """从完整 raw_markdown 中只提取指定版本的内容"""
+    import re as _re
+    if not full_md or not version:
+        return full_md
+    pattern = r'##\s*版本\s*' + version + r'\s*[：:]?(.*?)(?=\n##\s*(?:版本\s*[A-Ca-c]|推荐\s*|$))'
+    m = _re.search(pattern, full_md, _re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    # 回退：按 ## 标题拆分
+    parts = _re.split(r'\n(?=##\s*版本\s*)', full_md)
+    idx = ord(version.upper()) - ord('A')
+    if 0 <= idx < len(parts):
+        return parts[idx]
+    return full_md
+
 def show_scheme_cards(schemes, show_detail=True, show_export=True):
     """展示方案卡片（三列布局）"""
     if not schemes: return
@@ -171,7 +183,9 @@ def show_scheme_cards(schemes, show_detail=True, show_export=True):
                     st.markdown("**🎬 分镜脚本：**")
                     scenes = s.get("scenes") or []
                     # 优先展示结构化 scenes；无 scenes 则从 storyboard_json/raw_markdown 渲染
-                    raw_md = s.get("raw_markdown") or (s.get("storyboard_json") or {}).get("raw_markdown", "")
+                    full_md = s.get("raw_markdown") or (s.get("storyboard_json") or {}).get("raw_markdown", "")
+                    version = s.get("version", "")
+                    raw_md = _extract_version_md(full_md, version) if version and full_md else full_md
                     if scenes:
                         for sc in scenes:
                             vo = sc.get('voiceover', '')
@@ -181,9 +195,9 @@ def show_scheme_cards(schemes, show_detail=True, show_export=True):
                             )
                             if vo: st.caption(f"🎤 {vo[:200]}")
                     if raw_md:
-                        st.markdown("**📝 完整脚本预览：**")
-                        st.markdown(raw_md[:3000])
-                        if len(raw_md) > 3000:
+                        st.caption("📝 完整脚本预览：")
+                        st.text(raw_md[:5000])
+                        if len(raw_md) > 5000:
                             st.caption(f"（共 {len(raw_md)} 字符，下载 Markdown 查看完整内容）")
                     if not scenes and not raw_md:
                         st.info("暂无详细脚本数据")
@@ -206,65 +220,36 @@ def workbench_page():
     st.title("🚀 创作工作台")
     st.caption("填写创作参数，AI Agent 流水线将自动生成 3 套差异化方案")
 
-    # ── 多模态素材上传区 ──
-    with st.expander("📎 素材上传（可选 · 多模态分析）", expanded=False):
-        c_up1, c_up2 = st.columns([2, 1])
-        with c_up1:
-            uploaded_file = st.file_uploader(
-                "上传图片/视频/音频，AI 将分析素材内容并生成匹配脚本",
-                type=["png", "jpg", "jpeg", "webp", "gif", "mp4", "mov", "mp3", "wav"],
-                key="file_uploader",
-                label_visibility="collapsed",
-            )
-        with c_up2:
-            st.caption("📷 图片 → 分析画面生成脚本\n🎬 视频 → 分析帧内容\n🎵 音频 → Whisper转录+分析")
-        if uploaded_file:
-            # 上传到后端
-            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-            r = api_upload("/creation/upload", files)
-            if r and r.status_code == 200:
-                data = r.json()
-                st.session_state.uploaded_file_path = data.get("file_path", data.get("filename", ""))
-                st.success(f"✅ 已上传: {uploaded_file.name} ({uploaded_file.size // 1024} KB)")
-            elif r:
-                st.error(f"上传失败: {r.text[:200]}")
-            else:
-                st.error("无法连接后端")
+    # 参考素材区（表单外，上传后自动豆包分析）
+    with st.container(border=True):
+        st.caption("🖼️ 参考素材（可选）— 上传图片让 AI 更懂你的创作意图")
+        up_col1, up_col2 = st.columns(2)
+        with up_col1:
+            uploaded = st.file_uploader("上传参考图片", type=["png", "jpg", "jpeg"], key="img_upload_v2")
+        with up_col2:
+            image_url = st.text_input("或粘贴图片链接", placeholder="https://example.com/image.jpg")
 
-            # ── AI 分析按钮 ──
-            if st.session_state.uploaded_file_path:
-                if st.button("🔍 AI 分析素材内容", use_container_width=True, type="primary",
-                             key="btn_analyze"):
-                    with st.spinner("🤖 豆包 AI 正在分析素材内容..."):
-                        r_ana = api_upload("/creation/analyze", files)
-                    if r_ana and r_ana.status_code == 200:
-                        ana_data = r_ana.json()
-                        st.session_state.last_analysis = ana_data
-                        if ana_data.get("status") == "completed":
-                            st.success("✅ 分析完成！结果已保存至历史记录")
-                    elif r_ana:
-                        st.error(f"分析失败: {r_ana.text[:200]}")
-                    else:
-                        st.error("无法连接后端")
-
-        # ── 展示本次分析结果 ──
-        if st.session_state.get("last_analysis"):
-            ana = st.session_state.last_analysis
-            ar = ana.get("analysis_result") or {}
-            if ana.get("status") == "completed" and ar.get("success"):
-                with st.container(border=True):
-                    st.markdown("**🔍 素材分析结果**")
-                    st.markdown(ar.get("content", "")[:3000])
-                    usage = ar.get("usage", {})
-                    if usage:
-                        free_tag = " [FREE]" if ar.get("is_free") else ""
-                        st.caption(
-                            f"📊 token: {usage.get('total_tokens', '?')} "
-                            f"(in:{usage.get('prompt_tokens', '?')}/out:{usage.get('completion_tokens', '?')}){free_tag}"
-                        )
-            elif ana.get("status") == "failed":
-                st.warning(f"分析失败: {ar.get('error', '未知错误')}")
-    # ── 多模态上传区结束 ──
+        # 上传后自动触发分析
+        if uploaded and not st.session_state.get("img_analysis"):
+            with st.spinner("🔍 豆包正在分析图片..."):
+                files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+                try:
+                    ur = requests.post(f"{API}/creation/upload",
+                        headers={"Authorization": f"Bearer {st.session_state.token}"},
+                        files=files, timeout=30)
+                    if ur and ur.status_code == 200:
+                        st.session_state.uploaded_img_url = ur.json().get("image_url", "")
+                        ar = requests.post(f"{API}/creation/analyze-image",
+                            headers={"Authorization": f"Bearer {st.session_state.token}"}, timeout=120)
+                        if ar and ar.status_code == 200 and ar.json().get("ok"):
+                            st.session_state.img_analysis = ar.json().get("analysis", "")
+                            st.rerun()
+                        else:
+                            st.warning("图片分析未成功，但仍可用于创作")
+                            st.session_state.img_analysis = "[图片已上传] 豆包分析中..."
+                            st.rerun()
+                except Exception as e:
+                    st.warning(f"上传或分析失败: {e}")
 
     # 输入区
     with st.container(border=True):
@@ -277,6 +262,7 @@ def workbench_page():
                 platform = st.selectbox("发布平台", ["抖音", "小红书", "B站"])
                 duration = st.selectbox("视频时长", ["30秒", "60秒", "3分钟"])
             style = st.selectbox("内容风格", ["干货科普", "轻娱乐", "情感走心", "剧情故事", "测评种草"])
+
             go = st.form_submit_button("✨ 一键启动 AI 创作", use_container_width=True)
 
             if go:
@@ -285,17 +271,15 @@ def workbench_page():
                 else:
                     pm = {"抖音": "douyin", "小红书": "xiaohongshu", "B站": "bilibili"}
                     dm = {"30秒": "30s", "60秒": "60s", "3分钟": "3min"}
-                    payload = {
+
+                    img_url = st.session_state.get("uploaded_img_url", "") or ""
+
+                    r = api("/creation/start", "POST", {
                         "topic": topic, "target_audience": audience or "通用",
                         "platform": pm[platform], "duration": dm[duration], "style": style,
                         "provider": st.session_state.provider,
-                    }
-                    # 多模态：传入已上传素材路径
-                    if st.session_state.uploaded_file_path:
-                        payload["image_url"] = st.session_state.uploaded_file_path
-                        st.caption(f"📎 已附加素材: {st.session_state.uploaded_file_path}")
-
-                    r = api("/creation/start", "POST", payload)
+                        "image_url": img_url or "",
+                    })
                     if r is None:
                         st.error("❌ 无法连接后端服务 (http://127.0.0.1:8000)")
                     elif r.status_code in (200, 202):
@@ -303,7 +287,6 @@ def workbench_page():
                         st.session_state.task_id = d["task_id"]
                         st.session_state.task_status = d["status"]
                         st.session_state.schemes = []
-                        st.session_state.uploaded_file_path = None  # 清空已上传路径
                         st.success("任务已提交，Agent 正在创作中...")
                         st.rerun()
                     else:
@@ -322,7 +305,6 @@ def workbench_page():
             if d["status"] == "completed":
                 result = d.get("result", {})
                 st.session_state.schemes = result.get("schemes", [])
-                st.session_state.multimodal = result.get("multimodal")  # 多模态分析结果
                 st.session_state.task_status = "completed"
                 placeholder.empty(); progress_bar.empty()
                 st.success(f"🎉 创作完成！AI 生成了 {len(st.session_state.schemes)} 个方案")
@@ -339,25 +321,6 @@ def workbench_page():
 
     # 方案展示
     if st.session_state.schemes:
-        # ── 多模态分析结果展示 ──
-        mm = st.session_state.get("multimodal")
-        if mm and mm.get("success"):
-            with st.expander("🔍 AI 素材分析结果", expanded=True):
-                content = mm.get("image_analysis") or mm.get("content") or ""
-                if content:
-                    st.markdown(content)
-                usage = mm.get("usage", {})
-                if usage:
-                    free_tag = " [FREE]" if mm.get("is_free") else ""
-                    st.caption(
-                        f"📊 token: {usage.get('total_tokens', '?')} "
-                        f"(in:{usage.get('prompt_tokens', '?')}/out:{usage.get('completion_tokens', '?')}){free_tag}"
-                    )
-        elif mm and not mm.get("success"):
-            with st.expander("🔍 AI 素材分析结果", expanded=False):
-                st.warning(f"素材分析失败: {mm.get('error', '未知错误')}")
-        # ── 多模态展示结束 ──
-
         st.divider()
         st.subheader(f"📄 生成方案（{len(st.session_state.schemes)} 个）")
         show_scheme_cards(st.session_state.schemes)
@@ -380,12 +343,19 @@ def workbench_page():
                 st.session_state.task_id = None
                 st.session_state.task_status = None
                 st.session_state.schemes = []
-                st.session_state.multimodal = None
-                st.session_state.last_analysis = None
+                st.rerun()
+
+    # 图片分析结果显示
+    if st.session_state.get("img_analysis", ""):
+        with st.container(border=True):
+            st.markdown("#### 🔍 豆包视觉分析结果")
+            st.success(st.session_state.img_analysis)
+            if st.button("✕ 清除分析结果", key="clear_img"):
+                st.session_state.img_analysis = ""
                 st.rerun()
 
     if not st.session_state.task_id:
-        st.info("👆 填写主题和参数，点击「一键启动 AI 创作」")
+        st.info("👆 填写主题和参数，点击「🔍 分析图片」预览AI理解，再点击「✨ 一键启动 AI 创作」生成脚本")
 
 # ====================== 方案浏览 ======================
 def schemes_page():
@@ -795,85 +765,6 @@ def dashboard_page():
     )
     st.components.v1.html(html, height=2900, scrolling=True)
 
-# ====================== 素材分析历史 ======================
-def material_analysis_page():
-    st.title("🔬 素材分析记录")
-    st.caption("浏览历史所有多模态素材分析结果，支持查看原始素材")
-
-    # 分页参数
-    page_num = st.number_input("页码", 1, 100, 1, key="ma_page")
-    r = api("/creation/analyses", "GET", {"page": page_num, "size": 10})
-    if not r or r.status_code != 200:
-        st.error("无法加载素材分析记录")
-        return
-
-    data = r.json()
-    items = data.get("items", [])
-    total = data.get("total", 0)
-    if total == 0:
-        st.info("暂无素材分析记录，前往「🚀 工作台」上传素材并点击 AI 分析")
-        return
-
-    st.metric("总分析次数", total)
-    st.divider()
-
-    # ── 逐条展示 ──
-    for item in items:
-        ar = item.get("analysis_result") or {}
-        status_icon = {"completed": "✅", "failed": "❌", "processing": "🔄", "pending": "⏳"}.get(
-            item.get("status", ""), "❓")
-        type_icon = {"image": "📷", "video": "🎬", "audio": "🎵"}.get(item.get("file_type", ""), "📎")
-        created = (item.get("created_at") or "")[:19]
-
-        with st.expander(
-            f"{status_icon} {type_icon} {item.get('filename', '?')} — {created}",
-            expanded=False,
-        ):
-            c1, c2 = st.columns([1, 2])
-            with c1:
-                st.markdown(f"**文件信息**")
-                st.caption(f"类型: {item.get('file_type')} | {item.get('file_size', 0) // 1024} KB")
-                st.caption(f"状态: {item.get('status')} | 引擎: {item.get('provider', '?')}")
-                st.caption(f"时间: {created}")
-
-                # ── 原始素材预览/下载 ──
-                ft = item.get("file_type", "")
-                aid = item.get("id")
-                if ft == "image" and aid:
-                    # 图片直接用 API 展示
-                    file_url = f"{API}/creation/analyses/{aid}/file"
-                    # 通过 session token 无法直接用 <img>，用 st.image 请求
-                    try:
-                        h_img = {}
-                        if st.session_state.token:
-                            h_img["Authorization"] = f"Bearer {st.session_state.token}"
-                        resp = requests.get(file_url, headers=h_img, timeout=10)
-                        if resp.status_code == 200:
-                            st.image(resp.content, caption=item.get("filename", ""), use_container_width=True)
-                    except Exception:
-                        st.caption("⚠️ 无法加载原始图片")
-                elif aid:
-                    st.markdown(f"[📥 下载原始文件]({API}/creation/analyses/{aid}/file)")
-
-            with c2:
-                st.markdown("**🔍 AI 分析结果**")
-                if item.get("status") == "completed" and ar.get("success"):
-                    st.markdown(ar.get("content", "")[:5000])
-                    usage = ar.get("usage", {})
-                    if usage:
-                        free_tag = " [FREE]" if ar.get("is_free") else ""
-                        st.caption(
-                            f"📊 token: {usage.get('total_tokens', '?')} "
-                            f"(in:{usage.get('prompt_tokens', '?')}/out:{usage.get('completion_tokens', '?')}){free_tag}"
-                        )
-                elif item.get("status") == "failed":
-                    st.warning(f"分析失败: {ar.get('error', '未知错误')}")
-                elif item.get("status") == "processing":
-                    st.info("分析处理中...")
-
-    st.divider()
-    st.caption(f"共 {total} 条记录，第 {page_num} 页")
-
 # ====================== 知识库搜索 ======================
 def knowledge_page():
     st.title("🔍 知识库搜索")
@@ -948,12 +839,96 @@ def knowledge_page():
         else:
             st.info(f"🔍 「{st.session_state.kb_query}」— 未找到相关结果，请尝试其他关键词")
 
+# ====================== 首页 ======================
+def home_page():
+    # Hero 区
+    st.markdown("""
+    <div style="text-align:center; padding:60px 0 36px 0;">
+        <div style="font-size:5rem; margin-bottom:16px; line-height:1;">🔮</div>
+        <h1 style="font-size:2.6rem; margin:0; font-weight:800; letter-spacing:8px;">灵境智造</h1>
+        <p style="font-size:0.75rem; opacity:0.35; margin:4px 0 0 0; letter-spacing:4px;">LINGJING ZHIZAO</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # CTA 按钮
+    _, cc, _ = st.columns([1, 1, 1])
+    with cc:
+        if st.button("✨ 开始创作", use_container_width=True, type="primary"):
+            st.session_state.page = "工作台"; st.rerun()
+
+    st.divider()
+
+    # 功能介绍卡片
+    st.markdown("### 平台能力")
+    f1, f2, f3, f4 = st.columns(4)
+    with f1:
+        st.markdown("""
+        <div style="text-align:center; padding:20px 12px; border-radius:10px; border:1px solid rgba(128,128,128,0.08);">
+            <div style="font-size:1.6rem;">🧠</div>
+            <h4 style="margin:8px 0 4px 0;">多 Agent 协作</h4>
+            <p style="font-size:0.75rem; opacity:0.5; margin:0;">趋势分析 · 脚本创作<br>合规审查 · 发布策略</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with f2:
+        st.markdown("""
+        <div style="text-align:center; padding:20px 12px; border-radius:10px; border:1px solid rgba(128,128,128,0.08);">
+            <div style="font-size:1.6rem;">📱</div>
+            <h4 style="margin:8px 0 4px 0;">多平台适配</h4>
+            <p style="font-size:0.75rem; opacity:0.5; margin:0;">抖音 · 小红书 · B站<br>不同平台不同风格</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with f3:
+        st.markdown("""
+        <div style="text-align:center; padding:20px 12px; border-radius:10px; border:1px solid rgba(128,128,128,0.08);">
+            <div style="font-size:1.6rem;">📋</div>
+            <h4 style="margin:8px 0 4px 0;">3 方案对比</h4>
+            <p style="font-size:0.75rem; opacity:0.5; margin:0;">多版本脚本 · A/B 对比<br>智能评分推荐</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with f4:
+        st.markdown("""
+        <div style="text-align:center; padding:20px 12px; border-radius:10px; border:1px solid rgba(128,128,128,0.08);">
+            <div style="font-size:1.6rem;">📦</div>
+            <h4 style="margin:8px 0 4px 0;">一键导出</h4>
+            <p style="font-size:0.75rem; opacity:0.5; margin:0;">Markdown · Word<br>分镜表 · 素材清单</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # 使用引导
+    st.markdown("### 使用指引")
+    guide_html = """
+    <div style="display:flex; gap:16px;">
+        <div style="flex:1; padding:20px; border-radius:10px; border:1px solid rgba(128,128,128,0.08);">
+            <span style="display:inline-block; width:26px; height:26px; line-height:26px; text-align:center; border-radius:50%; background:rgba(99,102,241,0.2); color:#818cf8; font-weight:700; font-size:0.8rem; margin-right:8px;">1</span>
+            <span style="font-weight:600;">输入创作需求</span>
+            <p style="font-size:0.8rem; opacity:0.5; margin:6px 0 0 34px;">填写主题、目标受众、发布平台、时长和风格偏好</p>
+        </div>
+    </div>
+    <div style="margin-top:12px;">
+        <div style="flex:1; padding:20px; border-radius:10px; border:1px solid rgba(128,128,128,0.08);">
+            <span style="display:inline-block; width:26px; height:26px; line-height:26px; text-align:center; border-radius:50%; background:rgba(99,102,241,0.2); color:#818cf8; font-weight:700; font-size:0.8rem; margin-right:8px;">2</span>
+            <span style="font-weight:600;">AI 流水线自动创作</span>
+            <p style="font-size:0.8rem; opacity:0.5; margin:6px 0 0 34px;">4 个 Agent 协作：热点分析 → 脚本创作 → 合规审查 → 发布策略，生成 3 套完整方案</p>
+        </div>
+    </div>
+    <div style="margin-top:12px;">
+        <div style="flex:1; padding:20px; border-radius:10px; border:1px solid rgba(128,128,128,0.08);">
+            <span style="display:inline-block; width:26px; height:26px; line-height:26px; text-align:center; border-radius:50%; background:rgba(99,102,241,0.2); color:#818cf8; font-weight:700; font-size:0.8rem; margin-right:8px;">3</span>
+            <span style="font-weight:600;">对比选择 + 导出</span>
+            <p style="font-size:0.8rem; opacity:0.5; margin:6px 0 0 34px;">A/B 方案对比，选择最佳方案，一键导出 Markdown 或 Word</p>
+        </div>
+    </div>
+    """
+    st.markdown(guide_html, unsafe_allow_html=True)
+
 # ====================== 主路由 ======================
 if not st.session_state.token:
     login_page()
 else:
     with st.sidebar:
-        st.markdown("## 🎬 AI 创作助手")
+        st.markdown("## 🔮 灵境智造")
         st.markdown(f"👤 **{st.session_state.user}**")
         st.divider()
 
@@ -969,22 +944,19 @@ else:
         # 导航（用 radio 保证单一选中）
         page = st.radio(
             "导航",
-            ["🚀 工作台", "📋 方案浏览", "📜 历史记录", "🔬 素材分析", "📊 数据看板", "🔍 知识库搜索"],
-            index=["🚀 工作台", "📋 方案浏览", "📜 历史记录", "🔬 素材分析", "📊 数据看板", "🔍 知识库搜索"].index(
-                {"工作台": "🚀 工作台", "方案浏览": "📋 方案浏览", "历史记录": "📜 历史记录",
-                 "素材分析": "🔬 素材分析",
-                 "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"}.get(
-                    st.session_state.page, "🚀 工作台"
+            ["🏠 首页", "🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"],
+            index=["🏠 首页", "🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"].index(
+                {"首页": "🏠 首页", "工作台": "🚀 工作台", "方案浏览": "📋 方案浏览",
+                 "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"}.get(
+                    st.session_state.page, "🏠 首页"
                 )
-            ) if st.session_state.page in {"工作台": "🚀 工作台", "方案浏览": "📋 方案浏览",
-                "历史记录": "📜 历史记录", "素材分析": "🔬 素材分析",
-                "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"} else 0,
+            ) if st.session_state.page in {"首页": "🏠 首页", "工作台": "🚀 工作台", "方案浏览": "📋 方案浏览",
+                "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"} else 0,
             label_visibility="collapsed",
         )
         # 更新 page
-        page_map = {"🚀 工作台": "工作台", "📋 方案浏览": "方案浏览", "📜 历史记录": "历史记录",
-                     "🔬 素材分析": "素材分析",
-                     "📊 数据看板": "数据看板", "🔍 知识库搜索": "知识库搜索"}
+        page_map = {"🏠 首页": "首页", "🚀 工作台": "工作台", "📋 方案浏览": "方案浏览",
+                     "📜 历史记录": "历史记录", "📊 数据看板": "数据看板", "🔍 知识库搜索": "知识库搜索"}
         st.session_state.page = page_map[page]
 
         st.divider()
@@ -994,8 +966,8 @@ else:
 
     # 页面路由
     routers = {
-        "工作台": workbench_page, "方案浏览": schemes_page,
-        "历史记录": history_page, "素材分析": material_analysis_page,
+        "首页": home_page, "工作台": workbench_page,
+        "方案浏览": schemes_page, "历史记录": history_page,
         "数据看板": dashboard_page, "知识库搜索": knowledge_page,
     }
-    routers.get(st.session_state.page, workbench_page)()
+    routers.get(st.session_state.page, home_page)()

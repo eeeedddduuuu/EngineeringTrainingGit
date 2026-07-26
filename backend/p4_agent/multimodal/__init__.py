@@ -26,7 +26,7 @@ def analyze_image(image_path: str, question: str = "") -> dict[str, Any]:
     Returns:
         {"success": True, "content": "分析结果...", "usage": {...}, "elapsed": 3.2}
     """
-    from .multimodal import call_multimodal
+    from multimodal.multimodal import call_multimodal
 
     if not question:
         question = (
@@ -38,7 +38,7 @@ def analyze_image(image_path: str, question: str = "") -> dict[str, Any]:
 
 def analyze_images(image_paths: list[str], question: str = "") -> dict[str, Any]:
     """多图对比分析。"""
-    from .multimodal import call_multimodal
+    from multimodal.multimodal import call_multimodal
 
     if not question:
         question = f"请分别描述这{len(image_paths)}张图片的内容，并指出它们的异同。"
@@ -53,7 +53,7 @@ def analyze_video(video_path: str, question: str = "") -> dict[str, Any]:
         video_path: 视频文件路径 (mp4/mkv/avi/mov)
         question: 分析问题
     """
-    from .multimodal import call_multimodal
+    from multimodal.multimodal import call_multimodal
 
     if not question:
         question = (
@@ -71,7 +71,7 @@ def transcribe_audio(audio_path: str, question: str = "") -> dict[str, Any]:
         audio_path: 音频文件路径 (mp3/wav/flac/ogg/m4a)
         question: 分析问题
     """
-    from .multimodal import call_multimodal
+    from multimodal.multimodal import call_multimodal
 
     if not question:
         question = "请分析这段音频的转录文本：总结主要内容、情感基调、关键信息点。"
@@ -102,7 +102,7 @@ def generate_tts(
     Returns:
         {"success": True, "audio_base64": "...", "duration": 4.1, "url": "..."}
     """
-    from .doubao_tts import generate_tts as _tts
+    from doubao_tts import generate_tts as _tts
 
     return _tts(
         text=text,

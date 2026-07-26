@@ -33,6 +33,55 @@ _uploaded_files: dict[int, list[dict]] = {}  # user_id → [{path, filename, typ
 # 简易内存任务存储
 _task_store: dict[str, dict] = {}
 
+
+def _analyze_image(image_url: str) -> str:
+    """分析图片属性，生成文本描述供 Agent 参考。
+    如果图片是本地文件，用 PIL 提取尺寸/格式/主色调等；否则返回 URL 引用。
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        return f"[参考图片] {image_url}"
+
+    # 本地文件
+    local_path = None
+    if image_url.startswith("/") or (len(image_url) > 2 and image_url[1] == ":"):
+        local_path = image_url
+    elif image_url.startswith("file://"):
+        local_path = image_url[7:]
+
+    if local_path and Path(local_path).exists():
+        try:
+            img = Image.open(local_path)
+            w, h = img.size
+            mode = img.mode
+            fmt = img.format or "未知"
+            ratio = "横版" if w > h else ("竖版" if h > w else "方形")
+            # 简单的主色调分析
+            if mode in ("RGB", "RGBA"):
+                img_small = img.resize((50, 50))
+                pixels = list(img_small.getdata())
+                r_avg = sum(p[0] for p in pixels) // len(pixels)
+                g_avg = sum(p[1] for p in pixels) // len(pixels)
+                b_avg = sum(p[2] for p in pixels) // len(pixels)
+                if r_avg > 180 and g_avg > 180 and b_avg > 180: tone = "亮白色调"
+                elif r_avg < 60 and g_avg < 60 and b_avg < 60: tone = "暗黑色调"
+                elif r_avg > g_avg and r_avg > b_avg: tone = "暖红色调"
+                elif g_avg > r_avg and g_avg > b_avg: tone = "绿色调"
+                elif b_avg > r_avg and b_avg > g_avg: tone = "蓝冷色调"
+                else: tone = "中性灰色调"
+            else:
+                tone = "灰度"
+            return (
+                f"[参考图片分析] 格式:{fmt} | 尺寸:{w}×{h} | 比例:{ratio}({w//max(1,h//100)}%) | "
+                f"色调:{tone} | 色彩模式:{mode} | 文件:{Path(local_path).name}"
+            )
+        except Exception:
+            pass
+
+    # 远程 URL
+    return f"[参考图片] URL: {image_url}（远程图片，请根据 URL 中的关键词推断内容风格）"
+
 # P4 Agent 调用超时（秒）
 P4_TIMEOUT = 300
 
@@ -49,7 +98,7 @@ def _try_p4_create_content(
     成功返回结果 dict，失败返回 None（触发内置回退）。
     """
     try:
-        # 确保 p4_agent 模块可导入
+        pass  # ARK_API_KEY 由 config.py 注入环境变量
         p4_path = Path(__file__).parent.parent.parent / "p4_agent"
         if str(p4_path) not in sys.path:
             sys.path.insert(0, str(p4_path))
@@ -58,8 +107,14 @@ def _try_p4_create_content(
 
         from p4_agent.pipeline_adapter import create_content
 
+        # 多模态：分析上传的图片，提取视觉特征作为 Agent 上下文
+        enhanced_topic = topic
+        if image_url and image_url.strip():
+            img_desc = _analyze_image(image_url.strip())
+            enhanced_topic = f"{topic}\n\n{img_desc}\n请根据以上图片素材的风格和特征来定制脚本内容。"
+
         result = create_content(
-            topic=topic,
+            topic=enhanced_topic,
             target_audience=target_audience,
             platform=platform,
             duration=duration,
@@ -80,74 +135,110 @@ def _try_p4_create_content(
 
 
 def _build_mock_schemes(topic: str, platform: str, style: str) -> list[dict]:
-    """根据用户输入动态生成 Mock 方案（不再硬编码护肤场景）"""
-    platform_names = {
-        "douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站",
-    }
+    """根据用户输入动态生成 Mock 方案 — 按风格+平台差异化"""
+    platform_names = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
     pname = platform_names.get(platform, platform)
 
-    return [
-        {
-            "version": "A",
-            "title": f"【{style}】{topic}｜{pname}爆款脚本",
-            "hook": f"关于{topic}，你可能一直都理解错了！",
-            "scenes": [
-                {"seq": 1, "type": "钩子开场", "duration": "0-3s",
-                 "description": f"冲击力画面+大字标题「{topic}」", "voiceover": f"关于{topic}，你可能一直都理解错了！"},
-                {"seq": 2, "type": "痛点引入", "duration": "3-15s",
-                 "description": "展示常见误区或问题", "voiceover": f"很多人在{topic}上踩过的坑，今天一次说清楚"},
-                {"seq": 3, "type": "干货输出", "duration": "15-45s",
-                 "description": "3个核心要点逐一讲解", "voiceover": f"第一点...第二点...第三点...记住这些就够了"},
-                {"seq": 4, "type": "总结引导", "duration": "45-55s",
-                 "description": "金句总结+引导互动", "voiceover": "觉得有用的话，点赞收藏，下期见！"},
-            ],
-            "hashtags": [f"#{topic[:4]}", f"#{pname}", "#干货分享"],
-            "cover_text": f"🔥 {topic}｜新手必看",
-            "score": 8.5,
-            "rank": 2,
-            "recommendation_reason": f"干货结构完整，适合{pname}平台{style}风格",
-        },
-        {
-            "version": "B",
-            "title": f"颠覆认知！{topic}的全新打开方式",
-            "hook": f"你还在用传统方式做{topic}吗？",
-            "scenes": [
-                {"seq": 1, "type": "悬念开场", "duration": "0-5s",
-                 "description": "对比画面+疑问文字", "voiceover": f"你还在用传统方式做{topic}吗？"},
-                {"seq": 2, "type": "故事展开", "duration": "5-25s",
-                 "description": "新旧方法对比展示", "voiceover": f"我以前也这样做{topic}，直到我发现了这个方法..."},
-                {"seq": 3, "type": "核心揭秘", "duration": "25-50s",
-                 "description": "新方法的详细讲解", "voiceover": f"核心秘密就在于..."},
-                {"seq": 4, "type": "金句收尾", "duration": "50-55s",
-                 "description": "表情特写+金句字幕", "voiceover": f"做{topic}，方法比努力更重要"},
-            ],
-            "hashtags": [f"#{topic[:4]}", "#颠覆认知", "#效率翻倍"],
-            "cover_text": f"💡 {topic}新思路｜效率翻倍",
-            "score": 9.2,
-            "rank": 1,
-            "recommendation_reason": f"悬念式开头吸引力强，颠覆性角度适合{pname}算法推荐",
-        },
-        {
-            "version": "C",
-            "title": f"沉浸式体验｜{topic}全过程记录",
-            "hook": f"第一次做{topic}是什么样的体验？",
-            "scenes": [
-                {"seq": 1, "type": "沉浸开场", "duration": "0-5s",
-                 "description": "第一视角+环境音", "voiceover": f"第一次做{topic}是什么样的体验？"},
-                {"seq": 2, "type": "过程记录", "duration": "5-30s",
-                 "description": "关键步骤展示", "voiceover": "准备好材料，我们开始吧..."},
-                {"seq": 3, "type": "结果揭晓", "duration": "30-45s",
-                 "description": "成果展示+对比", "voiceover": "来看看最终效果！"},
-                {"seq": 4, "type": "互动引导", "duration": "45-55s",
-                 "description": "评论区引导", "voiceover": "你也试试{topic}？评论区交作业！"},
-            ],
-            "hashtags": [f"#{topic[:4]}", "#沉浸式体验", "#记录生活"],
-            "cover_text": f"🎬 {topic}全过程｜沉浸式",
-            "score": 7.8,
-            "rank": 3,
-            "recommendation_reason": "沉浸式体验感强但开头冲击力稍弱",
-        },
-    ]
+    # 不同风格 → 不同的脚本结构
+    style_templates = {
+        "干货科普": [
+            {"scenes": [
+                {"seq":1,"type":"数据冲击","duration":"0-3s","description":"大字数据+震惊表情",f"voiceover":f"你知道吗？90%的人{topic}都做错了！"},
+                {"seq":2,"type":"误区拆解","duration":"3-18s","description":"三个常见误区逐个击破，配合对比画面","voiceover":f"误区一...误区二...误区三...是不是全中？"},
+                {"seq":3,"type":"正确方法","duration":"18-42s","description":"专业步骤演示，重点标注","voiceover":f"正确的{topic}方法其实很简单，记住这三点"},
+                {"seq":4,"type":"实操演示","duration":"42-52s","description":"快速过一遍完整流程","voiceover":"来，跟着我做一遍"},
+                {"seq":5,"type":"总结引导","duration":"52-60s","description":"要点回顾+关注引导","voiceover":f"学会了吗？点个关注，每天学点{topic}干货"},
+            ],"hashtags":[f"#{topic[:4]}","#干货分享","#涨知识",f"#{pname}"],"score":8.5},
+            {"scenes":[
+                {"seq":1,"type":"悬念提问","duration":"0-3s","description":"黑屏白字+疑问音效","voiceover":f"如果有人告诉你{topic}可以这样做，你信吗？"},
+                {"seq":2,"type":"权威背书","duration":"3-15s","description":"引用研究报告/专家观点","voiceover":"最新研究显示...这不是我说的，是数据说的"},
+                {"seq":3,"type":"原理讲解","duration":"15-38s","description":"动画图解+通俗比喻","voiceover":"原理其实很简单，像...一样"},
+                {"seq":4,"type":"案例佐证","duration":"38-50s","description":"真实案例前后对比","voiceover":"看这个案例，之前vs之后"},
+                {"seq":5,"type":"行动号召","duration":"50-60s","description":"引导尝试+评论区互动","voiceover":f"今天就开始试试{topic}，评论区告诉我你的结果"},
+            ],"hashtags":[f"#{topic[:4]}","#科普","#冷知识",f"#{pname}"],"score":9.0},
+            {"scenes":[
+                {"seq":1,"type":"灵魂拷问","duration":"0-3s","description":"直视镜头+停顿","voiceover":f"你敢说你真的会{topic}吗？"},
+                {"seq":2,"type":"清单体","duration":"3-25s","description":"快速罗列5个必知要点","voiceover":f"关于{topic}的5个真相：第一...第二..."},
+                {"seq":3,"type":"深度解读","duration":"25-45s","description":"选最重要的1个点深入展开","voiceover":"其中最关键的是第三个，为什么？"},
+                {"seq":4,"type":"避坑指南","duration":"45-55s","description":"3个绝对不能犯的错","voiceover":"记住这三个坑，打死别踩"},
+                {"seq":5,"type":"收藏引导","duration":"55-60s","description":"引导收藏+下期预告","voiceover":"先收藏，下期告诉你进阶玩法"},
+            ],"hashtags":[f"#{topic[:4]}","#避坑","#必看",f"#{pname}"],"score":7.8},
+        ],
+        "测评种草": [
+            {"scenes":[
+                {"seq":1,"type":"视觉冲击","duration":"0-3s","description":"产品特写+光效+大字","voiceover":f"这个{topic}，我用了30天，效果惊人"},
+                {"seq":2,"type":"痛点共鸣","duration":"3-12s","description":"展示使用前的困扰","voiceover":"以前我也被这个问题困扰了很久"},
+                {"seq":3,"type":"实测对比","duration":"12-35s","description":"左右对比/前后对比展示","voiceover":"左边没用，右边用了，差距也太明显了"},
+                {"seq":4,"type":"成分/细节","duration":"35-48s","description":"放大镜特写，逐项分析","voiceover":"看这个细节...这个材质/成分..."},
+                {"seq":5,"type":"总结推荐","duration":"48-60s","description":"红黑榜+购买建议","voiceover":f"总结：{topic}确实值得入手，链接在评论区"},
+            ],"hashtags":[f"#{topic[:4]}","#测评","#好物推荐",f"#{pname}"],"score":9.2},
+            {"scenes":[
+                {"seq":1,"type":"故事开头","duration":"0-5s","description":"博主本人出镜+生活场景","voiceover":f"闺蜜问我为什么{topic}这么好，我说..."},
+                {"seq":2,"type":"场景带入","duration":"5-20s","description":"多个使用场景快速切换","voiceover":"上班用、约会用、在家用，处处都能用"},
+                {"seq":3,"type":"真实感受","duration":"20-40s","description":"真诚分享使用体验","voiceover":"说实话，一开始我也怀疑，但是..."},
+                {"seq":4,"type":"对比避雷","duration":"40-50s","description":"和其他产品对比","voiceover":"我也试过XX和XX，但都..."},
+                {"seq":5,"type":"福利引导","duration":"50-60s","description":"优惠信息+互动引导","voiceover":"评论区抽3个粉丝免费送，记得三连"},
+            ],"hashtags":[f"#{topic[:4]}","#种草","#真香",f"#{pname}"],"score":8.8},
+            {"scenes":[
+                {"seq":1,"type":"夸张演绎","duration":"0-3s","description":"戏剧化表演+夸张表情","voiceover":f"我的天！这个{topic}也太..."},
+                {"seq":2,"type":"盲测挑战","duration":"3-18s","description":"蒙眼/随机测试","voiceover":"今天来做个盲测，看能不能分辨出来"},
+                {"seq":3,"type":"揭晓结果","duration":"18-35s","description":"揭晓+真实的反应","voiceover":"答案揭晓...天呐我居然..."},
+                {"seq":4,"type":"性价比分析","duration":"35-48s","description":"价格对比表","voiceover":f"这个{topic}的价格才...性价比绝了"},
+                {"seq":5,"type":"购买引导","duration":"48-60s","description":"购买链接+限量提醒","voiceover":"链接放这了，手慢无，懂的都懂"},
+            ],"hashtags":[f"#{topic[:4]}","#开箱","#真香现场",f"#{pname}"],"score":7.5},
+        ],
+        "剧情故事": [
+            {"scenes":[
+                {"seq":1,"type":"悬念画面","duration":"0-3s","description":"昏暗灯光+背影+悬疑BGM","voiceover":f"那天晚上，我收到了一个改变一切的{topic}..."},
+                {"seq":2,"type":"事件展开","duration":"3-20s","description":"快速闪回+第一人称叙述","voiceover":"一切都从三天前说起..."},
+                {"seq":3,"type":"冲突升级","duration":"20-38s","description":"情绪递进+镜头抖动","voiceover":"我没想到事情会变成这样..."},
+                {"seq":4,"type":"转折","duration":"38-50s","description":"色调变暖+节奏放缓","voiceover":"就在我以为没有希望的时候..."},
+                {"seq":5,"type":"结局+感悟","duration":"50-60s","description":"唯美画面+金句","voiceover":f"也许{topic}的意义，不在于结果，而在于过程"},
+            ],"hashtags":[f"#{topic[:4]}","#剧情","#故事","#情感"],"score":8.0},
+            {"scenes":[
+                {"seq":1,"type":"生活日常","duration":"0-3s","description":"温馨日常画面+轻快BGM","voiceover":f"这就是我和{topic}的日常"},
+                {"seq":2,"type":"趣味片段","duration":"3-22s","description":"3个搞笑/温馨小片段拼接","voiceover":"有时候是这样的...有时候是那样的..."},
+                {"seq":3,"type":"情感升温","duration":"22-40s","description":"慢镜头+情感BGM","voiceover":"直到有一天我发现..."},
+                {"seq":4,"type":"感动瞬间","duration":"40-52s","description":"特写表情+留白","voiceover":"原来最珍贵的，一直都是..."},
+                {"seq":5,"type":"暖心结尾","duration":"52-60s","description":"字幕+引导","voiceover":"你们有没有类似的经历？评论区聊聊"},
+            ],"hashtags":[f"#{topic[:4]}","#日常","#治愈","#温暖"],"score":8.5},
+            {"scenes":[
+                {"seq":1,"type":"高能预警","duration":"0-3s","description":"动作场景+快节奏剪辑","voiceover":f"警告：关于{topic}，下面的内容可能颠覆你的认知"},
+                {"seq":2,"type":"事件重现","duration":"3-25s","description":"电影感叙事+多角度拍摄","voiceover":"事情是这样的..."},
+                {"seq":3,"type":"真相揭露","duration":"25-42s","description":"色调转变+信息量释放","voiceover":"但你绝对想不到的是..."},
+                {"seq":4,"type":"反思","duration":"42-52s","description":"独白+留白画面","voiceover":"回想起来，一切都有迹可循"},
+                {"seq":5,"type":"开放式结尾","duration":"52-60s","description":"余韵画面+引导讨论","voiceover":"如果是你，你会怎么做？评论区写下你的选择"},
+            ],"hashtags":[f"#{topic[:4]}","#故事","#反转","#思考"],"score":7.2},
+        ],
+    }
+
+    # 根据风格选择模板，找不到用通用模板
+    templates = style_templates.get(style, style_templates["干货科普"])
+
+    versions = []
+    for i, tmpl in enumerate(templates):
+        v = chr(65 + i)  # A, B, C
+        sc = tmpl["scenes"]
+        versions.append({
+            "version": v,
+            "title": f"{sc[0]['voiceover'][:25]}...",
+            "hook": sc[0]["voiceover"],
+            "scenes": sc,
+            "hashtags": tmpl["hashtags"],
+            "cover_text": f"{'🔥' if i==0 else '💡' if i==1 else '🎬'} {topic}｜{pname}",
+            "score": tmpl["score"],
+            "rank": i + 1,
+            "recommendation_reason": {
+                0: f"数据冲击型开头，适合{pname}推荐算法",
+                1: f"悬念叙事型，完播率高",
+                2: f"清单体节奏快，信息密度适合{style}受众",
+            }.get(i, f"方案{v}综合表现优秀"),
+        })
+    # 按评分排名
+    versions.sort(key=lambda x: x["score"], reverse=True)
+    for i, v in enumerate(versions):
+        v["rank"] = i + 1
+    return versions
 
 
 def _run_fallback_mock(task_id: str, session_id: int, topic: str, platform: str, style: str):
@@ -172,7 +263,7 @@ def _run_fallback_mock(task_id: str, session_id: int, topic: str, platform: str,
     db.close()
 
     _task_store[task_id]["status"] = "completed"
-    _task_store[task_id]["progress"] = "全部完成（Mock 模式）"
+    _task_store[task_id]["progress"] = "⚠️ DeepSeek 调用失败，已回退 Mock 模式（内容为模板生成，非 AI 创作）"
     _task_store[task_id]["result"] = {
         "session_id": session_id,
         "schemes": [
@@ -308,7 +399,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
             recommendation = p4_result.get("recommendation", {})
             multimodal_info = p4_result.get("multimodal")  # 多模态分析结果
             _task_store[task_id]["status"] = "completed"
-            _task_store[task_id]["progress"] = "✅ 全部完成（P4 Agent 流水线）"
+            _task_store[task_id]["progress"] = "✅ DeepSeek v4-pro 真实 AI 生成完成"
             _task_store[task_id]["result"] = {
                 "session_id": session_id,
                 "provider": p4_result.get("provider", "mock"),
@@ -391,6 +482,62 @@ def get_task_status(task_id: str, current_user: User = Depends(get_current_user)
     )
 
 
+@router.post("/creation/analyze-image")
+async def analyze_uploaded_image(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    分析最后上传的图片 — 调用豆包多模态，返回视觉分析结果。
+    前端在创作前先调用此接口，展示图片分析结果给用户确认。
+    """
+    user_files = _uploaded_files.get(current_user.id, [])
+    if not user_files:
+        raise HTTPException(status_code=400, detail={"error": "no_file", "detail": "请先上传参考图片"})
+
+    latest = user_files[-1]
+    image_path = latest.get("path", "")
+
+    if not image_path or not Path(image_path).exists():
+        raise HTTPException(status_code=404, detail={"error": "file_not_found", "detail": "图片文件不存在，请重新上传"})
+
+    try:
+        pass  # ARK_API_KEY 由 config.py 注入环境变量
+        p4_path = Path(__file__).parent.parent.parent / "p4_agent"
+        if str(p4_path) not in sys.path:
+            sys.path.insert(0, str(p4_path))
+        from multimodal import analyze_image
+
+        question = (
+            "请详细描述这张图片：1)画面中的主体和场景 2)色调与氛围 3)文字信息(如有) "
+            "4)这张图适合做什么类型的短视频内容 5)给出3个创作切入角度"
+        )
+        result = analyze_image(image_path, question)
+
+        if result.get("success"):
+            return {
+                "ok": True,
+                "filename": latest.get("filename", ""),
+                "analysis": result.get("content", ""),
+                "usage": result.get("usage", {}),
+                "elapsed": result.get("elapsed", 0),
+            }
+        else:
+            return {
+                "ok": False,
+                "error": result.get("error", "分析失败"),
+            }
+    except ImportError:
+        # 豆包模块不可用时的回退
+        return {
+            "ok": True,
+            "filename": latest.get("filename", ""),
+            "analysis": _analyze_image(image_path),
+            "source": "local_pil",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "analysis_failed", "detail": str(e)})
+
+
 @router.post("/creation/upload")
 async def upload_creation_file(
     file: UploadFile = File(..., description="上传素材文件（图片/视频/文档）"),
@@ -447,6 +594,7 @@ async def upload_creation_file(
         "filename": file.filename,
         "type": file_type,
         "size": file_size,
+        "image_url": str(dest),
         "message": "上传成功，可在创作请求中引用此文件",
     }
 

@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 数字媒体创作助手</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  color: #2c2c2c;
+  font-size: 17px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+body.login-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #faf6f0;
+  background-image: url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 20px;
+  position: relative;
+}
+body.login-view::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(250, 246, 240, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 0;
+}
+.login-wrapper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 580px;
+}
+.login-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 36px;
+  padding: 64px 56px 56px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.04);
+  border: 1px solid rgba(255,255,255,0.3);
+}
+.login-card .logo { text-align: center; margin-bottom: 8px; }
+.login-card .logo h1 { font-size: 32px; font-weight: 700; color: #2c2c2c; letter-spacing: -0.5px; }
+.login-card .logo h1 span { color: #d48c5c; }
+.login-card .subtitle { text-align: center; color: #8a7a6a; font-size: 16px; letter-spacing: 1px; margin-bottom: 20px; }
+.login-card .tags { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.login-card .tags span { background: #f0e8de; padding: 6px 18px; border-radius: 20px; font-size: 15px; color: #5f4a34; font-weight: 500; }
+.login-card .desc { text-align: center; color: #a09080; font-size: 16px; margin-bottom: 24px; }
+.tab-group {
+  display: flex;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #f0e8de;
+  margin-bottom: 24px;
+  background: #fcf9f5;
+}
+.tab-group button {
+  flex: 1;
+  padding: 16px 0;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  font-weight: 500;
+  color: #8a7a6a;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.tab-group button.active { background: #d48c5c; color: white; box-shadow: 0 4px 12px rgba(212,140,92,0.3); }
+.tab-group button:hover:not(.active) { background: #f0e8de; }
+.form-panel { display: none; animation: fadeIn 0.25s ease; }
+.form-panel.active { display: block; }
+@keyframes fadeIn { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
+.form-panel .field {
+  width: 100%;
+  padding: 16px 20px;
+  border: 1px solid #f0e8de;
+  border-radius: 14px;
+  font-size: 17px;
+  background: #fcf9f5 !important;
+  margin-bottom: 16px;
+  outline: none;
+  transition: all 0.2s;
+  color: #2c2c2c;
+  font-family: inherit;
+}
+.form-panel .field:focus { border-color: #d48c5c; box-shadow: 0 0 0 3px rgba(212,140,92,0.1); background: #fff !important; }
+.form-panel .field::placeholder { color: #b0a090; }
+.form-panel .btn-submit {
+  width: 100%;
+  padding: 16px;
+  background: #d48c5c;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(212,140,92,0.25);
+  margin-top: 8px;
+  font-family: inherit;
+}
+.form-panel .btn-submit:hover { background: #c97d4a; transform: translateY(-1px); }
+.form-panel .btn-submit:active { transform: translateY(0); }
+.form-panel .form-msg { text-align: center; font-size: 15px; margin-top: 12px; min-height: 20px; }
+.form-panel .form-msg.error { color: #dc2626; }
+.form-panel .form-msg.success { color: #16a34a; }
+.login-footer { text-align: center; color: #a09080; font-size: 16px; margin-top: 24px; position: relative; z-index: 1; }
+.login-footer a { color: #d48c5c; text-decoration: none; font-weight: 500; font-size: 16px; }
+.login-footer a:hover { text-decoration: underline; }
+body.app-view { background-color: #faf6f0; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer; font-weight: 600; font-size: 1rem;
+  transition: all 0.25s ease; font-family: inherit;
+  padding: 0.85rem 2rem; border-radius: 40px;
+}
+.btn-primary { background: #d48c5c; color: #fff; box-shadow: 0 4px 14px rgba(212,140,92,0.30); }
+.btn-primary:hover { background: #c08050; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,140,92,0.38); }
+.btn-ghost { background: transparent; color: #8a7a6a; }
+.btn-ghost:hover { background: #fcf0e5; color: #d48c5c; }
+.btn-block { width: 100%; }
+.btn-sm { padding: 0.6rem 1.4rem; font-size: 0.95rem; }
+.input, .select, .textarea {
+  width: 100%; font-family: inherit; font-size: 1rem;
+  background: #fff; border: 1px solid #d4c4b0; border-radius: 16px;
+  padding: 0.9rem 1.1rem; color: #2c2c2c;
+  transition: all 0.25s ease; outline: none;
+}
+.input:focus, .select:focus, .textarea:focus {
+  border-color: #d48c5c;
+  box-shadow: 0 0 0 5px rgba(212,140,92,0.12);
+}
+.input::placeholder { color: #c0b0a0; }
+.textarea { resize: vertical; min-height: 90px; }
+.select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a7a6a' fill='none' stroke-width='1.8'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1.2rem center; padding-right: 2.8rem; }
+label.field-label { display: block; font-weight: 600; font-size: 0.95rem; color: #5f4a34; margin-bottom: 0.4rem; }
+#app-page { display: none; min-height: 100vh; }
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+  background: #fff; border-right: 1px solid #f0e8de;
+  padding: 1.8rem 1.2rem; display: flex; flex-direction: column;
+  z-index: 100;
+}
+.sidebar-logo { font-weight: 800; font-size: 1.2rem; color: #3d2c1b; margin-bottom: 0.8rem; }
+.sidebar-logo span { color: #d48c5c; }
+.sidebar-user {
+  display: flex; align-items: center; gap: 0.7rem; padding: 1rem 0.8rem;
+  margin-bottom: 1.2rem; border-bottom: 1px solid #f0e8de;
+}
+.sidebar-user .avatar {
+  width: 42px; height: 42px; border-radius: 50%; background: #e8d9cc;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem; color: #7a5f45; flex-shrink: 0;
+}
+.sidebar-user .uname { font-weight: 600; color: #3d2c1b; font-size: 1rem; }
+.nav-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
+.nav-item {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.9rem 1rem; border-radius: 16px;
+  font-weight: 500; font-size: 1rem; color: #8a7a6a;
+  cursor: pointer; transition: all 0.2s ease; border: none; background: none;
+  font-family: inherit; width: 100%; text-align: left;
+}
+.nav-item:hover { background: #fcf0e5; color: #d48c5c; }
+.nav-item.active { background: #fcf0e5; color: #d48c5c; font-weight: 700; }
+.sidebar-footer { border-top: 1px solid #f0e8de; padding-top: 0.8rem; }
+.main-content { margin-left: 240px; padding: 2.5rem 3rem; min-height: 100vh; }
+.page { display: none; }
+.page.active { display: block; }
+.page-header { margin-bottom: 2rem; }
+.page-header h2 { font-size: 1.8rem; font-weight: 700; color: #3d2c1b; }
+.page-header p { color: #8a7a6a; font-size: 1rem; margin-top: 0.3rem; }
+.card {
+  background: #fff; border-radius: 24px; padding: 2rem 2.2rem;
+  margin-bottom: 1.8rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  border: 1px solid #f0e8de;
+}
+.card-title { font-size: 1.2rem; font-weight: 700; color: #2c2c2c; margin-bottom: 1.4rem; }
+.info-card {
+  background: #fcf9f5; border-radius: 20px; padding: 1.6rem;
+  border: 1px solid #f0e8de;
+}
+.info-card h4 { font-weight: 700; font-size: 1rem; color: #5f4a34; margin-bottom: 0.8rem; }
+.info-card p, .info-card li { color: #7a6a5a; font-size: 0.95rem; line-height: 1.9; }
+.info-card ul { list-style: none; padding: 0; }
+.info-card ul li::before { content: '• '; color: #d48c5c; font-weight: 700; }
+.workbench-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 1.8rem; align-items: start; }
+.schemes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; }
+.scheme-card {
+  background: #fcf9f5; border-radius: 22px; padding: 1.6rem;
+  border: 1px solid #f0e8de; border-left: 5px solid #d48c5c;
+  transition: all 0.25s ease;
+}
+.scheme-card:hover { border-color: #d48c5c; box-shadow: 0 6px 22px rgba(212,140,92,0.10); }
+.scheme-card .scheme-ver {
+  display: inline-block; padding: 0.3rem 1rem; border-radius: 20px;
+  font-size: 0.85rem; font-weight: 700; background: #e8d9cc; color: #5f4a34;
+  margin-bottom: 0.8rem;
+}
+.scheme-card .scheme-title { font-size: 1.1rem; font-weight: 700; color: #2c2c2c; margin-bottom: 0.6rem; }
+.scheme-card .scheme-desc { color: #8a7a6a; font-size: 0.95rem; line-height: 1.7; margin-bottom: 0.9rem; }
+.scheme-card .scheme-tag {
+  display: inline-block; padding: 0.25rem 0.9rem; border-radius: 18px;
+  font-size: 0.85rem; background: #e8d9cc; color: #5f4a34; margin-right: 0.4rem;
+}
+.scheme-card .scheme-reason {
+  margin-top: 1rem; padding: 0.8rem 1rem; background: linear-gradient(90deg, #fcf9f5, #faf6f0);
+  border-left: 3px solid #d48c5c; border-radius: 0 12px 12px 0;
+  font-size: 0.9rem; color: #5f4a34;
+}
+.scheme-card .scheme-reason .reason-label { font-weight: 700; color: #d48c5c; font-size: 0.8rem; }
+.file-upload-area {
+  border: 2px dashed #d4c4b0; border-radius: 18px; padding: 1.2rem;
+  text-align: center; cursor: pointer; transition: all 0.25s ease;
+  background: #fdfaf7;
+}
+.file-upload-area:hover { border-color: #d48c5c; background: #fcf9f5; }
+.file-upload-area .upload-text { color: #8a7a6a; font-size: 0.95rem; }
+.file-upload-area .upload-hint { color: #b0a090; font-size: 0.85rem; margin-top: 0.3rem; }
+.file-list { margin-top: 0.8rem; }
+.file-list .file-item {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: #fcf9f5; padding: 0.35rem 0.9rem; border-radius: 14px;
+  font-size: 0.85rem; color: #5f4a34; margin-right: 0.5rem; margin-bottom: 0.4rem;
+}
+.file-list .file-remove { cursor: pointer; color: #b0a090; font-weight: 700; }
+.file-list .file-remove:hover { color: #d48c5c; }
+.history-table-wrap { overflow-x: auto; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.history-table thead th {
+  text-align: left; padding: 1rem 1.2rem; background: #fcf9f5;
+  color: #5f4a34; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.5px;
+  text-transform: uppercase; border-bottom: 2px solid #f0e8de;
+}
+.history-table tbody td { padding: 1rem 1.2rem; border-bottom: 1px solid #f0e8de; color: #3d2c1b; }
+.history-table tbody tr:hover { background: #fdfaf7; }
+.badge-cell {
+  display: inline-block; padding: 0.25rem 0.8rem; border-radius: 16px;
+  font-weight: 600; font-size: 0.85rem; background: #e8d9cc; color: #5f4a34;
+}
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.4rem;
+  margin-bottom: 2rem;
+}
+.kpi-card {
+  background: #fcf9f5; padding: 1.5rem 1.8rem; border-radius: 22px;
+  border: 1px solid #f0e8de; text-align: center;
+}
+.kpi-card .kpi-label { font-size: 0.9rem; font-weight: 500; color: #8a7a6a; letter-spacing: 0.3px; text-transform: uppercase; margin-bottom: 0.4rem; }
+.kpi-card .kpi-value { font-size: 2.4rem; font-weight: 700; color: #2c2c2c; }
+.kpi-card .kpi-value small { font-size: 1rem; font-weight: 400; color: #a09080; margin-left: 4px; }
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.8rem; }
+.chart-box { background: #fcf9f5; border-radius: 24px; padding: 1.5rem; border: 1px solid #f0e8de; }
+.empty-state { text-align: center; padding: 4rem 2rem; color: #a09080; }
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+.empty-state .empty-text { font-size: 1.1rem; }
+.action-row { display: flex; gap: 1rem; margin-top: 1.4rem; flex-wrap: wrap; }
+.toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.6rem; }
+.toast {
+  padding: 1rem 1.5rem; border-radius: 16px; font-weight: 500; font-size: 0.95rem;
+  animation: toastIn 0.35s ease; box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+}
+.toast-success { background: #eef7ee; color: #3a7040; border: 1px solid #c8e6cc; }
+.toast-error { background: #fef0ed; color: #b8452a; border: 1px solid #f5d0c8; }
+.toast-info { background: #fcf9f5; color: #5f4a34; border: 1px solid #f0e8de; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 1024px) {
+  .workbench-grid { grid-template-columns: 1fr; }
+  .schemes-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { width: 200px; }
+  .main-content { margin-left: 200px; padding: 1.5rem; }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .login-card { padding: 32px 24px 28px; }
+  .login-card .logo h1 { font-size: 22px; }
+  .login-card .tags span { font-size: 12px; }
+}
+</style>
+</head>
+<body class="login-view">
+
+<div id="login-page">
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="logo"><h1><span>AI</span> 数字媒体创作助手</h1></div>
+      <div class="subtitle">MULTIMEDIA AI CREATOR  ·  数字媒体AI创作平台</div>
+      <div class="tags">
+        <span>游戏策划</span><span>短视频创作</span><span>社交媒体运营</span><span>品牌宣发</span>
+      </div>
+      <div class="desc">AI 驱动 · 一键生成 · 多平台适配</div>
+      <div class="tab-group">
+        <button class="active" id="tab-btn-login">登录</button>
+        <button id="tab-btn-register">注册</button>
+      </div>
+      <div id="login-panel" class="form-panel active">
+        <form id="login-form" autocomplete="off">
+          <input class="field" type="text" id="login-username" placeholder="用户名" autocomplete="username">
+          <input class="field" type="password" id="login-password" placeholder="密码" autocomplete="current-password">
+          <button type="submit" class="btn-submit">立即登录</button>
+        </form>
+        <div class="form-msg" id="login-msg"></div>
+      </div>
+      <div id="register-panel" class="form-panel">
+        <form id="register-form" autocomplete="off">
+          <input class="field" type="text" id="reg-username" placeholder="用户名" autocomplete="off">
+          <input class="field" type="password" id="reg-password" placeholder="密码（6位以上）" autocomplete="off">
+          <input class="field" type="password" id="reg-password2" placeholder="确认密码" autocomplete="off">
+          <button type="submit" class="btn-submit">完成注册</button>
+        </form>
+        <div class="form-msg" id="reg-msg"></div>
+      </div>
+    </div>
+    <div class="login-footer"><a href="#">忘记密码？</a> &nbsp;·&nbsp; <a href="#">帮助中心</a></div>
+  </div>
+</div>
+
+<div id="app-page">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><span>AI</span> 创作助手</div>
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebar-avatar">U</div>
+      <span class="uname" id="sidebar-username">用户</span>
+    </div>
+    <div class="nav-group">
+      <button class="nav-item active" data-page="workbench">工作台</button>
+      <button class="nav-item" data-page="history">历史记录</button>
+      <button class="nav-item" data-page="dashboard">数据看板</button>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-block" id="btn-logout" style="justify-content: flex-start;">退出登录</button>
+    </div>
+  </nav>
+  <div class="main-content">
+    <div class="page active" id="page-workbench">
+      <div class="page-header"><h2>智能创作工作台</h2><p>填写创作参数，AI Agent 将为你生成 3 套差异化创作方案</p></div>
+      <div class="workbench-grid">
+        <div class="card">
+          <div class="card-title">📝 创作参数配置</div>
+          <form id="create-form" autocomplete="off">
+            <div class="form-group">
+              <label class="field-label" for="input-topic">创作主题 <span style="color:#d48c5c;">*</span></label>
+              <input class="input" type="text" id="input-topic" placeholder="例：秋季平价护肤攻略、二次元游戏剧情脚本">
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="input-audience">目标受众</label>
+              <input class="input" type="text" id="input-audience" placeholder="例：20-30岁学生、数码发烧友、宝妈群体">
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+              <div class="form-group">
+                <label class="field-label" for="input-platform">发布平台</label>
+                <select class="select" id="input-platform">
+                  <option value="douyin">抖音</option>
+                  <option value="xiaohongshu">小红书</option>
+                  <option value="bilibili">B站</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="input-duration">视频时长</label>
+                <select class="select" id="input-duration">
+                  <option value="30s">30 秒</option>
+                  <option value="60s">60 秒</option>
+                  <option value="3min">3 分钟</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="input-style">内容风格</label>
+                <select class="select" id="input-style">
+                  <option value="干货科普">干货科普</option>
+                  <option value="轻娱乐">轻娱乐</option>
+                  <option value="情感走心">情感走心</option>
+                  <option value="剧情故事">剧情故事</option>
+                  <option value="测评种草">测评种草</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="field-label">参考素材（可选）</label>
+              <div class="file-upload-area" id="file-drop-area">
+                <div class="upload-text">📎 点击或拖拽上传图片 / 音频文件</div>
+                <div class="upload-hint">支持 JPG、PNG、MP3、WAV 格式，可多选</div>
+              </div>
+              <input type="file" id="file-input" multiple accept="image/*,audio/*" style="display:none;">
+              <div class="file-list" id="file-list"></div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-submit" style="font-size:1rem; padding:0.9rem 2.5rem;">🚀 一键启动 AI 创作</button>
+            <span id="submit-status" style="margin-left:1rem; color:#8a7a6a; font-size:0.95rem;"></span>
+          </form>
+        </div>
+        <div class="info-card">
+          <h4>💡 创作优化提示</h4>
+          <ul>
+            <li>主题描述越具体，生成脚本质量越高</li>
+            <li>抖音适配短平快钩子，小红书侧重图文氛围感</li>
+            <li>B站适合长剧情、深度科普类内容</li>
+            <li>每次自动生成 3 套差异化方案，附带量化评分推荐</li>
+          </ul>
+          <div style="margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid #f0e8de;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight:500;">今日剩余</span>
+              <span style="font-weight:600; color:#d48c5c;">3 次生成</span>
+            </div>
+            <div style="width:100%; height:6px; background:#ede5db; border-radius:10px; margin-top:0.5rem;">
+              <div style="width:60%; height:100%; background:#d48c5c; border-radius:10px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="schemes-section">
+        <div class="card-title">📄 AI 生成创作方案（A / B / C 三套）</div>
+        <div id="schemes-container">
+          <div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无创作方案，填写上方参数点击「一键启动 AI 创作」生成内容</div></div>
+        </div>
+        <div class="action-row" id="scheme-actions" style="display:none;">
+          <button class="btn btn-primary btn-sm" id="btn-export">📥 导出全部方案 Markdown</button>
+          <button class="btn btn-ghost btn-sm" id="btn-compare">🔍 A / B 方案对比分析</button>
+        </div>
+      </div>
+    </div>
+    <div class="page" id="page-history">
+      <div class="page-header"><h2>历史创作会话记录</h2><p>查看与管理所有历史创作方案</p></div>
+      <div class="card"><div id="history-container"><div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无历史创作记录，前往工作台生成第一条内容</div></div></div>
+      <div class="action-row" id="history-actions" style="display:none;"><button class="btn btn-primary btn-sm" id="btn-export-csv">导出历史记录 CSV</button></div></div>
+    </div>
+    <div class="page" id="page-dashboard">
+      <div class="page-header"><h2>创作数据统计看板</h2><p>创作趋势、平台分布与主题分析</p></div>
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">总项目</div><div class="kpi-value" id="kpi-total">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">进行中</div><div class="kpi-value" id="kpi-active">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">待审核</div><div class="kpi-value" id="kpi-review">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">0 <small>个</small></div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-box"><div id="chart-platform" style="width:100%; height:380px;"></div></div>
+        <div class="chart-box"><div id="chart-theme" style="width:100%; height:380px;"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+(function() {
+  'use strict';
+  var API_BASE = 'http://127.0.0.1:8000/api';
+  var token = null;
+  var user = null;
+  var currentPage = 'workbench';
+  var schemesList = [];
+  var selectedFiles = [];
+
+  var $body = document.body;
+  var $loginPage = document.getElementById('login-page');
+  var $appPage = document.getElementById('app-page');
+  var $loginPanel = document.getElementById('login-panel');
+  var $registerPanel = document.getElementById('register-panel');
+  var $tabBtnLogin = document.getElementById('tab-btn-login');
+  var $tabBtnRegister = document.getElementById('tab-btn-register');
+  var $loginForm = document.getElementById('login-form');
+  var $registerForm = document.getElementById('register-form');
+  var $loginMsg = document.getElementById('login-msg');
+  var $regMsg = document.getElementById('reg-msg');
+  var $sidebarAvatar = document.getElementById('sidebar-avatar');
+  var $sidebarUsername = document.getElementById('sidebar-username');
+  var $fileInput = document.getElementById('file-input');
+  var $fileDropArea = document.getElementById('file-drop-area');
+  var $fileList = document.getElementById('file-list');
+  var $toastContainer = document.getElementById('toast-container');
+
+  function showToast(msg, type) {
+    type = type || 'info';
+    var el = document.createElement('div');
+    el.className = 'toast toast-' + type;
+    el.textContent = msg;
+    $toastContainer.appendChild(el);
+    setTimeout(function() { el.remove(); }, 3500);
+  }
+
+  function extractError(data) {
+    if (!data) return '未知错误';
+    if (typeof data === 'string') return data;
+    if (data.detail && typeof data.detail === 'string') return data.detail;
+    if (data.detail && typeof data.detail === 'object' && data.detail.msg) return data.detail.msg;
+    if (data.message && typeof data.message === 'string') return data.message;
+    if (data.error && typeof data.error === 'string') return data.error;
+    if (data.error && typeof data.error === 'object' && data.error.message) return data.error.message;
+    if (data.msg && typeof data.msg === 'string') return data.msg;
+    try { return JSON.stringify(data); } catch(e) { return '请求失败，请稍后重试'; }
+  }
+
+  function apiRequest(path, method, jsonData) {
+    method = method || 'GET';
+    var headers = {};
+    if (token) { headers['Authorization'] = 'Bearer ' + token; }
+    var url = API_BASE + path;
+    var opts = { method: method, headers: headers };
+    if (jsonData && method !== 'GET') {
+      headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(jsonData);
+    }
+    return fetch(url, opts).then(function(r) {
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('application/json') !== -1) {
+        return r.json().then(function(data) { return { status: r.status, ok: r.ok, data: data }; });
+      } else {
+        return r.text().then(function(text) { return { status: r.status, ok: r.ok, data: text }; });
+      }
+    }).catch(function(err) {
+      return { status: 0, ok: false, data: '网络请求失败：' + err.message + '，请检查后端服务是否启动' };
+    });
+  }
+
+  function setFormMsg(el, msg, type) {
+    el.textContent = msg || '';
+    el.className = 'form-msg ' + (type || '');
+  }
+  function clearFormMsgs() {
+    setFormMsg($loginMsg, '', '');
+    setFormMsg($regMsg, '', '');
+  }
+
+  $tabBtnLogin.addEventListener('click', function() {
+    $tabBtnLogin.classList.add('active');
+    $tabBtnRegister.classList.remove('active');
+    $loginPanel.classList.add('active');
+    $registerPanel.classList.remove('active');
+    clearFormMsgs();
+  });
+  $tabBtnRegister.addEventListener('click', function() {
+    $tabBtnRegister.classList.add('active');
+    $tabBtnLogin.classList.remove('active');
+    $registerPanel.classList.add('active');
+    $loginPanel.classList.remove('active');
+    clearFormMsgs();
+  });
+
+  $loginForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    setFormMsg($loginMsg, '', '');
+    var uname = document.getElementById('login-username').value.trim();
+    var pwd = document.getElementById('login-password').value;
+    if (!uname || !pwd) { setFormMsg($loginMsg, '请输入用户名和密码', 'error'); return; }
+    apiRequest('/auth/login', 'POST', { username: uname, password: pwd }).then(function(res) {
+      if (res.ok) {
+        token = res.data.access_token;
+        user = { username: res.data.username };
+        localStorage.setItem('ai_creator_token', token);
+        localStorage.setItem('ai_creator_user', JSON.stringify(user));
+        setFormMsg($loginMsg, '登录成功，正在跳转...', 'success');
+        setTimeout(function() { showApp(); }, 800);
+      } else {
+        setFormMsg($loginMsg, extractError(res.data) || '账号或密码错误', 'error');
+      }
+    });
+  });
+
+  $registerForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    setFormMsg($regMsg, '', '');
+    var uname = document.getElementById('reg-username').value.trim();
+    var pwd = document.getElementById('reg-password').value;
+    var pwd2 = document.getElementById('reg-password2').value;
+    if (!uname || !pwd) { setFormMsg($regMsg, '请填写完整信息', 'error'); return; }
+    if (pwd !== pwd2) { setFormMsg($regMsg, '两次密码不一致', 'error'); return; }
+    apiRequest('/auth/register', 'POST', { username: uname, password: pwd }).then(function(res) {
+      if (res.ok) {
+        setFormMsg($regMsg, '注册成功！请切换到登录', 'success');
+        $registerForm.reset();
+      } else {
+        setFormMsg($regMsg, extractError(res.data) || '注册失败，请重试', 'error');
+      }
+    });
+  });
+
+  function showApp() {
+    $body.classList.remove('login-view');
+    $body.classList.add('app-view');
+    $loginPage.style.display = 'none';
+    $appPage.style.display = 'block';
+    $sidebarUsername.textContent = user ? user.username : '用户';
+    if (user && user.username) {
+      $sidebarAvatar.textContent = user.username.charAt(0).toUpperCase();
+    }
+    navigateTo('workbench');
+  }
+
+  document.getElementById('btn-logout').addEventListener('click', function() {
+    token = null; user = null;
+    console.log('[logout] 清空 schemesList');
+    schemesList = [];
+    localStorage.removeItem('ai_creator_token');
+    localStorage.removeItem('ai_creator_user');
+    $appPage.style.display = 'none';
+    $loginPage.style.display = 'block';
+    $body.classList.remove('app-view');
+    $body.classList.add('login-view');
+    $loginForm.reset(); $registerForm.reset(); clearFormMsgs();
+    $tabBtnLogin.classList.add('active');
+    $tabBtnRegister.classList.remove('active');
+    $loginPanel.classList.add('active');
+    $registerPanel.classList.remove('active');
+  });
+
+  function navigateTo(page) {
+    currentPage = page;
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    var target = document.getElementById('page-' + page);
+    if (target) { target.classList.add('active'); }
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+    var nav = document.querySelector('.nav-item[data-page="' + page + '"]');
+    if (nav) { nav.classList.add('active'); }
+    if (page === 'dashboard') { renderDashboardCharts(); }
+    if (page === 'history') { loadHistory(); }
+    if (page === 'workbench') { console.log('[navigateTo] 触发 renderSchemes, schemesList长度:', schemesList.length); renderSchemes(); }
+  }
+
+  document.querySelectorAll('.nav-item').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      navigateTo(this.getAttribute('data-page'));
+    });
+  });
+
+  $fileDropArea.addEventListener('click', function() { $fileInput.click(); });
+  $fileDropArea.addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = '#d48c5c'; });
+  $fileDropArea.addEventListener('dragleave', function() { this.style.borderColor = '#d4c4b0'; });
+  $fileDropArea.addEventListener('drop', function(e) {
+    e.preventDefault(); this.style.borderColor = '#d4c4b0';
+    addFiles(e.dataTransfer.files);
+  });
+  $fileInput.addEventListener('change', function() { addFiles(this.files); });
+
+  function addFiles(files) {
+    for (var i = 0; i < files.length; i++) {
+      if (!selectedFiles.some(function(f) { return f.name === files[i].name && f.size === files[i].size; })) {
+        selectedFiles.push(files[i]);
+      }
+    }
+    renderFileList();
+  }
+
+  function renderFileList() {
+    $fileList.innerHTML = '';
+    selectedFiles.forEach(function(f, i) {
+      var item = document.createElement('span');
+      item.className = 'file-item';
+      item.innerHTML = f.name + ' <span class="file-remove" data-idx="' + i + '">x</span>';
+      $fileList.appendChild(item);
+    });
+    document.querySelectorAll('.file-remove').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var idx = parseInt(this.getAttribute('data-idx'));
+        selectedFiles.splice(idx, 1);
+        renderFileList();
+      });
+    });
+  }
+
+  document.getElementById('create-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var btnSubmit = document.getElementById('btn-submit');
+    var statusEl = document.getElementById('submit-status');
+    // 立即禁用按钮，防止重复提交
+    if (btnSubmit.disabled) return;
+    btnSubmit.disabled = true;
+    var topic = document.getElementById('input-topic').value.trim();
+    console.log('表单提交，主题：', topic);
+    if (!topic) {
+      showToast('创作主题为必填项，请完善！', 'error');
+      btnSubmit.disabled = false;
+      return;
+    }
+    statusEl.textContent = '正在提交...';
+    var payload = {
+      topic: topic,
+      target_audience: document.getElementById('input-audience').value.trim(),
+      platform: document.getElementById('input-platform').value,
+      duration: document.getElementById('input-duration').value,
+      style: document.getElementById('input-style').value
+    };
+    // 先生成本地方案（不依赖后端），确保卡片始终能渲染
+    var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
+    var platformName = platformMap[payload.platform] || payload.platform;
+    console.log('[submit] 设置 schemesList (3 条方案), 当前 schemesList 长度:', schemesList.length);
+    schemesList = [
+      { version: 'A', title: topic + '｜简洁干货版', description: '开篇直击痛点，结构简短清晰，适合新手创作者快速落地', platform: platformName, reason: '钩子吸引力强，适合新手创作者' },
+      { version: 'B', title: topic + '｜剧情种草版', description: '以生活化小故事切入，搭配情绪递进，自然引出主题价值', platform: platformName, reason: '综合评分最高，推荐首选' },
+      { version: 'C', title: topic + '｜深度测评版', description: '多角度拆解主题细节，数据对比与成分分析，内容厚度扎实', platform: platformName, reason: '适合深度粉丝，留存率高' }
+    ];
+    renderSchemes();
+    // 异步提交到后端（后端不可用时也不影响前端展示）
+    apiRequest('/creation/start', 'POST', payload).then(function(res) {
+      statusEl.textContent = '';
+      btnSubmit.disabled = false;
+      if (res.ok) {
+        showToast('任务已提交，任务ID：' + (res.data.task_id || '未知'), 'success');
+        // 如果后端返回了方案数据，替换本地方案
+        if (res.data.schemes && Array.isArray(res.data.schemes)) {
+          console.log('[API回调] 用后端数据替换 schemesList, 条数:', res.data.schemes.length);
+          schemesList = res.data.schemes;
+          renderSchemes();
+        }
+      } else {
+        console.warn('后端提交失败（前端已渲染本地方案）：', res.status, extractError(res.data));
+      }
+    }).catch(function(err) {
+      statusEl.textContent = '';
+      btnSubmit.disabled = false;
+      console.error('提交异常（前端已渲染本地方案）：', err);
+    });
+  });
+
+  function renderSchemes() {
+    console.log('方案已渲染', schemesList);
+    // 保护：如果数据为空则不覆盖已有卡片（避免方案一闪而过消失）
+    if (!schemesList.length) {
+      console.log('renderSchemes: schemesList 为空，跳过渲染保留已有内容');
+      console.trace('调用栈 - schemesList 为空时是谁调用了 renderSchemes');
+      return;
+    }
+    var container = document.getElementById('schemes-container');
+    var actions = document.getElementById('scheme-actions');
+    var colors = ['#d48c5c', '#c08050', '#b87040'];
+    var html = '<div class="schemes-grid">';
+    schemesList.forEach(function(item, i) {
+      html += '<div class="scheme-card" style="border-left-color:' + colors[i] + ';">';
+      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + '</div>';
+      html += '<div class="scheme-title">' + escapeHtml(item.title) + '</div>';
+      html += '<div class="scheme-desc">' + escapeHtml(item.description) + '</div>';
+      html += '<span class="scheme-tag">' + escapeHtml(item.platform) + '</span>';
+      html += '<div class="scheme-reason"><span class="reason-label">系统推荐理由</span><br>' + escapeHtml(item.reason) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+    actions.style.display = 'flex';
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('btn-export').addEventListener('click', function() {
+    if (!schemesList.length) return;
+    var md = '# 创作方案导出\n\n';
+    schemesList.forEach(function(s) {
+      md += '## 方案 ' + s.version + '：' + s.title + '\n\n';
+      md += '- **平台**：' + s.platform + '\n';
+      md += '- **描述**：' + s.description + '\n';
+      md += '- **推荐理由**：' + s.reason + '\n\n';
+    });
+    downloadFile(md, '创作方案.md', 'text/markdown');
+    showToast('方案已导出为 Markdown 文件', 'success');
+  });
+
+  document.getElementById('btn-compare').addEventListener('click', function() {
+    if (schemesList.length < 2) { showToast('至少需要 2 套方案才能对比', 'error'); return; }
+    showToast('正在调用对比分析模块...', 'info');
+  });
+
+  function downloadFile(content, filename, mime) {
+    var blob = new Blob([content], { type: mime });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function loadHistory() {
+    var container = document.getElementById('history-container');
+    var actions = document.getElementById('history-actions');
+    apiRequest('/history', 'GET').then(function(res) {
+      var records = [];
+      if (res.ok && Array.isArray(res.data)) { records = res.data; }
+      if (!records.length && schemesList.length) {
+        records = schemesList.map(function(s) { return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason }; });
+      }
+      if (!records.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无历史创作记录，前往工作台生成第一条内容</div></div>';
+        actions.style.display = 'none';
+        return;
+      }
+      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案版本</th><th>标题</th><th>描述</th><th>平台</th><th>推荐理由</th></tr></thead><tbody>';
+      records.forEach(function(r) {
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || '') + '</td><td>' + escapeHtml(r.description || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || '') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+      actions.style.display = 'flex';
+    });
+  }
+
+  document.getElementById('btn-export-csv').addEventListener('click', function() {
+    var rows = [['方案版本','标题','描述','平台','推荐理由']];
+    schemesList.forEach(function(s) { rows.push([s.version, s.title, s.description, s.platform, s.reason]); });
+    var csv = rows.map(function(r) { return r.map(function(c) { return '"' + (c||'').replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
+    downloadFile(csv, '创作历史记录.csv', 'text/csv');
+    showToast('历史记录已导出为 CSV 文件', 'success');
+  });
+
+  var sampleStats = [
+    { platform: '抖音', theme: '护肤', count: 28 },
+    { platform: '小红书', theme: '美食', count: 36 },
+    { platform: 'B站', theme: '数码', count: 22 },
+    { platform: '抖音', theme: '旅行', count: 18 },
+    { platform: '小红书', theme: '测评', count: 24 },
+    { platform: 'B站', theme: '剧情', count: 16 },
+    { platform: '抖音', theme: '好物', count: 30 }
+  ];
+
+  function renderDashboardCharts() {
+    // KPI 默认占位（API 返回前显示）
+    var kpiTotal = document.getElementById('kpi-total');
+    var kpiActive = document.getElementById('kpi-active');
+    var kpiReview = document.getElementById('kpi-review');
+    var kpiDone = document.getElementById('kpi-done');
+    kpiTotal.innerHTML = '-- <small>个</small>';
+    kpiActive.innerHTML = '-- <small>个</small>';
+    kpiReview.innerHTML = '-- <small>个</small>';
+    kpiDone.innerHTML = '-- <small>个</small>';
+
+    // 异步获取真实统计数据
+    apiRequest('/statistics/summary', 'GET').then(function(res) {
+      console.log('看板API原始返回:', res);
+      if (res.ok && res.data) {
+        // 兼容两种返回结构：扁平 { total: 10 } 和嵌套 { data: { total: 10 } }
+        var stats = res.data.data || res.data;
+        console.log('看板数据:', stats);
+        kpiTotal.innerHTML = (stats.total != null ? stats.total : '--') + ' <small>个</small>';
+        kpiActive.innerHTML = (stats.in_progress != null ? stats.in_progress : '--') + ' <small>个</small>';
+        kpiReview.innerHTML = (stats.pending_review != null ? stats.pending_review : '--') + ' <small>个</small>';
+        kpiDone.innerHTML = (stats.weekly_completed != null ? stats.weekly_completed : '--') + ' <small>个</small>';
+      }
+    }).catch(function(err) {
+      console.warn('统计数据获取失败，保留默认占位:', err);
+    });
+
+    // 图表使用 sampleStats 样例数据
+    var platformAgg = {};
+    sampleStats.forEach(function(d) { platformAgg[d.platform] = (platformAgg[d.platform] || 0) + d.count; });
+    var platData = [{ x: Object.keys(platformAgg), y: Object.values(platformAgg), type: 'bar', marker: { color: ['#FF8A80','#FFAB91','#FFCC80'] } }];
+    var platLayout = {
+      title: { text: '各平台样例素材数量分布', font: { size: 17, color: '#5D4037' } },
+      plot_bgcolor: '#fcf9f5', paper_bgcolor: '#fcf9f5',
+      font: { color: '#5D4037', size: 14 },
+      margin: { t: 48, b: 40, l: 50, r: 20 },
+      xaxis: { gridcolor: '#f0e8de' }, yaxis: { gridcolor: '#f0e8de' }
+    };
+    Plotly.newPlot('chart-platform', platData, platLayout, { responsive: true, displayModeBar: false });
+
+    var themeAgg = {};
+    sampleStats.forEach(function(d) { themeAgg[d.theme] = (themeAgg[d.theme] || 0) + d.count; });
+    var themeData = [{ labels: Object.keys(themeAgg), values: Object.values(themeAgg), type: 'pie', marker: { colors: ['#FF8A80','#FFAB91','#FFCC80','#A5D6A7','#90CAF9'] } }];
+    var themeLayout = {
+      title: { text: '创作主题分类占比', font: { size: 17, color: '#5D4037' } },
+      paper_bgcolor: '#fcf9f5', font: { color: '#5D4037', size: 14 },
+      margin: { t: 48, b: 20, l: 20, r: 20 }
+    };
+    Plotly.newPlot('chart-theme', themeData, themeLayout, { responsive: true, displayModeBar: false });
+  }
+
+  var savedToken = localStorage.getItem('ai_creator_token');
+  var savedUser = localStorage.getItem('ai_creator_user');
+  if (savedToken && savedUser) {
+    try { user = JSON.parse(savedUser); } catch(e) { user = null; savedToken = null; }
+    if (user && savedToken) {
+      token = savedToken;
+      apiRequest('/auth/me', 'GET').then(function(res) {
+        if (res.ok && res.data) { showApp(); } else { token = null; user = null; }
+      });
+    }
+  }
+
+  var resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      if (currentPage === 'dashboard') { renderDashboardCharts(); }
+    }, 300);
+  });
+
+})();
+</script>
+</body>
+</html>

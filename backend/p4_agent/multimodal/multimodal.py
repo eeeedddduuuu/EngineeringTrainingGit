@@ -46,6 +46,7 @@ if sys.platform == "win32":
     sys.argv = _get_unicode_argv()
 
 import base64, json, argparse, time, hashlib, threading
+import os
 from pathlib import Path
 from datetime import datetime, date
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -57,7 +58,8 @@ except ImportError:
     HAS_REQUESTS = False
 
 # ── 配置 ──────────────────────────────────────────────────
-API_KEY = _os.environ.get("ARK_API_KEY", "your-ark-api-key-here")
+def _get_api_key():
+    return os.environ.get("ARK_API_KEY", "你的火山方舟_API_Key")
 API_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 MODEL = "doubao-seed-2-0-pro-260215"
 
@@ -282,8 +284,9 @@ def call_multimodal(
         start = time.time()
         resp = requests.post(API_URL, json=payload,
                              headers={"Content-Type": "application/json",
-                                      "Authorization": f"Bearer {API_KEY}"},
-                             timeout=timeout)
+                                      "Authorization": f"Bearer {_get_api_key()}"},
+                             timeout=timeout,
+                             proxies={"http": None, "https": None})
         elapsed = time.time() - start
         r = resp.json()
         if "choices" not in r:
