@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api", tags=["创作"])
 _task_store: dict[str, dict] = {}
 
 # P4 Agent 调用超时（秒）
-P4_TIMEOUT = 30
+P4_TIMEOUT = 300
 
 
 def _try_p4_create_content(
@@ -54,6 +54,9 @@ def _try_p4_create_content(
             duration=duration,
             style=style,
             provider=provider,
+            enable_trend=False,    # 跳过热分析
+            enable_review=False,   # 跳过合规审查
+            enable_strategy=False, # 跳过发布策略（脚本Agent已含推荐）
         )
         if result.get("ok"):
             return result
@@ -177,11 +180,10 @@ def _run_fallback_mock(task_id: str, session_id: int, topic: str, platform: str,
 def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
     """
     后台线程执行 Agent 流水线：
-    - Coze 模式（默认）：调用 P4 Agent → Coze 平台 4 个 Bot
     - Mock 模式：直接用内置动态 Mock（秒出结果，内容匹配用户主题）
-    - 超时/失败回退动态 Mock
+    - DeepSeek 模式：调用 P4 Agent → 超时/失败回退动态 Mock
     """
-    PROVIDER = "coze"  # mock=离线秒出 / coze=Coze平台(题目3要求) / deepseek=直连(备选)
+    PROVIDER = "deepseek"  # 改为 "mock" 以使用离线模式
 
     _task_store[task_id]["status"] = "processing"
 
@@ -191,7 +193,7 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
         _run_fallback_mock(task_id, session_id, req.topic, req.platform, req.style)
         return
 
-    # Coze / DeepSeek 模式：调用 P4 Agent 流水线
+    # DeepSeek 模式：调用 P4 Agent 流水线
     _task_store[task_id]["progress"] = "🚀 Agent 流水线启动..."
 
     try:

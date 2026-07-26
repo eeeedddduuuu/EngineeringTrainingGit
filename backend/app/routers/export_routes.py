@@ -66,6 +66,15 @@ def _scheme_to_markdown(scheme: Scheme) -> str:
         lines.append(scheme.recommendation_reason)
         lines.append("")
 
+    # 如果解析出的分镜为空，但 storyboard_json 中有完整 raw_markdown，则直接输出原始内容
+    raw_md = (scheme.storyboard_json or {}).get("raw_markdown", "")
+    if not scenes and raw_md:
+        lines.append("---")
+        lines.append("")
+        lines.append("## 完整脚本内容（AI 原始输出）")
+        lines.append("")
+        lines.append(raw_md)
+
     return "\n".join(lines)
 
 

@@ -5,8 +5,10 @@ AI 数字媒体创作助手 — 前端 v4
 import streamlit as st
 import requests
 import time
+import json
 import pandas as pd
 import plotly.express as px
+from pathlib import Path
 
 # ====================== 配置 ======================
 API = "http://127.0.0.1:8000/api"
@@ -184,140 +186,6 @@ def show_scheme_cards(schemes, show_detail=True, show_export=True):
                         mime="text/markdown", key=f"dl_{s.get('id','')}",
                         use_container_width=True,
                     )
-
-# ====================== 页面4：数据看板（P5 真实数据驱动） ======================
-def render_dashboard_page():
-    st.markdown('<div class="card-title">📊 样例数据统计看板</div>', unsafe_allow_html=True)
-
-    # ── 从后端加载真实数据 ──
-    try:
-        resp = requests.get(
-            f"{API_BASE}/stats/samples",
-            headers={"Authorization": f"Bearer {st.session_state.token}"},
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            stats = resp.json()
-        else:
-            st.error(f"统计数据加载失败: HTTP {resp.status_code}")
-            return
-    except Exception as e:
-        st.error(f"无法连接后端: {e}")
-        return
-
-    total = stats.get("total_samples", 0)
-    topics = stats.get("topic_distribution", [])
-    platforms = stats.get("platform_distribution", [])
-    trends = stats.get("monthly_trends", [])
-
-    if total == 0:
-        st.warning("暂无统计数据，请先运行 init_db.py 导入样例数据")
-        return
-
-    # ── 指标卡 ──
-    cols = st.columns(4)
-    with cols[0]:
-        st.metric("📦 样例总数", f"{total} 条")
-    with cols[1]:
-        st.metric("🏷️ 类别数", f"{len(topics)} 类")
-    with cols[2]:
-        st.metric("📱 平台数", f"{len(platforms)} 个")
-    with cols[3]:
-        st.metric("🗓️ 月度跨度", f"{len(trends)} 个月")
-
-    st.divider()
-
-    # ── 第一行：主题分布 + 平台分布 ──
-    st.markdown("### 🎨 主题与平台分布")
-    r1l, r1r = st.columns(2)
-
-    with r1l:
-        df_topic = pd.DataFrame(topics)
-        colors = ["#4ECDC4", "#FF6B6B", "#FFE66D", "#95E1D3", "#F38181", "#AA96DA"]
-        fig = px.pie(
-            df_topic, values="count", names="name",
-            color_discrete_sequence=colors, hole=0.4,
-            title="样例主题分布",
-        )
-        fig.update_traces(textposition="inside", textinfo="percent+label")
-        fig.update_layout(height=420, margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
-
-    with r1r:
-        df_plat = pd.DataFrame(platforms)
-        plat_names = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
-        df_plat["平台名"] = df_plat["platform"].map(plat_names).fillna(df_plat["platform"])
-        fig = px.bar(
-            df_plat, x="平台名", y="count", color="平台名",
-            color_discrete_sequence=["#FF6B6B", "#4ECDC4", "#FFE66D"],
-            text="count", title="各平台样例数量",
-        )
-        fig.update_traces(textposition="outside", textfont_size=14)
-        fig.update_layout(height=420, showlegend=False, xaxis_title="", yaxis_title="",
-                          margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.divider()
-
-    # ── 第二行：月度趋势 + 类别对比 ──
-    st.markdown("### 📅 趋势与对比")
-    r2l, r2r = st.columns(2)
-
-    with r2l:
-        if trends:
-            df_trend = pd.DataFrame(trends)
-            fig = px.area(
-                df_trend, x="month", y="count",
-                title="月度发布趋势",
-                markers=True,
-            )
-            fig.update_traces(line_color="#FF6B6B", fillcolor="rgba(255,107,107,0.15)")
-            fig.update_layout(height=420, xaxis_title="", yaxis_title="",
-                              margin=dict(t=40, b=10, l=10, r=10))
-            fig.update_xaxes(tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("暂无趋势数据")
-
-    with r2r:
-        df_sorted = df_topic.sort_values("count", ascending=True)
-        fig = px.bar(
-            df_sorted, y="name", x="count", orientation="h",
-            color="name", color_discrete_sequence=colors,
-            text="count", title="类别数量对比",
-        )
-        fig.update_traces(textposition="outside", textfont_size=14)
-        fig.update_layout(height=420, showlegend=False, xaxis_title="", yaxis_title="",
-                          margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.divider()
-
-    # ── 第三行：占比环形图 + 数据表 ──
-    st.markdown("### 🔍 多维度明细")
-    r3l, r3r = st.columns([1, 1.2])
-
-    with r3l:
-        fig = px.pie(
-            df_topic, values="count", names="name",
-            color_discrete_sequence=colors, hole=0.6,
-            title="类别占比总览",
-        )
-        fig.update_traces(textposition="outside", textinfo="percent+label",
-                          pull=[0.03] * len(df_topic))
-        fig.update_layout(height=400, showlegend=False,
-                          margin=dict(t=40, b=10, l=10, r=60))
-        fig.add_annotation(text=f"总计<br>{total}条", x=0.5, y=0.5, font_size=22, showarrow=False)
-        st.plotly_chart(fig, use_container_width=True)
-
-    with r3r:
-        if trends:
-            df_m = pd.DataFrame(trends).tail(12).sort_values("month", ascending=False)
-            df_m.columns = ["月份", "数量"]
-            df_m["环比变化"] = df_m["数量"].diff(-1).fillna(0).astype(int)
-            st.dataframe(df_m, use_container_width=True, hide_index=True, height=400)
-
-    st.caption(f"数据来源: samples.xlsx（{total} 条样例）| P5 数据/知识库模块 | Plotly 图表实时渲染")
 
 # ====================== 创作工作台 ======================
 def workbench_page():
@@ -498,57 +366,330 @@ def history_page():
             if schemes:
                 show_scheme_cards(schemes)
 
-# ====================== 数据看板 ======================
-def dashboard_page():
-    st.title("📊 数据看板")
-    st.caption("知识库样例数据统计分析")
+# ====================== 词云预生成（独立缓存 24h，与图表缓存解耦） ======================
+@st.cache_data(ttl=86400, show_spinner=False)
+def _get_wordclouds() -> list:
+    """从 samples.xlsx 生成两张词云 PNG → base64。
 
+    TTL=24h，独立于图表缓存。xlsx 数据是静态的，词云无需频繁重算。
+    返回 [(title, base64_png), ...]，空列表表示无数据。
+    """
+    import base64, random, jieba
+    from wordcloud import WordCloud
+    from io import BytesIO
+
+    samples_path = Path(__file__).resolve().parent.parent / "samples.xlsx"
+    if not samples_path.exists():
+        return []
+
+    df = pd.read_excel(samples_path)
+    C4 = ["#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd"]
+    stopwords = {"的","了","在","是","我","有","和","就","不","人","都","一","一个",
+                 "上","也","很","到","说","要","去","你","会","着","没有","看","好",
+                 "自己","这","他","她","它","们","那","及","与","或","等","为","以",
+                 "将","对","把","被","从","让","但","而","且","所","如","之","其",
+                 "可以","这个","那个","已经","还是","这些","那些","因为","所以","如果",
+                 "虽然","然而","然后","之后","之前","可以","能够","需要","应该",
+                 "通过","进行","使用","一种","每个","一些","许多","其他",
+                 "中","更","较","最","非常","十分","特别","真正","完全","更加",
+                 "还","再","又","才","只","便","即","却","仍","亦","尚","未","无","非"}
+    jieba.setLogLevel(20)
+
+    # 输出目录
+    wc_dir = Path(__file__).resolve().parent / "static" / "wordclouds"
+    wc_dir.mkdir(parents=True, exist_ok=True)
+
+    result = []
+    for wc_label, col_name, filename in [
+        ("🏷️ 标题关键词云", "标题",    "wc_titles.png"),
+        ("📝 内容摘要词云",   "内容摘要", "wc_summaries.png"),
+    ]:
+        if col_name not in df.columns:
+            continue
+        text = " ".join(df[col_name].dropna().astype(str).tolist())
+        words = [w.strip() for w in jieba.cut(text)
+                 if len(w.strip()) >= 2 and w.strip() not in stopwords]
+        if not words:
+            continue
+        wc = WordCloud(
+            width=600, height=380, background_color="white",
+            font_path="C:/Windows/Fonts/msyh.ttc",
+            color_func=lambda *a, **kw: random.choice(C4),
+            max_words=80, collocations=False,
+            margin=10, prefer_horizontal=0.75,
+        )
+        wc.generate(" ".join(words))
+        buf = BytesIO()
+        img = wc.to_image()
+        img.save(buf, format="PNG")
+        # 持久化到磁盘，供直接访问
+        img.save(str(wc_dir / filename), format="PNG")
+        result.append((wc_label, base64.b64encode(buf.getvalue()).decode()))
+
+    return result
+
+
+# ====================== 数据看板缓存构建器（预生成 .html 静态文件到 static/） ======================
+@st.cache_data(ttl=3600, show_spinner="📊 正在生成统计图表…")
+def _build_dashboard_html(total: int, topics_json: str, platforms_json: str, trends_json: str) -> str:
+    """将 7 张 Plotly 图表预渲染为独立 .html + 合并版 dashboard_charts.html，缓存 1 小时。
+
+    首次调用：生成图表 HTML → 写入 static/ → 返回完整 HTML。
+    后续调用（同数据）：直接返回缓存，毫秒级响应。
+    """
+    topics   = json.loads(topics_json)
+    platforms = json.loads(platforms_json)
+    trends   = json.loads(trends_json)
+
+    df_topic = pd.DataFrame(topics)
+    plat_names = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
+    df_plat = pd.DataFrame(platforms)
+    df_plat["name"] = df_plat["platform"].map(plat_names).fillna(df_plat["platform"])
+    df_trend = pd.DataFrame(trends) if trends else pd.DataFrame()
+
+    # ── 纯紫系 4 阶配色（无绿无黑）──
+    C = {
+        "p4": "#7c3aed", "p3": "#8b5cf6", "p2": "#a78bfa", "p1": "#c4b5fd",
+        "bg": "#f5f3ff", "slate": "#64748b", "dark": "#1e293b", "white": "#ffffff",
+        "p_colors": ["#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd"],
+    }
+
+    # ── 静态文件输出目录 ──
+    static_dir = Path(__file__).resolve().parent / "static"
+    charts_dir = static_dir / "charts"
+    charts_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── 共享 Plotly 布局 ──
+    def _layout(title, h=400, **kw):
+        return dict(
+            title=dict(text=title, font=dict(size=16, color=C["dark"]), x=0),
+            height=h, margin=dict(t=44, b=0, l=0, r=0),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font_family="Microsoft YaHei", **kw
+        )
+
+    # ────────────── ① 主题环形图 ──────────────
+    fig1 = px.pie(df_topic, values="count", names="name", hole=0.55,
+                  color_discrete_sequence=C["p_colors"])
+    fig1.update_traces(textposition="inside", textinfo="percent",
+                       textfont=dict(size=14, color="white", family="Microsoft YaHei"),
+                       marker=dict(line=dict(color="white", width=2)))
+    fig1.update_layout(**_layout("① 主题分布 · 环形图"),
+                        legend=dict(orientation="h", y=-0.12, font=dict(size=12, color=C["slate"])))
+
+    # ────────────── ② 平台柱状图 ──────────────
+    pc = C["p_colors"][:len(df_plat)]
+    fig2 = px.bar(df_plat, x="name", y="count", color_discrete_sequence=pc)
+    fig2.update_traces(marker=dict(color=pc, line=dict(width=0)),
+                       text=df_plat["count"], textposition="outside",
+                       textfont=dict(size=15, color=C["slate"], family="Microsoft YaHei"), width=0.5)
+    fig2.update_layout(**_layout("② 平台分布 · 柱状图"),
+                        xaxis=dict(title="", tickfont=dict(size=13, color=C["dark"], family="Microsoft YaHei"), showgrid=False),
+                        yaxis=dict(title="", showticklabels=False, showgrid=False), showlegend=False)
+
+    # ────────────── ③ 月度趋势面积图 ──────────────
+    fig3 = px.area(df_trend, x="month", y="count")
+    fig3.update_traces(line=dict(color=C["p4"], width=2), fillcolor="rgba(124,58,237,0.10)",
+                       marker=dict(size=4, color=C["p4"], line=dict(width=2, color="white")))
+    fig3.update_layout(**_layout("③ 月度趋势 · 面积图", h=360),
+                        xaxis=dict(title=dict(text="月份", font=dict(size=12, color=C["slate"])),
+                                   tickfont=dict(size=11, color=C["slate"]), tickangle=-45,
+                                   showgrid=False, tickmode="linear", dtick=2,
+                                   showline=True, linecolor="#e2e8f0", linewidth=1),
+                        yaxis=dict(title=dict(text="数量", font=dict(size=12, color=C["slate"])),
+                                   showgrid=True, gridcolor="#f1f5f9", tickfont=dict(size=11, color=C["slate"]),
+                                   showline=True, linecolor="#e2e8f0", linewidth=1))
+
+    # ────────────── ④ 词云（独立缓存 24h，首次生成后秒读）──
+    wc_images = _get_wordclouds()  # [(label, base64_png), ...]
+
+    # ────────────── ⑤ 类别对比横向柱状图 ──────────────
+    df_sorted = df_topic.sort_values("count", ascending=True)
+    fig5 = px.bar(df_sorted, y="name", x="count", orientation="h")
+    g5 = C["p_colors"][:len(df_sorted)]
+    fig5.update_traces(marker=dict(color=g5, line=dict(width=0)),
+                       text=df_sorted["count"], textposition="outside",
+                       textfont=dict(size=15, color=C["slate"], family="Microsoft YaHei"), width=0.55)
+    fig5.update_layout(**_layout("⑤ 类别对比 · 横向柱状图"),
+                        xaxis=dict(title="", showgrid=False, showticklabels=False),
+                        yaxis=dict(title="", tickfont=dict(size=13, color=C["dark"], family="Microsoft YaHei")),
+                        showlegend=False)
+
+    # ────────────── ⑥ 主题树图 ──────────────
+    fig6 = px.treemap(df_topic, path=["name"], values="count", color="count",
+                      color_continuous_scale=[(0, C["p1"]), (0.5, C["p2"]), (1, C["p4"])])
+    fig6.update_traces(textinfo="label+value",
+                       textfont=dict(size=16, color="white", family="Microsoft YaHei"),
+                       hovertemplate="<b>%{{label}}</b><br>数量: %{{value}}<extra></extra>")
+    fig6.update_layout(**_layout("⑥ 主题分布 · 树图"))
+
+    # ────────────── ⑦ 平台占比饼图 ──────────────
+    fig7 = px.pie(df_plat, values="count", names="name",
+                  color_discrete_sequence=C["p_colors"][:len(df_plat)])
+    fig7.update_traces(textposition="inside", textinfo="percent+label",
+                       textfont=dict(size=14, color="white", family="Microsoft YaHei"),
+                       marker=dict(line=dict(color="white", width=2)))
+    fig7.update_layout(**_layout("⑦ 平台占比 · 饼图"), showlegend=False)
+
+    all_figs = [
+        ("chart_1_donut",          fig1),
+        ("chart_2_bar",            fig2),
+        ("chart_3_area",           fig3),
+        ("chart_4_hbar",           fig5),
+        ("chart_5_treemap",        fig6),
+        ("chart_6_pie",            fig7),
+    ]
+
+    # ── 写入独立 .html 文件（每个图表一个完整页面，CDN 加载 Plotly.js）──
+    for name, fig in all_figs:
+        fig.write_html(
+            str(charts_dir / f"{name}.html"),
+            include_plotlyjs="cdn",
+            full_html=True,
+            config={"responsive": True, "displayModeBar": False},
+        )
+
+    # ── 组装合并版 HTML 片段（清除固定宽度 → 完全响应式）──
+    import re
+    chart_snippets = []
+    for name, fig in all_figs:
+        # 从根本上清除 figure 的固定宽度，让 Plotly.js responsive 接管
+        fig.layout.pop("width", None)
+        snippet = fig.to_html(include_plotlyjs=False, full_html=False,
+                              config={"responsive": True, "displayModeBar": False})
+        # div style: width:700px → width:100%
+        snippet = re.sub(r'width:\s*\d+px', 'width:100%', snippet)
+        chart_snippets.append(snippet)
+
+    # ── 月度明细表 HTML ──
+    table_html = ""
+    if not df_trend.empty:
+        dm = df_trend.tail(12).sort_values("month", ascending=False).copy()
+        dm.columns = ["月份", "数量"]
+        dm["环比"] = dm["数量"].diff(-1).fillna(0).astype(int)
+        dm["环比"] = dm["环比"].apply(lambda x: f"+{x}" if x > 0 else str(x) if x < 0 else "—")
+        rows = []
+        for _, row in dm.iterrows():
+            bg = C["bg"] if row["月份"].startswith("2026") else "transparent"
+            rows.append(f"""<tr style="background:{bg};">
+              <td style="padding:8px 12px;color:{C['dark']};font-weight:500">{row['月份']}</td>
+              <td style="padding:8px 12px;color:{C['dark']};text-align:right">{int(row['数量'])} 条</td>
+              <td style="padding:8px 12px;color:{C['slate']};text-align:right;font-size:12px">{row['环比']}</td>
+            </tr>""")
+        table_html = f"""
+        <div class="tbl-card">
+          <div class="tbl-title">📋 最近 12 个月明细</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            {"".join(rows)}
+          </table>
+        </div>"""
+
+    # ── 合并版完整 HTML 文档 ──
+    combined = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>数据看板</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ font-family:'Microsoft YaHei','PingFang SC',sans-serif; background:#f8f9fb; padding:24px 28px; color:{C['dark']}; }}
+  .header {{ display:flex; align-items:baseline; gap:16px; margin-bottom:24px; }}
+  .header h1 {{ font-size:22px; font-weight:700; }}
+  .header span {{ font-size:13px; color:{C['slate']}; }}
+  .kpi-row {{ display:flex; gap:16px; margin-bottom:20px; }}
+  .kpi {{ flex:1; background:#fff; border-radius:14px; padding:22px 16px; text-align:center;
+          border:1px solid #eef2ff; box-shadow:0 1px 3px rgba(0,0,0,.04); }}
+  .kpi .label {{ font-size:12px; color:{C['slate']}; margin-bottom:6px; letter-spacing:.5px; }}
+  .kpi .value {{ font-size:30px; font-weight:700; }}
+  .kpi .unit {{ font-size:13px; font-weight:400; color:{C['slate']}; margin-left:4px; }}
+  .row {{ display:flex; gap:16px; margin-bottom:16px; }}
+  .card {{ flex:1; min-width:0; background:#fff; border-radius:14px; padding:14px;
+          border:1px solid #eef2ff; box-shadow:0 1px 3px rgba(0,0,0,.04); }}
+  .card .plotly-graph-div {{ width:100% !important; max-width:100%; }}
+  .full {{ background:#fff; border-radius:14px; padding:14px; margin-bottom:16px;
+          border:1px solid #eef2ff; box-shadow:0 1px 3px rgba(0,0,0,.04); }}
+  .full .plotly-graph-div {{ width:100% !important; max-width:100%; }}
+  .tbl-card {{ background:#fff; border-radius:14px; padding:18px 20px; flex:1;
+              border:1px solid #eef2ff; box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:auto; }}
+  .tbl-title {{ font-size:15px; font-weight:700; color:{C['dark']}; margin-bottom:14px; }}
+  .footer {{ text-align:center; color:{C['slate']}; font-size:12px; padding:12px 0 4px; }}
+</style></head>
+<body>
+<div class="header">
+  <h1>📊 样例数据统计</h1>
+  <span>samples.xlsx · {total} 条 · {len(trends)} 个月</span>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi"><div class="label">样例总数</div><div class="value">{total}<span class="unit">条</span></div></div>
+  <div class="kpi"><div class="label">主题类别</div><div class="value">{len(topics)}<span class="unit">类</span></div></div>
+  <div class="kpi"><div class="label">覆盖平台</div><div class="value">{len(platforms)}<span class="unit">个</span></div></div>
+  <div class="kpi"><div class="label">时间跨度</div><div class="value">{len(trends)}<span class="unit">月</span></div></div>
+</div>
+
+<div class="row">
+  <div class="card">{chart_snippets[0]}</div>
+  <div class="card">{chart_snippets[1]}</div>
+</div>
+
+<div class="full">{chart_snippets[2]}</div>
+
+<div class="row">
+  {f'''<div class="card" style="text-align:center">
+    <div style="font-size:15px;font-weight:700;color:{C['dark']};margin-bottom:12px">{wc_images[0][0]}</div>
+    <img src="data:image/png;base64,{wc_images[0][1]}" style="width:100%;border-radius:8px" alt="标题词云">
+  </div>
+  <div class="card" style="text-align:center">
+    <div style="font-size:15px;font-weight:700;color:{C['dark']};margin-bottom:12px">{wc_images[1][0]}</div>
+    <img src="data:image/png;base64,{wc_images[1][1]}" style="width:100%;border-radius:8px" alt="内容词云">
+  </div>''' if len(wc_images) >= 2 else ''}
+</div>
+
+<div class="row">
+  <div class="card">{chart_snippets[3]}</div>
+  <div class="card">{chart_snippets[4]}</div>
+</div>
+
+<div class="row">
+  <div class="card">{chart_snippets[5]}</div>
+  {table_html}
+</div>
+
+<div class="footer">P5 数据/知识库模块 · samples.xlsx（{total} 条）· 6 图表 + 2 词云 + 4 指标卡 · 静态预渲染</div>
+<script>
+// 所有图表渲染完成后强制 resize 使其适配容器宽度
+(function(){{
+  var divs = document.querySelectorAll('.plotly-graph-div');
+  divs.forEach(function(el){{ try{{ Plotly.Plots.resize(el); }}catch(e){{}} }});
+}})();
+</script>
+</body></html>"""
+
+    # 持久化合并版
+    (static_dir / "dashboard_charts.html").write_text(combined, encoding="utf-8")
+
+    return combined
+
+
+# ====================== 数据看板页面 ======================
+def dashboard_page():
+    """加载数据 → 交给缓存构建器生成 HTML → iframe 渲染（二次进入秒开）"""
     r = api("/stats/samples")
     if not r or r.status_code != 200:
-        st.warning("无法获取统计数据")
-        return
-
+        st.warning("无法获取统计数据"); return
     d = r.json()
 
-    # 指标行
-    m1, m2, m3, m4 = st.columns(4)
-    with m1:
-        st.markdown(f'<div class="metric-box"><h3>{d.get("total_samples", 0)}</h3><p>样例总数</p></div>', unsafe_allow_html=True)
-    td = d.get("topic_distribution", [])
-    with m2:
-        st.markdown(f'<div class="metric-box"><h3>{len(td)}</h3><p>主题分类</p></div>', unsafe_allow_html=True)
-    pd_data = d.get("platform_distribution", [])
-    with m3:
-        st.markdown(f'<div class="metric-box"><h3>{len(pd_data)}</h3><p>覆盖平台</p></div>', unsafe_allow_html=True)
-    md = d.get("monthly_trends", [])
-    with m4:
-        st.markdown(f'<div class="metric-box"><h3>{len(md)}</h3><p>月度数据点</p></div>', unsafe_allow_html=True)
+    total = d.get("total_samples", 0)
+    if total == 0:
+        st.warning("暂无数据"); return
 
-    # 图表
-    c1, c2 = st.columns(2)
-    with c1:
-        if td:
-            st.plotly_chart(
-                px.pie(pd.DataFrame(td), values="count", names="name", title="主题分布",
-                       color_discrete_sequence=px.colors.sequential.Purples_r),
-                use_container_width=True
-            )
-        if md:
-            st.plotly_chart(
-                px.line(pd.DataFrame(md), x="month", y="count", title="月度趋势", markers=True,
-                        color_discrete_sequence=["#7c3aed"]),
-                use_container_width=True
-            )
-    with c2:
-        if pd_data:
-            labels = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
-            df = pd.DataFrame(pd_data)
-            df["平台"] = df["platform"].map(labels).fillna(df["platform"])
-            st.plotly_chart(
-                px.bar(df, x="平台", y="count", color="平台", title="平台分布",
-                       color_discrete_sequence=["#7c3aed", "#a78bfa", "#c4b5fd"]),
-                use_container_width=True
-            )
+    html = _build_dashboard_html(
+        total,
+        json.dumps(d.get("topic_distribution", [])),
+        json.dumps(d.get("platform_distribution", [])),
+        json.dumps(d.get("monthly_trends", [])),
+    )
+    st.components.v1.html(html, height=2900, scrolling=True)
 
 # ====================== 知识库搜索 ======================
 def knowledge_page():
