@@ -187,9 +187,19 @@ def show_scheme_cards(schemes, show_detail=True, show_export=True):
 
 # ====================== 页面4：数据看板（P5 真实数据驱动） ======================
 def render_dashboard_page():
-    st.markdown('<div class="card-title">📊 样例数据统计看板</div>', unsafe_allow_html=True)
+    # ── 统一高级灰紫配色 ──
+    C = {
+        "purple":    "#7c3aed",
+        "mid":       "#a78bfa",
+        "light":     "#c4b5fd",
+        "bg":        "#f5f3ff",
+        "slate":     "#64748b",
+        "dark":      "#1e293b",
+        "accent":    "#2dd4bf",    # 唯一点缀色：青碧
+        "white":     "#ffffff",
+    }
 
-    # ── 从后端加载真实数据 ──
+    # ── 加载数据 ──
     try:
         resp = requests.get(
             f"{API_BASE}/stats/samples",
@@ -199,125 +209,162 @@ def render_dashboard_page():
         if resp.status_code == 200:
             stats = resp.json()
         else:
-            st.error(f"统计数据加载失败: HTTP {resp.status_code}")
-            return
+            st.error(f"统计数据加载失败"); return
     except Exception as e:
-        st.error(f"无法连接后端: {e}")
-        return
+        st.error(f"无法连接后端"); return
 
     total = stats.get("total_samples", 0)
     topics = stats.get("topic_distribution", [])
     platforms = stats.get("platform_distribution", [])
     trends = stats.get("monthly_trends", [])
-
     if total == 0:
-        st.warning("暂无统计数据，请先运行 init_db.py 导入样例数据")
-        return
+        st.warning("暂无数据"); return
 
-    # ── 指标卡 ──
-    cols = st.columns(4)
-    with cols[0]:
-        st.metric("📦 样例总数", f"{total} 条")
-    with cols[1]:
-        st.metric("🏷️ 类别数", f"{len(topics)} 类")
-    with cols[2]:
-        st.metric("📱 平台数", f"{len(platforms)} 个")
-    with cols[3]:
-        st.metric("🗓️ 月度跨度", f"{len(trends)} 个月")
+    df_topic = pd.DataFrame(topics)
+    plat_names = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
+    df_plat = pd.DataFrame(platforms)
+    df_plat["name"] = df_plat["platform"].map(plat_names).fillna(df_plat["platform"])
+    df_trend = pd.DataFrame(trends) if trends else pd.DataFrame()
 
-    st.divider()
+    # ── 页面标题 ──
+    st.markdown(f"""
+    <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:28px">
+      <span style="font-size:24px;font-weight:700;color:{C['dark']};">📊 样例数据统计</span>
+      <span style="font-size:13px;color:{C['slate']};">samples.xlsx · {total} 条 · 30 个月</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # ── 第一行：主题分布 + 平台分布 ──
-    st.markdown("### 🎨 主题与平台分布")
+    # ── KPI 卡片 ──
+    kpi_data = [
+        ("样例总数", f"{total}", "条"),
+        ("主题类别", f"{len(topics)}", "类"),
+        ("覆盖平台", f"{len(platforms)}", "个"),
+        ("时间跨度", f"{len(trends)}", "月"),
+    ]
+    kpi_cols = st.columns(4)
+    for i, (label, value, unit) in enumerate(kpi_data):
+        with kpi_cols[i]:
+            st.markdown(f"""
+            <div style="background:{C['white']};border-radius:14px;padding:20px 24px;
+                        border:1px solid #eef2ff;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+              <div style="font-size:12px;color:{C['slate']};margin-bottom:6px;letter-spacing:.5px">{label}</div>
+              <div style="font-size:28px;font-weight:700;color:{C['dark']}">
+                {value}<span style="font-size:13px;font-weight:400;color:{C['slate']};margin-left:4px">{unit}</span>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── ROW 1：主题分布环形图 + 平台分布柱状图 ──
     r1l, r1r = st.columns(2)
 
     with r1l:
-        df_topic = pd.DataFrame(topics)
-        colors = ["#4ECDC4", "#FF6B6B", "#FFE66D", "#95E1D3", "#F38181", "#AA96DA"]
-        fig = px.pie(
-            df_topic, values="count", names="name",
-            color_discrete_sequence=colors, hole=0.4,
-            title="样例主题分布",
+        fig = px.pie(df_topic, values="count", names="name", hole=0.55,
+                     color_discrete_sequence=[C["purple"], C["mid"], C["light"], C["accent"]])
+        fig.update_traces(textposition="inside", textinfo="percent",
+                          textfont=dict(size=13, color="white"),
+                          marker=dict(line=dict(color="white", width=2)))
+        fig.update_layout(
+            title=dict(text="主题分布", font=dict(size=15, color=C["dark"]), x=0),
+            height=380, margin=dict(t=40, b=0, l=0, r=0),
+            showlegend=True,
+            legend=dict(orientation="h", y=-0.12, font=dict(size=12, color=C["slate"])),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         )
-        fig.update_traces(textposition="inside", textinfo="percent+label")
-        fig.update_layout(height=420, margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     with r1r:
-        df_plat = pd.DataFrame(platforms)
-        plat_names = {"douyin": "抖音", "xiaohongshu": "小红书", "bilibili": "B站"}
-        df_plat["平台名"] = df_plat["platform"].map(plat_names).fillna(df_plat["platform"])
-        fig = px.bar(
-            df_plat, x="平台名", y="count", color="平台名",
-            color_discrete_sequence=["#FF6B6B", "#4ECDC4", "#FFE66D"],
-            text="count", title="各平台样例数量",
+        fig = px.bar(df_plat, x="name", y="count",
+                     color_discrete_sequence=[C["purple"]] * len(df_plat))
+        fig.update_traces(
+            marker=dict(color=[C["purple"], C["mid"], C["light"]],
+                        line=dict(width=0)),
+            text=df_plat["count"], textposition="outside", textfont=dict(size=14, color=C["slate"]),
+            width=0.5,
         )
-        fig.update_traces(textposition="outside", textfont_size=14)
-        fig.update_layout(height=420, showlegend=False, xaxis_title="", yaxis_title="",
-                          margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.divider()
-
-    # ── 第二行：月度趋势 + 类别对比 ──
-    st.markdown("### 📅 趋势与对比")
-    r2l, r2r = st.columns(2)
-
-    with r2l:
-        if trends:
-            df_trend = pd.DataFrame(trends)
-            fig = px.area(
-                df_trend, x="month", y="count",
-                title="月度发布趋势",
-                markers=True,
-            )
-            fig.update_traces(line_color="#FF6B6B", fillcolor="rgba(255,107,107,0.15)")
-            fig.update_layout(height=420, xaxis_title="", yaxis_title="",
-                              margin=dict(t=40, b=10, l=10, r=10))
-            fig.update_xaxes(tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("暂无趋势数据")
-
-    with r2r:
-        df_sorted = df_topic.sort_values("count", ascending=True)
-        fig = px.bar(
-            df_sorted, y="name", x="count", orientation="h",
-            color="name", color_discrete_sequence=colors,
-            text="count", title="类别数量对比",
+        fig.update_layout(
+            title=dict(text="平台分布", font=dict(size=15, color=C["dark"]), x=0),
+            height=380, margin=dict(t=40, b=0, l=0, r=0),
+            xaxis=dict(title="", tickfont=dict(size=13, color=C["dark"]), showgrid=False),
+            yaxis=dict(title="", showticklabels=False, showgrid=False),
+            showlegend=False,
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         )
-        fig.update_traces(textposition="outside", textfont_size=14)
-        fig.update_layout(height=420, showlegend=False, xaxis_title="", yaxis_title="",
-                          margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-    st.divider()
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── 第三行：占比环形图 + 数据表 ──
-    st.markdown("### 🔍 多维度明细")
-    r3l, r3r = st.columns([1, 1.2])
+    # ── ROW 2：月度趋势面积图（全宽）──
+    if not df_trend.empty:
+        fig = px.area(df_trend, x="month", y="count")
+        fig.update_traces(
+            line=dict(color=C["purple"], width=2),
+            fillcolor="rgba(124,58,237,0.08)",
+            marker=dict(size=4, color=C["purple"], line=dict(width=2, color="white")),
+        )
+        fig.update_layout(
+            title=dict(text="月度发布趋势", font=dict(size=15, color=C["dark"]), x=0),
+            height=340,
+            margin=dict(t=40, b=0, l=0, r=0),
+            xaxis=dict(title="", tickfont=dict(size=11, color=C["slate"]), tickangle=-45,
+                       showgrid=False, tickmode="linear", dtick=2),
+            yaxis=dict(title="", showgrid=True, gridcolor="#f1f5f9", tickfont=dict(size=11, color=C["slate"])),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── ROW 3：类别对比横向柱状图 + 最近 12 月明细 ──
+    r3l, r3r = st.columns([1, 1.1])
 
     with r3l:
-        fig = px.pie(
-            df_topic, values="count", names="name",
-            color_discrete_sequence=colors, hole=0.6,
-            title="类别占比总览",
+        df_sorted = df_topic.sort_values("count", ascending=True)
+        fig = px.bar(df_sorted, y="name", x="count", orientation="h",
+                     color_discrete_sequence=[C["purple"]] * len(df_sorted))
+        grad = [C["light"], C["mid"], C["purple"], C["purple"]]
+        fig.update_traces(
+            marker=dict(color=grad[:len(df_sorted)], line=dict(width=0)),
+            text=df_sorted["count"], textposition="outside",
+            textfont=dict(size=14, color=C["slate"]), width=0.55,
         )
-        fig.update_traces(textposition="outside", textinfo="percent+label",
-                          pull=[0.03] * len(df_topic))
-        fig.update_layout(height=400, showlegend=False,
-                          margin=dict(t=40, b=10, l=10, r=60))
-        fig.add_annotation(text=f"总计<br>{total}条", x=0.5, y=0.5, font_size=22, showarrow=False)
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            title=dict(text="类别对比", font=dict(size=15, color=C["dark"]), x=0),
+            height=380, margin=dict(t=40, b=0, l=0, r=30),
+            xaxis=dict(title="", showgrid=False, showticklabels=False),
+            yaxis=dict(title="", tickfont=dict(size=13, color=C["dark"])),
+            showlegend=False,
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     with r3r:
-        if trends:
-            df_m = pd.DataFrame(trends).tail(12).sort_values("month", ascending=False)
-            df_m.columns = ["月份", "数量"]
-            df_m["环比变化"] = df_m["数量"].diff(-1).fillna(0).astype(int)
-            st.dataframe(df_m, use_container_width=True, hide_index=True, height=400)
+        if not df_trend.empty:
+            dm = df_trend.tail(12).sort_values("month", ascending=False).copy()
+            dm.columns = ["月份", "数量"]
+            dm["环比"] = dm["数量"].diff(-1).fillna(0).astype(int)
+            dm["环比"] = dm["环比"].apply(lambda x: f"+{x}" if x > 0 else str(x) if x < 0 else "—")
 
-    st.caption(f"数据来源: samples.xlsx（{total} 条样例）| P5 数据/知识库模块 | Plotly 图表实时渲染")
+            st.markdown(f"""
+            <div style="background:{C['white']};border-radius:14px;padding:20px 24px;
+                        border:1px solid #eef2ff;height:380px;overflow:auto">
+              <div style="font-size:15px;font-weight:700;color:{C['dark']};margin-bottom:16px">最近 12 个月</div>
+              <table style="width:100%%;border-collapse:collapse;font-size:13px">
+            """, unsafe_allow_html=True)
+            for _, row in dm.iterrows():
+                bg = C["bg"] if row["月份"].startswith("2026") else "transparent"
+                st.markdown(f"""
+                <tr style="background:{bg};">
+                  <td style="padding:8px 12px;color:{C['dark']};font-weight:500">{row['月份']}</td>
+                  <td style="padding:8px 12px;color:{C['dark']};text-align:right">{row['数量']} 条</td>
+                  <td style="padding:8px 12px;color:{C['slate']};text-align:right;font-size:12px">{row['环比']}</td>
+                </tr>
+                """, unsafe_allow_html=True)
+            st.markdown("</table></div>", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.caption(f"P5 数据/知识库模块 · samples.xlsx（{total} 条）")
 
 # ====================== 创作工作台 ======================
 def workbench_page():
