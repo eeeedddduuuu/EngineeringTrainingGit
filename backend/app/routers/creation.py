@@ -13,7 +13,9 @@ import concurrent.futures
 from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
+import io
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db, SessionLocal
 from app.models.user import User
@@ -874,7 +876,6 @@ def download_material_file(
 ):
     """下载/查看原始素材文件（inline 展示图片，attachment 下载视频/音频）"""
     from app.models.business import MaterialAnalysis
-    from fastapi.responses import FileResponse
 
     a = db.query(MaterialAnalysis).filter(
         MaterialAnalysis.id == analysis_id,
@@ -896,3 +897,139 @@ def download_material_file(
         media_type=a.file_type + "/*" if a.file_type else None,
         content_disposition_type=disposition,
     )
+
+
+# ====================== 短视频样片生成（进阶#1：图像+TTS+FFmpeg） ======================
+@router.post("/creation/render-video/{scheme_id}")
+def render_video(
+    scheme_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """串联 图像+TTS+FFmpeg 生成可播放短视频样片"""
+    scheme = db.query(Scheme).filter(Scheme.id == scheme_id).first()
+    if not scheme:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+
+    hook_text = (scheme.hook or scheme.title or "AI 创作方案")[:500]
+    cover_text = scheme.cover_text or scheme.title or "AI 数字媒体创作"
+
+    # Step 1: TTS 生成配音
+    try:
+        p4_path = Path(__file__).parent.parent.parent / "p4_agent"
+        if str(p4_path) not in sys.path:
+            sys.path.insert(0, str(p4_path))
+        from multimodal.doubao_tts import generate_tts as _tts
+
+        tts_result = _tts(text=hook_text, speaker="zh_female_qingxin", audio_format="mp3")
+        if not tts_result.get("success"):
+            raise RuntimeError(tts_result.get("error", "TTS failed"))
+        audio_b64 = tts_result["audio_base64"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "tts_failed", "detail": str(e)})
+
+    # Step 2: 生成封面图（PIL 文字渲染）
+    import base64 as _b64
+    from PIL import Image, ImageDraw, ImageFont
+    img = Image.new("RGB", (1080, 1920), (30, 25, 50))
+    draw = ImageDraw.Draw(img)
+    # 文字渲染
+    try:
+        font_title = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 72)
+        font_body = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 48)
+    except Exception:
+        font_title = ImageFont.load_default()
+        font_body = ImageFont.load_default()
+    # 标题
+    lines = cover_text[:40].split("|")
+    y = 600
+    for line in lines[:3]:
+        bbox = draw.textbbox((0, 0), line.strip(), font=font_title)
+        x = (1080 - bbox[2]) // 2
+        draw.text((x, y), line.strip(), fill=(255, 255, 255), font=font_title)
+        y += 100
+    # 副标题
+    draw.text((100, 1200), hook_text[:80], fill=(200, 200, 220), font=font_body)
+    draw.text((100, 1300), "— AI 数字媒体创作助手 生成", fill=(150, 150, 170), font=font_body)
+
+    import tempfile, os as _os
+    img_path = tempfile.mktemp(suffix=".png")
+    img.save(img_path)
+
+    # Step 3: FFmpeg 合成
+    audio_path = tempfile.mktemp(suffix=".mp3")
+    with open(audio_path, "wb") as f:
+        f.write(_b64.b64decode(audio_b64))
+    output_path = tempfile.mktemp(suffix=".mp4")
+
+    import subprocess
+    ffmpeg_cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1", "-i", img_path,
+        "-i", audio_path,
+        "-c:v", "libx264", "-tune", "stillimage",
+        "-c:a", "aac", "-b:a", "128k",
+        "-pix_fmt", "yuv420p",
+        "-shortest", output_path,
+    ]
+    try:
+        subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=60)
+    except FileNotFoundError:
+        # FFmpeg 未安装 → 返回独立音频 + 图片
+        _os.unlink(img_path)
+        _os.unlink(audio_path)
+        return {
+            "ok": True,
+            "mode": "audio_only",
+            "message": "FFmpeg 未安装，已返回 TTS 音频。安装 FFmpeg 后自动合成视频。",
+            "audio_base64": audio_b64,
+        }
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
+
+    # 读取输出
+    with open(output_path, "rb") as f:
+        video_bytes = f.read()
+
+    # 清理临时文件
+    for p in [img_path, audio_path, output_path]:
+        try: _os.unlink(p)
+        except Exception: pass
+
+    return StreamingResponse(
+        io.BytesIO(video_bytes),
+        media_type="video/mp4",
+        headers={"Content-Disposition": f"attachment; filename=scheme_{scheme_id}.mp4"},
+    )
+
+
+# ====================== TTS 语音合成 ======================
+@router.post("/creation/tts")
+def text_to_speech(
+    text: str = Form(..., min_length=1, max_length=3000),
+    current_user: User = Depends(get_current_user),
+):
+    """豆包 TTS — 脚本文字转语音 MP3"""
+    try:
+        p4_path = Path(__file__).parent.parent.parent / "p4_agent"
+        if str(p4_path) not in sys.path:
+            sys.path.insert(0, str(p4_path))
+        from multimodal.doubao_tts import generate_tts as _tts
+
+        result = _tts(text=text, speaker="zh_female_qingxin", audio_format="mp3")
+        if result.get("success") and result.get("audio_base64"):
+            import base64 as _b64
+            audio_bytes = _b64.b64decode(result["audio_base64"])
+            return StreamingResponse(
+                io.BytesIO(audio_bytes),
+                media_type="audio/mpeg",
+                headers={"Content-Disposition": "attachment; filename=tts_output.mp3"},
+            )
+        else:
+            raise HTTPException(status_code=500, detail={"error": "tts_failed", "detail": result.get("error", "未知错误")})
+    except ImportError:
+        raise HTTPException(status_code=503, detail={"error": "tts_unavailable", "detail": "TTS 模块未安装"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "tts_error", "detail": str(e)})

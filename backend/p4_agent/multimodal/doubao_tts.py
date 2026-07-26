@@ -181,7 +181,7 @@ def generate_tts(
 
     try:
         if HAS_REQUESTS:
-            resp = requests.post(TTS_URL, json=payload, headers=headers, timeout=120)
+            resp = requests.post(TTS_URL, json=payload, headers=headers, timeout=120, proxies={"http": None, "https": None})
             data = resp.json()
         else:
             req = Request(TTS_URL, data=json.dumps(payload).encode("utf-8"), headers=headers)
@@ -213,7 +213,7 @@ def _download_audio(url: str, text: str, fmt: str) -> Path:
 
     try:
         if HAS_REQUESTS:
-            r = requests.get(url, timeout=60)
+            r = requests.get(url, timeout=60, proxies={"http": None, "https": None})
             filepath.write_bytes(r.content)
         else:
             req = Request(url)

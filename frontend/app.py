@@ -203,17 +203,71 @@ def show_scheme_cards(schemes, show_detail=True, show_export=True):
                         st.info("暂无详细脚本数据")
                     reason = s.get('recommendation_reason', '')
                     if reason:
-                        st.markdown(f"**推荐理由：** {reason}")
+                        st.markdown(f"💡 **推荐理由：** {reason}")
+                    # 迭代建议（#15）
+                    scores = s.get('scores') or (s.get('storyboard_json') or {}).get('scores', {})
+                    if scores:
+                        with st.expander("📈 评分详情与迭代建议"):
+                            dims = [
+                                ("开头钩子吸引力", "hook_score"),
+                                ("结构与平台匹配度", "structure_score"),
+                                ("目标受众匹配度", "audience_score"),
+                                ("内容原创性", "originality_score"),
+                                ("可执行性", "feasibility_score"),
+                            ]
+                            tips = {
+                                "hook_score": "💡 尝试疑问句或反差制造悬念",
+                                "structure_score": "💡 参考平台爆款模板调整节奏",
+                                "audience_score": "💡 检查语言风格是否贴合目标受众",
+                                "originality_score": "💡 寻找独特角度避免套路化",
+                                "feasibility_score": "💡 简化场景降低拍摄难度",
+                            }
+                            for dim_name, dim_key in dims:
+                                val = scores.get(dim_key, 5)
+                                bar = "🟢" if val >= 7 else ("🟡" if val >= 5 else "🔴")
+                                st.markdown(f"{bar} **{dim_name}：{val:.1f}**")
+                                if val < 7:
+                                    st.caption(f"  {tips.get(dim_key, '')}")
 
             if show_export and s.get("id"):
-                r = api(f"/export/{s['id']}?format=md")
-                if r and r.status_code == 200:
-                    st.download_button(
-                        f"📥 下载方案 {s.get('version','?')}",
-                        r.text, f"方案{s.get('version','')}_{s['id']}.md",
-                        mime="text/markdown", key=f"dl_{s.get('id','')}",
-                        use_container_width=True,
-                    )
+                dl1, dl2, dl3 = st.columns(3)
+                with dl1:
+                    r = api(f"/export/{s['id']}?format=md")
+                    if r and r.status_code == 200:
+                        st.download_button(
+                            f"📥 MD", r.text, f"方案{s.get('version','')}.md",
+                            mime="text/markdown", key=f"dl_{s.get('id','')}",
+                            use_container_width=True,
+                        )
+                with dl2:
+                    tts_text = s.get('hook', '')[:500] or s.get('title', '')[:200]
+                    if st.button(f"🔊 配音", key=f"tts_{s.get('id','')}", use_container_width=True):
+                        with st.spinner("🎙️ TTS 合成中..."):
+                            tts_r = requests.post(f"{API}/creation/tts",
+                                headers={"Authorization": f"Bearer {st.session_state.token}"},
+                                data={"text": tts_text}, timeout=60)
+                            if tts_r and tts_r.status_code == 200:
+                                st.audio(tts_r.content, format="audio/mp3")
+                            else:
+                                st.error("TTS 失败")
+                with dl3:
+                    if st.button(f"🎬 视频", key=f"video_{s.get('id','')}", use_container_width=True,
+                                 help="生成短视频样片（TTS配音+封面图+FFmpeg合成）"):
+                        with st.spinner("🎬 生成短视频中（TTS→封面→FFmpeg）..."):
+                            vid_r = requests.post(f"{API}/creation/render-video/{s['id']}",
+                                headers={"Authorization": f"Bearer {st.session_state.token}"}, timeout=120)
+                            if vid_r and vid_r.status_code == 200:
+                                ct = vid_r.headers.get("content-type", "")
+                                if "video" in ct:
+                                    st.video(vid_r.content)
+                                    st.download_button("📥 下载 MP4", vid_r.content,
+                                        f"方案{s.get('version','')}.mp4", "video/mp4",
+                                        key=f"vdl_{s.get('id','')}")
+                                elif "audio" in ct:
+                                    st.audio(vid_r.content, format="audio/mp3")
+                                    st.info("FFmpeg 未安装，仅返回配音。安装 FFmpeg 后自动合成视频。")
+                            else:
+                                st.error("视频生成失败")
 
 # ====================== 创作工作台 ======================
 def workbench_page():
@@ -222,10 +276,10 @@ def workbench_page():
 
     # 参考素材区（表单外，上传后自动豆包分析）
     with st.container(border=True):
-        st.caption("🖼️ 参考素材（可选）— 上传图片让 AI 更懂你的创作意图")
+        st.caption("🖼️ 参考素材（可选）— 上传图片/视频/音频让 AI 更懂你的创作意图")
         up_col1, up_col2 = st.columns(2)
         with up_col1:
-            uploaded = st.file_uploader("上传参考图片", type=["png", "jpg", "jpeg"], key="img_upload_v2")
+            uploaded = st.file_uploader("上传素材文件", type=["png", "jpg", "jpeg", "mp4", "mov", "mp3", "wav"], key="img_upload_v2")
         with up_col2:
             image_url = st.text_input("或粘贴图片链接", placeholder="https://example.com/image.jpg")
 
@@ -923,6 +977,45 @@ def home_page():
     """
     st.markdown(guide_html, unsafe_allow_html=True)
 
+# ====================== 审核看板页（#17） ======================
+def review_page():
+    st.title("✅ 审核看板")
+    st.caption("在线审核方案 · 通过/拒绝 · 审核意见")
+
+    r = api("/history?page=1&size=50")
+    if not r or r.status_code != 200: st.error("无法加载"); return
+    items = r.json().get("items", [])
+    sessions = [it for it in items if it.get("scheme_count", 0) > 0]
+    if not sessions: st.info("暂无方案可审核"); return
+
+    sel = st.selectbox("选择会话", [it["session_id"] for it in sessions],
+        format_func=lambda x: f"#{x} — {next((i['topic'] for i in sessions if i['session_id'] == x), '')}")
+
+    if st.button("加载方案", use_container_width=True, type="primary"):
+        r2 = api(f"/schemes?session_id={sel}")
+        if r2 and r2.status_code == 200:
+            schemes = r2.json().get("schemes", [])
+            status_map = {"approved": "✅ 已通过", "rejected": "❌ 已拒绝", "review": "💬 需修改"}
+            for s in schemes:
+                with st.container(border=True):
+                    c1, c2, c3, c4, c5 = st.columns([4, 1, 1, 1, 1])
+                    with c1: st.markdown(f"**方案 {s['version']}** — {s.get('title', '')[:50]}")
+                    with c2: st.markdown(f"⭐ {s.get('score', 0)}")
+                    with c3:
+                        if st.button("✅ 通过", key=f"approve_{s['id']}", use_container_width=True):
+                            r3 = api("/review", "POST", {"scheme_id": s["id"], "status": "approved", "comment": "审核通过"})
+                            if r3 and r3.status_code == 200: st.success("已通过"); st.rerun()
+                    with c4:
+                        if st.button("❌ 拒绝", key=f"reject_{s['id']}", use_container_width=True):
+                            r3 = api("/review", "POST", {"scheme_id": s["id"], "status": "rejected", "comment": "需修改后重新提交"})
+                            if r3 and r3.status_code == 200: st.warning("已拒绝"); st.rerun()
+                    with c5:
+                        comment = st.text_input("意见", key=f"comment_{s['id']}", placeholder="审核意见...")
+                        if comment and st.button("💬", key=f"submit_{s['id']}"):
+                            r3 = api("/review", "POST", {"scheme_id": s["id"], "status": "review", "comment": comment})
+                            if r3 and r3.status_code == 200: st.success("已提交")
+                    st.caption(f"状态：{status_map.get(s.get('review_status', ''), '⏳ 待审核')}")
+
 # ====================== 主路由 ======================
 if not st.session_state.token:
     login_page()
@@ -944,19 +1037,20 @@ else:
         # 导航（用 radio 保证单一选中）
         page = st.radio(
             "导航",
-            ["🏠 首页", "🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"],
-            index=["🏠 首页", "🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索"].index(
+            ["🏠 首页", "🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索", "✅ 审核看板"],
+            index=["🏠 首页", "🚀 工作台", "📋 方案浏览", "📜 历史记录", "📊 数据看板", "🔍 知识库搜索", "✅ 审核看板"].index(
                 {"首页": "🏠 首页", "工作台": "🚀 工作台", "方案浏览": "📋 方案浏览",
-                 "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"}.get(
+                 "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索", "审核看板": "✅ 审核看板"}.get(
                     st.session_state.page, "🏠 首页"
                 )
             ) if st.session_state.page in {"首页": "🏠 首页", "工作台": "🚀 工作台", "方案浏览": "📋 方案浏览",
-                "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索"} else 0,
+                "历史记录": "📜 历史记录", "数据看板": "📊 数据看板", "知识库搜索": "🔍 知识库搜索", "审核看板": "✅ 审核看板"} else 0,
             label_visibility="collapsed",
         )
         # 更新 page
         page_map = {"🏠 首页": "首页", "🚀 工作台": "工作台", "📋 方案浏览": "方案浏览",
-                     "📜 历史记录": "历史记录", "📊 数据看板": "数据看板", "🔍 知识库搜索": "知识库搜索"}
+                     "📜 历史记录": "历史记录", "📊 数据看板": "数据看板", "🔍 知识库搜索": "知识库搜索",
+                     "✅ 审核看板": "审核看板"}
         st.session_state.page = page_map[page]
 
         st.divider()
@@ -967,7 +1061,7 @@ else:
     # 页面路由
     routers = {
         "首页": home_page, "工作台": workbench_page,
-        "方案浏览": schemes_page, "历史记录": history_page,
+        "方案浏览": schemes_page, "历史记录": history_page, "审核看板": review_page,
         "数据看板": dashboard_page, "知识库搜索": knowledge_page,
     }
     routers.get(st.session_state.page, home_page)()
