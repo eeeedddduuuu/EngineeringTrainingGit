@@ -304,6 +304,21 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 .toast-error { background: #fef0ed; color: #b8452a; border: 1px solid #f5d0c8; }
 .toast-info { background: #fcf9f5; color: #5f4a34; border: 1px solid #f0e8de; }
 @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+.scheme-actions-row { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+.scheme-actions-row button { flex: 1; min-width: 70px; padding: 0.5rem 0.6rem; border: 1px solid #d4c4b0; border-radius: 12px; background: #fff; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; color: #5f4a34; font-family: inherit; }
+.scheme-actions-row button:hover { background: #fcf0e5; border-color: #d48c5c; color: #d48c5c; }
+.scheme-actions-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+.scene-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.8rem; }
+.scene-table th { background: #fcf9f5; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600; color: #5f4a34; font-size: 0.8rem; border-bottom: 2px solid #f0e8de; }
+.scene-table td { padding: 0.5rem 0.8rem; border-bottom: 1px solid #f0e8de; color: #3d2c1b; }
+.scene-table tr:hover td { background: #fdfaf7; }
+.detail-expander { cursor: pointer; color: #d48c5c; font-weight: 600; font-size: 0.9rem; margin-top: 0.8rem; display: inline-flex; align-items: center; gap: 4px; }
+.detail-expander:hover { color: #c08050; }
+.detail-content { display: none; margin-top: 0.8rem; padding: 1rem; background: #fff; border-radius: 14px; border: 1px solid #f0e8de; }
+.detail-content.open { display: block; }
+.video-preview-box { margin-top: 0.8rem; border-radius: 14px; overflow: hidden; border: 1px solid #f0e8de; }
+.video-preview-box video { width: 100%; display: block; }
+.audio-preview-box { margin-top: 0.8rem; }
 @media (max-width: 1024px) {
   .workbench-grid { grid-template-columns: 1fr; }
   .schemes-grid { grid-template-columns: 1fr; }
@@ -370,6 +385,10 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     <div class="sidebar-engine" id="sidebar-engine-btn">
       <span class="engine-label">AI引擎</span>
       <span class="engine-name" id="engine-platform-name">扣子平台</span>
+    </div>
+    <div class="sidebar-engine" id="sidebar-provider-btn" style="margin-top:-1px;">
+      <span class="engine-label">生成模式</span>
+      <span class="engine-name" id="provider-mode-name">快速模板</span>
     </div>
     <div class="nav-group">
       <button class="nav-item active" data-page="workbench"><span class="nav-icon">📊</span>工作台</button>
@@ -572,6 +591,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var currentPage = 'workbench';
   var schemesList = [];
   var selectedFiles = [];
+  var currentProvider = 'mock';
 
   var $body = document.body;
   var $loginPage = document.getElementById('login-page');
@@ -813,7 +833,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       target_audience: document.getElementById('input-audience').value.trim(),
       platform: document.getElementById('input-platform').value,
       duration: document.getElementById('input-duration').value,
-      style: document.getElementById('input-style').value
+      style: document.getElementById('input-style').value,
+      provider: currentProvider
     };
     // 先生成本地方案（不依赖后端），确保卡片始终能渲染
     var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
@@ -850,25 +871,42 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   });
 
   function renderSchemes() {
-    console.log('方案已渲染', schemesList);
-    // 保护：如果数据为空则不覆盖已有卡片（避免方案一闪而过消失）
-    if (!schemesList.length) {
-      console.log('renderSchemes: schemesList 为空，跳过渲染保留已有内容');
-      console.trace('调用栈 - schemesList 为空时是谁调用了 renderSchemes');
-      return;
-    }
+    if (!schemesList.length) return;
     var container = document.getElementById('schemes-container');
     var actions = document.getElementById('scheme-actions');
     var colors = ['#d48c5c', '#c08050', '#b87040'];
+    var medals = {1:'🥇',2:'🥈',3:'🥉'};
     var html = '<div class="schemes-grid">';
     schemesList.forEach(function(item, i) {
+      var rank = item.rank || (i + 1);
+      var scenes = item.scenes || [];
+      var hashtags = item.hashtags || [];
+      var score = item.score || item.total_score || 0;
       html += '<div class="scheme-card" style="border-left-color:' + colors[i] + ';">';
-      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + '</div>';
+      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + ' ' + (medals[rank]||'') + ' ⭐' + score + '</div>';
       html += '<div class="scheme-title">' + escapeHtml(item.title) + '</div>';
-      html += '<div class="scheme-desc">' + escapeHtml(item.description) + '</div>';
-      html += '<span class="scheme-tag">' + escapeHtml(item.platform) + '</span>';
-      html += '<div class="scheme-reason"><span class="reason-label">系统推荐理由</span><br>' + escapeHtml(item.reason) + '</div>';
+      html += '<div class="scheme-desc">' + escapeHtml(item.hook || item.description || '') + '</div>';
+      html += '<div style="margin-bottom:0.5rem;">';
+      (hashtags.length ? hashtags : [escapeHtml(item.platform||'')]).forEach(function(t) {
+        html += '<span class="scheme-tag">' + escapeHtml(t) + '</span>';
+      });
       html += '</div>';
+      if (item.reason || item.recommendation_reason) {
+        html += '<div class="scheme-reason"><span class="reason-label">推荐理由</span><br>' + escapeHtml(item.recommendation_reason || item.reason) + '</div>';
+      }
+      if (scenes.length > 0) {
+        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📋 完整分镜脚本 ▴\':\'📋 完整分镜脚本 ▾\';">📋 完整分镜脚本 ▾</div>';
+        html += '<div class="detail-content"><table class="scene-table"><thead><tr><th>#</th><th>类型</th><th>时长</th><th>描述</th><th>配音</th></tr></thead><tbody>';
+        scenes.forEach(function(sc) {
+          html += '<tr><td>'+(sc.seq||'')+'</td><td>'+escapeHtml(sc.type||'')+'</td><td>'+escapeHtml(sc.duration||'')+'</td><td>'+escapeHtml(sc.description||'')+'</td><td style="font-size:0.8rem;color:#8a7a6a;">'+escapeHtml((sc.voiceover||'').substring(0,80))+'</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '<div class="scheme-actions-row">';
+      html += '<button onclick="generateTTS('+i+')">🔊 配音</button>';
+      html += '<button onclick="renderVideo('+i+')">🎬 视频</button>';
+      html += '<button onclick="exportSchemeMD('+i+')">📥 MD</button>';
+      html += '</div><div id="media-preview-'+i+'"></div></div>';
     });
     html += '</div>';
     container.innerHTML = html;
@@ -877,9 +915,114 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   function escapeHtml(str) {
     var div = document.createElement('div');
-    div.textContent = str;
+    div.textContent = str || '';
     return div.innerHTML;
   }
+
+  function generateTTS(idx) {
+    var scheme = schemesList[idx]; if (!scheme) return;
+    var text = (scheme.hook || scheme.title || '').substring(0, 500);
+    if (!text) { showToast('无可用于配音的文本', 'error'); return; }
+    var previewEl = document.getElementById('media-preview-' + idx);
+    previewEl.innerHTML = '<div style="padding:0.8rem;color:#8a7a6a;">🎙️ TTS合成中...</div>';
+    var authToken = token || localStorage.getItem('ai_creator_token');
+    fetch(API_BASE + '/creation/tts', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + authToken },
+      body: new URLSearchParams({ text: text })
+    }).then(function(r) { if (!r.ok) throw new Error('HTTP '+r.status); return r.blob(); })
+    .then(function(blob) {
+      previewEl.innerHTML = '<div class="audio-preview-box"><audio controls src="'+URL.createObjectURL(blob)+'" style="width:100%;"></audio></div>';
+      showToast('🔊 配音生成成功', 'success');
+    }).catch(function(err) {
+      previewEl.innerHTML = '<div style="padding:0.8rem;color:#b8452a;">❌ 配音失败: '+err.message+'</div>';
+    });
+  }
+
+  function renderVideo(idx) {
+    var scheme = schemesList[idx]; if (!scheme) return;
+    var previewEl = document.getElementById('media-preview-' + idx);
+    previewEl.innerHTML = '<div style="padding:0.8rem;color:#8a7a6a;">🎬 视频生成中（TTS→封面→合成）...</div>';
+    var authToken = token || localStorage.getItem('ai_creator_token');
+    fetch(API_BASE + '/creation/render-video/' + scheme.id, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    }).then(function(r) {
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('json') !== -1) return r.json().then(function(d) { return { type: 'json', data: d }; });
+      if (ct.indexOf('video') !== -1) return r.blob().then(function(b) { return { type: 'video', blob: b }; });
+      return r.blob().then(function(b) { return { type: 'audio', blob: b }; });
+    }).then(function(result) {
+      if (result.type === 'json') {
+        var audioB64 = result.data.audio_base64;
+        if (audioB64) {
+          var binary = atob(audioB64), bytes = new Uint8Array(binary.length);
+          for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          var url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mp3' }));
+          previewEl.innerHTML = '<div class="audio-preview-box"><p style="font-size:0.85rem;color:#8a7a6a;">⚠️ FFmpeg未安装，仅配音</p><audio controls src="'+url+'" style="width:100%;"></audio></div>';
+          return;
+        }
+        previewEl.innerHTML = '<div style="padding:0.8rem;color:#b8452a;">❌ '+escapeHtml(result.data.message||'失败')+'</div>';
+      } else if (result.type === 'video') {
+        previewEl.innerHTML = '<div class="video-preview-box"><video controls src="'+URL.createObjectURL(result.blob)+'" style="width:100%;"></video></div>';
+        showToast('🎬 短视频生成成功！', 'success');
+      } else {
+        previewEl.innerHTML = '<div class="audio-preview-box"><audio controls src="'+URL.createObjectURL(result.blob)+'" style="width:100%;"></audio></div>';
+      }
+    }).catch(function(err) {
+      previewEl.innerHTML = '<div style="padding:0.8rem;color:#b8452a;">❌ 视频生成失败: '+err.message+'</div>';
+    });
+  }
+
+  function exportSchemeMD(idx) {
+    var s = schemesList[idx]; if (!s) return;
+    var md = '# 方案 ' + s.version + '：' + (s.title || '') + '\n\n';
+    md += '- **钩子**：' + (s.hook || '') + '\n';
+    md += '- **评分**：' + (s.score || 0) + '\n';
+    md += '- **推荐理由**：' + (s.recommendation_reason || s.reason || '') + '\n\n';
+    if (s.scenes && s.scenes.length) {
+      md += '## 分镜脚本\n\n| # | 类型 | 时长 | 描述 | 配音 |\n|---|---|---|---|---|\n';
+      s.scenes.forEach(function(sc) { md += '| '+(sc.seq||'')+' | '+(sc.type||'')+' | '+(sc.duration||'')+' | '+(sc.description||'')+' | '+(sc.voiceover||'')+' |\n'; });
+    }
+    downloadFile(md, '方案'+s.version+'.md', 'text/markdown');
+    showToast('方案已导出', 'success');
+  }
+
+  function showProviderModal() {
+    var overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.id = 'provider-modal-overlay';
+    var providers = [
+      { key: 'mock', name: '⚡ 快速模板生成（离线）', desc: '预置模板即时生成，秒出结果' },
+      { key: 'deepseek', name: '🧠 DeepSeek v4（真实AI）', desc: '大模型AI创作，需有效API Key' },
+      { key: 'coze', name: '🔗 Coze 扣子（平台Bot）', desc: '多Agent协作生成，需绑定Token' }
+    ];
+    var h = '<div class="modal-box" style="width:480px;"><h3>🤖 选择AI生成模式</h3><p style="color:#8a7a6a;font-size:0.9rem;margin-bottom:1rem;">切换后影响后续所有创作</p>';
+    providers.forEach(function(p) {
+      var active = currentProvider === p.key;
+      h += '<div style="padding:0.9rem 1rem;margin-bottom:0.6rem;border-radius:14px;border:2px solid '+(active?'#d48c5c':'#f0e8de')+';background:'+(active?'#fcf0e5':'#fff')+';cursor:pointer;" onclick="switchProvider(\''+p.key+'\')">';
+      h += '<div style="font-weight:600;">'+p.name+'</div><div style="font-size:0.85rem;color:#8a7a6a;">'+p.desc+'</div></div>';
+    });
+    h += '<div class="modal-actions"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'provider-modal-overlay\').remove()">关闭</button></div></div>';
+    overlay.innerHTML = h;
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  function switchProvider(provider) {
+    currentProvider = provider;
+    var names = { mock: '快速模板', deepseek: 'DeepSeek AI', coze: '扣子平台' };
+    document.getElementById('provider-mode-name').textContent = names[provider] || provider;
+    localStorage.setItem('ai_creator_provider', provider);
+    var o = document.getElementById('provider-modal-overlay'); if (o) o.remove();
+    showToast('已切换: ' + (names[provider]||provider), 'success');
+  }
+  document.getElementById('sidebar-provider-btn').addEventListener('click', showProviderModal);
+
+  (function() {
+    var sp = localStorage.getItem('ai_creator_provider');
+    if (sp && ['mock','deepseek','coze'].indexOf(sp) !== -1) currentProvider = sp;
+    var names = { mock: '快速模板', deepseek: 'DeepSeek AI', coze: '扣子平台' };
+    document.getElementById('provider-mode-name').textContent = names[currentProvider] || '快速模板';
+  })();
 
   document.getElementById('btn-export').addEventListener('click', function() {
     if (!schemesList.length) return;
