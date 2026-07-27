@@ -399,6 +399,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       <button class="nav-item" data-page="knowledge"><span class="nav-icon">📚</span>知识库搜索</button>
       <button class="nav-item" data-page="tts"><span class="nav-icon">🔊</span>TTS 配音</button>
       <button class="nav-item" data-page="review"><span class="nav-icon">✅</span>审核看板</button>
+      <button class="nav-item" data-page="video-gen"><span class="nav-icon">🎬</span>短视频生成</button>
     </div>
     <div class="sidebar-footer">
       <button class="nav-item logout" id="btn-logout"><span class="nav-icon">🚪</span>退出登录</button>
@@ -558,6 +559,42 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       <div class="card">
         <div id="review-container"><div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无审核记录</div></div></div>
         <div style="margin-top:1rem; display:flex; gap:0.5rem;" id="review-pagination"></div>
+      </div>
+    </div>
+    <!-- 短视频生成页 -->
+    <div class="page" id="page-video-gen">
+      <div class="page-header"><h2>🎬 AI 短视频生成</h2><p>串联 Seedream 生图 + 豆包 TTS + FFmpeg，一键生成可播放短视频样片</p></div>
+      <div class="card">
+        <div class="card-title">🎨 AI 封面图生成</div>
+        <div class="form-group">
+          <label class="field-label">图片描述 Prompt</label>
+          <textarea class="textarea" id="video-img-prompt" rows="3" placeholder="描述你想生成的封面图，例如：赛博朋克城市夜景，紫色霓虹灯，竖屏构图"></textarea>
+        </div>
+      </div>
+      <div class="card" style="margin-top:1rem;">
+        <div class="card-title">🎤 配音设置</div>
+        <div class="form-group">
+          <label class="field-label">配音文本</label>
+          <textarea class="textarea" id="video-tts-text" rows="4" placeholder="输入配音文本内容，例如：欢迎来到我的频道，今天我们来聊聊..."></textarea>
+        </div>
+        <div class="form-group" style="margin-top:1rem;">
+          <label class="field-label">音色选择</label>
+          <select class="select" id="video-speaker" style="max-width:300px;">
+            <option value="zh_female_qingxin">女声 — 清新</option>
+            <option value="zh_female_tianmei">女声 — 甜美</option>
+            <option value="zh_female_zhixing">女声 — 知性</option>
+            <option value="zh_female_wenrou">女声 — 温柔</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:1.5rem;">
+        <button class="btn btn-primary" id="btn-video-gen" style="font-size:1.1rem; padding:1rem 3rem;">🚀 一键生成短视频</button>
+        <span id="video-gen-status" style="margin-left:1rem; color:#8a7a6a; font-size:0.95rem;"></span>
+      </div>
+      <div class="card" style="margin-top:1.5rem;" id="video-result-card" hidden>
+        <div class="card-title">📺 生成结果</div>
+        <div id="video-player-container"></div>
+        <button class="btn btn-primary btn-sm" id="btn-video-download" style="margin-top:1rem;">📥 下载 MP4</button>
       </div>
     </div>
     <div class="page" id="page-knowledge">
@@ -1570,6 +1607,80 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       else { showToast(extractError(res.data)||'审核提交失败', 'error'); }
     });
   };
+
+  // ========== 短视频生成功能 ==========
+  var videoGenUrl = null;
+
+  document.getElementById('btn-video-gen').addEventListener('click', function() {
+    var prompt = document.getElementById('video-img-prompt').value.trim();
+    var text = document.getElementById('video-tts-text').value.trim();
+    var speaker = document.getElementById('video-speaker').value;
+    if (!prompt) { showToast('请输入图片描述 prompt', 'error'); return; }
+    if (!text) { showToast('请输入配音文本', 'error'); return; }
+
+    var btn = this, statusEl = document.getElementById('video-gen-status');
+    var resultCard = document.getElementById('video-result-card');
+    var playerEl = document.getElementById('video-player-container');
+    btn.disabled = true; statusEl.textContent = 'Step 1/3: AI 正在生成封面图...'; resultCard.hidden = true;
+
+    var fd = new FormData();
+    fd.append('image_prompt', prompt);
+    fd.append('tts_text', text);
+    fd.append('speaker', speaker);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API_BASE + '/creation/generate-video');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.responseType = 'blob';
+    xhr.timeout = 300000; // 5分钟（生图+TTS+FFmpeg）
+
+    // 模拟进度（无法从后端推送进度）
+    var stepTimer = setInterval(function() {
+      if (statusEl.textContent.indexOf('Step 1') !== -1) statusEl.textContent = 'Step 2/3: 正在生成 TTS 配音...';
+      else if (statusEl.textContent.indexOf('Step 2') !== -1) statusEl.textContent = 'Step 3/3: FFmpeg 合成视频中...';
+    }, 5000);
+
+    xhr.onload = function() {
+      clearInterval(stepTimer);
+      btn.disabled = false; statusEl.textContent = '';
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (videoGenUrl) URL.revokeObjectURL(videoGenUrl);
+        videoGenUrl = URL.createObjectURL(xhr.response);
+        playerEl.innerHTML = '<video controls autoplay style="width:100%;max-height:500px;border-radius:16px;" src="' + videoGenUrl + '"></video>';
+        resultCard.hidden = false;
+        showToast('🎉 短视频生成成功！', 'success');
+      } else {
+        // 后端可能返回 JSON 错误（audio_only 模式或错误信息）
+        try {
+          var reader = new FileReader();
+          reader.onload = function() {
+            try { var d = JSON.parse(reader.result); showToast(extractError(d)||d.message||'生成失败', 'error'); }
+            catch(e) { showToast('生成失败', 'error'); }
+          };
+          reader.readAsText(xhr.response);
+        } catch(e) { showToast('生成失败，请重试', 'error'); }
+      }
+    };
+    xhr.onerror = function() {
+      clearInterval(stepTimer);
+      btn.disabled = false; statusEl.textContent = '';
+      showToast('网络错误，请确认后端服务已启动', 'error');
+    };
+    xhr.ontimeout = function() {
+      clearInterval(stepTimer);
+      btn.disabled = false; statusEl.textContent = '';
+      showToast('生成超时，请重试或尝试更短的文本', 'error');
+    };
+    xhr.send(fd);
+  });
+
+  document.getElementById('btn-video-download').addEventListener('click', function() {
+    if (!videoGenUrl) return;
+    var a = document.createElement('a');
+    a.href = videoGenUrl;
+    a.download = 'ai_video.mp4';
+    a.click();
+  });
 
 })();
 </script>

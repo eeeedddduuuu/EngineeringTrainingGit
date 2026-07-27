@@ -900,6 +900,110 @@ def download_material_file(
 
 
 # ====================== 短视频样片生成（进阶#1：图像+TTS+FFmpeg） ======================
+
+# Seedream 生图（直接用 ARK_API_KEY，参考 seedream_gen.py）
+def _seedream_generate(prompt: str, size: str = "2K") -> str:
+    """调用火山方舟 Seedream API 生成一张图，返回本地文件路径"""
+    import json as _json, urllib.request as _ur
+    ark_key = os.environ.get("ARK_API_KEY", "")
+    if not ark_key:
+        raise RuntimeError("ARK_API_KEY 环境变量未设置，无法使用 AI 生图")
+    payload = _json.dumps({
+        "model": "ep-20260726092049-jklk6",  # Seedream 5.0 Pro
+        "prompt": prompt.strip(),
+        "response_format": "url",
+        "size": size,
+        "watermark": True,
+    }).encode()
+    req = _ur.Request("https://ark.cn-beijing.volces.com/api/v3/images/generations",
+                      data=payload, headers={"Content-Type": "application/json", "Authorization": f"Bearer {ark_key}"})
+    with _ur.urlopen(req, timeout=120) as resp:
+        data = _json.loads(resp.read())
+    img_url = data.get("data", [{}])[0].get("url", "")
+    if not img_url:
+        raise RuntimeError(f"Seedream 返回无图片 URL: {data}")
+    # 下载到临时文件
+    import hashlib
+    suffix = ".png"
+    img_path = tempfile.mktemp(suffix=suffix)
+    _ur.urlretrieve(img_url, img_path)
+    return img_path
+
+
+@router.post("/creation/generate-video")
+def generate_video(
+    image_prompt: str = Form(..., min_length=1, max_length=500),
+    tts_text: str = Form(..., min_length=1, max_length=1000),
+    speaker: str = Form("zh_female_qingxin"),
+    current_user: User = Depends(get_current_user),
+):
+    """进阶#1：串联 Seedream 生图 + 豆包 TTS + FFmpeg → 自动生成短视频 MP4"""
+    import base64 as _b64, tempfile, os as _os, subprocess
+
+    # Step 1: Seedream AI 生图
+    try:
+        img_path = _seedream_generate(image_prompt, size="2K")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "image_gen_failed", "detail": str(e)})
+
+    # Step 2: 豆包 TTS 配音
+    try:
+        p4_path = Path(__file__).parent.parent.parent / "p4_agent"
+        if str(p4_path) not in sys.path:
+            sys.path.insert(0, str(p4_path))
+        from multimodal.doubao_tts import generate_tts as _tts
+        tts_result = _tts(text=tts_text, speaker=speaker, audio_format="mp3")
+        if not tts_result.get("success"):
+            raise RuntimeError(tts_result.get("error", "TTS failed"))
+        audio_b64 = tts_result["audio_base64"]
+    except Exception as e:
+        _os.unlink(img_path)
+        raise HTTPException(status_code=500, detail={"error": "tts_failed", "detail": str(e)})
+
+    audio_path = tempfile.mktemp(suffix=".mp3")
+    with open(audio_path, "wb") as f:
+        f.write(_b64.b64decode(audio_b64))
+
+    # Step 3: FFmpeg 合成
+    output_path = tempfile.mktemp(suffix=".mp4")
+    ffmpeg_cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1", "-i", img_path,
+        "-i", audio_path,
+        "-c:v", "libx264", "-tune", "stillimage",
+        "-c:a", "aac", "-b:a", "128k",
+        "-pix_fmt", "yuv420p",
+        "-shortest", output_path,
+    ]
+    try:
+        subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=120)
+    except FileNotFoundError:
+        for p in [img_path, audio_path]:
+            try: _os.unlink(p)
+            except Exception: pass
+        return {"ok": True, "mode": "audio_only", "message": "FFmpeg 未安装，已返回 TTS 音频", "audio_base64": audio_b64}
+    except subprocess.CalledProcessError as e:
+        for p in [img_path, audio_path, output_path]:
+            try: _os.unlink(p)
+            except Exception: pass
+        raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
+
+    with open(output_path, "rb") as f:
+        video_bytes = f.read()
+
+    for p in [img_path, audio_path, output_path]:
+        try: _os.unlink(p)
+        except Exception: pass
+
+    import hashlib
+    tag = hashlib.md5(tts_text.encode()).hexdigest()[:8]
+    return StreamingResponse(
+        io.BytesIO(video_bytes),
+        media_type="video/mp4",
+        headers={"Content-Disposition": f"attachment; filename=ai_video_{tag}.mp4"},
+    )
+
+
 @router.post("/creation/render-video/{scheme_id}")
 def render_video(
     scheme_id: int,
