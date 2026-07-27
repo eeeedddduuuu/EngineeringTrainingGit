@@ -297,19 +297,36 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 .search-result-item .match-snippet em { background: #fff3cd; font-style: normal; padding: 0 2px; border-radius: 2px; }
 .search-result-item .match-time { color: #a09080; font-size: 0.85rem; margin-top: 0.4rem; }
 /* 多媒体工坊 */
-.tab-pills { display: flex; gap: 0.5rem; margin-bottom: 1.8rem; }
-.tab-pill {
-  padding: 0.7rem 1.5rem; border-radius: 30px; border: 1px solid #f0e8de;
-  background: #fff; color: #8a7a6a; font-weight: 600; font-size: 0.95rem;
+.step-nav-btn {
+  padding: 0.55rem 1.2rem; border-radius: 22px; border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.85);
+  font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.step-nav-btn:hover { background: rgba(255,255,255,0.22); }
+.step-nav-btn.active { background: #fff; color: #5f4a34; border-color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.step-nav-btn.step-nav-lib { border-style: dashed; }
+.step-nav-btn .step-nav-count { font-size: 0.72rem; position: relative; top: -0.35rem; background: #d48c5c; color: #fff; padding: 1px 6px; border-radius: 8px; margin-left: 0.2rem; }
+.step-nav-btn.active .step-nav-count { background: #d48c5c; color: #fff; }
+.step-panel { display: none; }
+.step-panel.active { display: block; }
+.ff-tool-card {
+  background: #fff; border-radius: 16px; padding: 1.2rem; text-align: center;
+  border: 1px solid #f0e8de; cursor: pointer; transition: all 0.2s;
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+}
+.ff-tool-card:hover { border-color: #d48c5c; box-shadow: 0 4px 16px rgba(212,140,92,0.12); transform: translateY(-2px); }
+.ff-tool-card span { font-weight: 700; color: #3d2c1b; font-size: 1rem; }
+.ff-tool-card small { color: #8a7a6a; font-size: 0.8rem; }
+.ffmpeg-modal { position: fixed; inset:0; background:rgba(0,0,0,0.4); z-index:999; display:none; align-items:center; justify-content:center; }
+.ffmpeg-modal.show { display:flex; }
+.ffmpeg-modal .modal-card { background:#fff; border-radius:24px; padding:2rem; width:90%; max-width:500px; }
+.lib-filter-btn {
+  padding: 0.4rem 1rem; border-radius: 16px; border: 1px solid #f0e8de;
+  background: #fff; color: #8a7a6a; font-weight: 600; font-size: 0.85rem;
   cursor: pointer; transition: all 0.2s; font-family: inherit;
 }
-.tab-pill:hover { border-color: #d48c5c; color: #d48c5c; }
-.tab-pill.active { background: #d48c5c; color: #fff; border-color: #d48c5c; }
-.vtab-panel { display: none; }
-.vtab-panel.active { display: block; }
-.tool-card:hover { border-color: #d48c5c !important; box-shadow: 0 4px 16px rgba(212,140,92,0.12); transform: translateY(-2px); }
-.ffmpeg-modal { position: fixed; inset:0; background:rgba(0,0,0,0.4); z-index:999; display:flex; align-items:center; justify-content:center; }
-.ffmpeg-modal .modal-card { background:#fff; border-radius:24px; padding:2rem; width:90%; max-width:480px; }
+.lib-filter-btn:hover { border-color: #d48c5c; color: #d48c5c; }
+.lib-filter-btn.active { background: #d48c5c; color: #fff; border-color: #d48c5c; }
 .toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.6rem; }
 .toast {
   padding: 1rem 1.5rem; border-radius: 16px; font-weight: 500; font-size: 0.95rem;
@@ -580,101 +597,128 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     </div>
     <!-- 短视频生成页 -->
     <div class="page" id="page-video-gen">
-      <div class="video-hero" style="background:linear-gradient(135deg,#3d2c1b 0%,#5f4a34 50%,#8a6a4a 100%);border-radius:24px;padding:2.5rem 2.2rem;margin-bottom:1.5rem;color:#fff;">
-        <h2 style="font-size:2rem;font-weight:700;margin-bottom:0.4rem;">🎬 多媒体工坊</h2>
-        <p style="font-size:1.05rem;color:rgba(255,255,255,0.75);">AI 生图 + AI 生视频 + FFmpeg 工具箱，一站式视频创作</p>
+      <div class="video-hero" style="background:linear-gradient(135deg,#3d2c1b 0%,#5f4a34 50%,#8a6a4a 100%);border-radius:24px;padding:1.8rem 2rem 1.2rem;margin-bottom:1.5rem;color:#fff;">
+        <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:0.3rem;">🎬 多媒体工坊</h2>
+        <p style="font-size:0.95rem;color:rgba(255,255,255,0.7);margin-bottom:1.2rem;">AI 生图 → AI 生视频 → AI 配音 → FFmpeg 工具箱</p>
+        <!-- 步骤导航 -->
+        <div class="step-nav" style="display:flex;gap:0.5rem;flex-wrap:wrap;" id="step-nav">
+          <button class="step-nav-btn active" data-step="1">① AI 生图</button>
+          <button class="step-nav-btn" data-step="2">② AI 生视频</button>
+          <button class="step-nav-btn" data-step="3">③ AI 配音</button>
+          <button class="step-nav-btn" data-step="4">④ FFmpeg 工具箱</button>
+          <button class="step-nav-btn step-nav-lib" data-step="lib">📦 资源库 <span id="lib-count" class="step-nav-count">0</span></button>
+        </div>
       </div>
-      <!-- Tab 切换 -->
-      <div class="tab-pills" style="display:flex;gap:0.5rem;margin-bottom:1.8rem;">
-        <button class="tab-pill active" data-vtab="tab-img2video">🎨 AI 生图 → 短视频</button>
-        <button class="tab-pill" data-vtab="tab-seedance">🎥 AI 生视频</button>
-        <button class="tab-pill" data-vtab="tab-ffmpeg">✂️ FFmpeg 工具箱</button>
-      </div>
-      <!-- Tab 1: AI 生图 → 短视频 -->
-      <div class="vtab-panel active" id="tab-img2video">
+      <!-- Step ①: AI 生图 -->
+      <div class="step-panel active" id="step-panel-1">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;">
-          <div>
-            <div class="card"><div class="card-title">🎨 AI 封面图</div>
-              <textarea class="textarea" id="video-img-prompt" rows="3" placeholder="描述你想生成的封面图，例如：赛博朋克城市夜景，紫色霓虹灯，竖屏构图"></textarea>
+          <div class="card">
+            <div class="card-title">🎨 AI 生图参数</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem;">
+              <div><label class="field-label">模型</label><select class="select" id="s1-model"><option value="pro">5.0 Pro (最强)</option><option value="lite">5.0 Lite (组图)</option><option value="4.5">4.5</option><option value="4.0">4.0</option></select></div>
+              <div><label class="field-label">尺寸</label><select class="select" id="s1-size"><option value="2K" selected>2K</option><option value="1K">1K</option><option value="4K">4K</option></select></div>
+              <div><label class="field-label">比例</label><select class="select" id="s1-ratio"><option value="1:1" selected>1:1 方形</option><option value="16:9">16:9 横屏</option><option value="9:16">9:16 竖屏</option><option value="4:3">4:3</option><option value="3:4">3:4</option><option value="3:2">3:2</option><option value="2:3">2:3</option><option value="21:9">21:9 超宽</option></select></div>
+              <div><label class="field-label">格式</label><select class="select" id="s1-fmt"><option value="jpeg" selected>JPEG</option><option value="png">PNG</option></select></div>
+              <div><label class="field-label">水印</label><select class="select" id="s1-watermark"><option value="1" selected>开启</option><option value="0">关闭</option></select></div>
+              <div><label class="field-label">AI优化</label><select class="select" id="s1-optimize"><option value="" selected>不优化</option><option value="standard">standard (质量优先)</option><option value="fast">fast (速度优先)</option></select></div>
             </div>
-            <div class="card" style="margin-top:1rem;"><div class="card-title">🎤 配音设置</div>
-              <textarea class="textarea" id="video-tts-text" rows="3" placeholder="输入配音文本..."></textarea>
-              <select class="select" id="video-speaker" style="margin-top:0.8rem;">
-                <option value="zh_female_qingxin">女声 — 清新</option><option value="zh_female_tianmei">女声 — 甜美</option>
-                <option value="zh_female_zhixing">女声 — 知性</option><option value="zh_female_wenrou">女声 — 温柔</option>
-              </select>
+            <textarea class="textarea" id="s1-prompt" rows="3" placeholder="输入画面描述..."></textarea>
+            <input class="input" id="s1-ref" placeholder="参考图URL (可选，也可上传到TOS)" style="margin-top:0.5rem;">
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+              <input type="file" id="s1-ref-file" accept="image/*" style="flex:1;font-size:0.85rem;">
+              <button class="btn btn-ghost btn-sm" id="btn-s1-upload" style="flex-shrink:0;">📤 上传到TOS</button>
             </div>
-            <div style="margin-top:1rem;">
-              <button class="btn btn-primary" id="btn-video-gen" style="width:100%;font-size:1.1rem;padding:1rem;">🚀 一键生成短视频</button>
-              <div id="video-gen-status" style="text-align:center;margin-top:0.6rem;color:#8a7a6a;font-size:0.95rem;"></div>
-            </div>
+            <button class="btn btn-primary" id="btn-s1" style="width:100%;margin-top:0.8rem;">🎨 生成图片</button>
+            <div id="s1-status" style="text-align:center;margin-top:0.4rem;color:#8a7a6a;font-size:0.85rem;"></div>
           </div>
-          <div>
-            <div class="card" id="video-result-card" hidden><div class="card-title">📺 生成结果</div>
-              <div id="video-player-container"></div>
-              <button class="btn btn-primary btn-sm" id="btn-video-download" style="margin-top:0.8rem;">📥 下载 MP4</button>
-            </div>
-            <div class="card" id="video-result-empty" style="display:flex;align-items:center;justify-content:center;min-height:320px;background:#fcf9f5;">
-              <div class="empty-state"><div class="empty-icon">🎬</div><div class="empty-text">输入提示词，点击按钮开始生成</div></div>
-            </div>
+          <div class="card" id="s1-result" style="display:flex;align-items:center;justify-content:center;min-height:300px;background:#fcf9f5;">
+            <div class="empty-state"><div class="empty-icon">🖼️</div><div class="empty-text">输入参数，点击生成</div></div>
           </div>
         </div>
       </div>
-      <!-- Tab 2: Seedance AI 生视频 -->
-      <div class="vtab-panel" id="tab-seedance">
+      <!-- Step ②: AI 生视频 -->
+      <div class="step-panel" id="step-panel-2">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;">
-          <div>
-            <div class="card"><div class="card-title">🎥 视频描述 Prompt</div>
-              <textarea class="textarea" id="sd-prompt" rows="4" placeholder="描述你想生成的视频，例如：一只白色狐狸在雪地中奔跑，电影级光影，4K画质"></textarea>
+          <div class="card">
+            <div class="card-title">🎥 Seedance 视频生成</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem;">
+              <div><label class="field-label">分辨率</label><select class="select" id="s2-resolution"><option value="1080p" selected>1080p</option><option value="720p">720p</option><option value="480p">480p</option></select></div>
+              <div><label class="field-label">时长</label><select class="select" id="s2-duration"><option value="5" selected>5秒</option><option value="2">2秒</option><option value="3">3秒</option><option value="4">4秒</option><option value="6">6秒</option><option value="8">8秒</option><option value="10">10秒</option><option value="12">12秒</option></select></div>
+              <div><label class="field-label">比例</label><select class="select" id="s2-ratio"><option value="智能比例" selected>智能比例</option><option value="16:9">16:9 横屏</option><option value="9:16">9:16 竖屏</option><option value="1:1">1:1 方形</option><option value="4:3">4:3</option><option value="3:4">3:4</option><option value="21:9">21:9 超宽</option></select></div>
+              <div><label class="field-label">数量</label><select class="select" id="s2-count"><option value="1" selected>1个</option><option value="2">2个</option><option value="4">4个</option><option value="8">8个</option></select></div>
+              <div><label class="field-label">镜头模式</label><select class="select" id="s2-camera"><option value="0" selected>动态运镜</option><option value="1">固定镜头</option></select></div>
+              <div><label class="field-label">水印</label><select class="select" id="s2-watermark"><option value="1" selected>开启</option><option value="0">关闭</option></select></div>
             </div>
-            <div class="card" style="margin-top:1rem;"><div class="card-title">⚙️ 参数设置</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">
-                <div><label class="field-label">分辨率</label><select class="select" id="sd-resolution"><option value="720p">720p</option><option value="1080p" selected>1080p</option></select></div>
-                <div><label class="field-label">时长</label><select class="select" id="sd-duration"><option value="3">3秒</option><option value="5" selected>5秒</option><option value="8">8秒</option><option value="10">10秒</option></select></div>
-                <div><label class="field-label">比例</label><select class="select" id="sd-ratio"><option value="16:9" selected>16:9 横屏</option><option value="9:16">9:16 竖屏</option><option value="1:1">1:1 方形</option></select></div>
-                <div><label class="field-label">数量</label><select class="select" id="sd-count"><option value="1">1个</option><option value="2">2个</option></select></div>
-              </div>
+            <input class="input" id="s2-seed" type="number" value="-1" placeholder="种子值(-1=随机)" style="margin-bottom:0.5rem;">
+            <textarea class="textarea" id="s2-prompt" rows="3" placeholder="输入视频描述..."></textarea>
+            <input class="input" id="s2-ref" placeholder="参考图URL (可选，上传到TOS获取URL)" style="margin-top:0.5rem;">
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+              <input type="file" id="s2-ref-file" accept="image/*" style="flex:1;font-size:0.85rem;">
+              <button class="btn btn-ghost btn-sm" id="btn-s2-upload" style="flex-shrink:0;">📤 上传参考图</button>
             </div>
-            <div style="margin-top:1rem;">
-              <button class="btn btn-primary" id="btn-sd-create" style="width:100%;font-size:1.1rem;padding:1rem;">🎬 创建视频任务</button>
-              <div id="sd-status" style="text-align:center;margin-top:0.6rem;color:#8a7a6a;font-size:0.95rem;"></div>
-            </div>
+            <button class="btn btn-primary" id="btn-s2" style="width:100%;margin-top:0.8rem;">🎥 生成视频</button>
+            <div id="s2-status" style="text-align:center;margin-top:0.4rem;color:#8a7a6a;font-size:0.85rem;"></div>
           </div>
-          <div>
-            <div class="card" id="sd-result-card" hidden><div class="card-title">📺 生成结果</div>
-              <div id="sd-player-container"></div>
-              <button class="btn btn-primary btn-sm" id="btn-sd-download" style="margin-top:0.8rem;">📥 下载 MP4</button>
-            </div>
-            <div class="card" id="sd-result-empty" style="display:flex;align-items:center;justify-content:center;min-height:320px;background:#fcf9f5;">
-              <div class="empty-state"><div class="empty-icon">🎥</div><div class="empty-text">输入提示词，点击按钮创建 AI 视频任务</div></div>
-            </div>
+          <div class="card" id="s2-result" style="display:flex;align-items:center;justify-content:center;min-height:300px;background:#fcf9f5;">
+            <div class="empty-state"><div class="empty-icon">🎥</div><div class="empty-text">输入参数，点击生成</div></div>
           </div>
         </div>
       </div>
-      <!-- Tab 3: FFmpeg 工具箱 -->
-      <div class="vtab-panel" id="tab-ffmpeg">
-        <div class="tool-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
-          <div class="tool-card" data-ffop="transcode" style="background:#fff;border-radius:18px;padding:1.5rem;text-align:center;border:1px solid #f0e8de;cursor:pointer;transition:all 0.2s;">
-            <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔄</div>
-            <div style="font-weight:700;color:#3d2c1b;font-size:1.1rem;">视频转码</div>
-            <div style="color:#8a7a6a;font-size:0.9rem;">H.264 MP4 + 缩放</div>
+      <!-- Step ③: AI 配音 -->
+      <div class="step-panel" id="step-panel-3">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;">
+          <div class="card">
+            <div class="card-title">🎤 豆包 TTS 配音</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem;">
+              <div><label class="field-label">音色</label><select class="select" id="s3-speaker"><option value="zh_female_qingxin" selected>清新女声</option><option value="zh_female_tianmei">恬美女声</option><option value="zh_female_zhixing">知性女声</option><option value="zh_female_wenrou">温柔女声</option></select></div>
+              <div><label class="field-label">语速 (-50~100)</label><input class="input" type="number" id="s3-speed" value="0" min="-50" max="100"></div>
+              <div><label class="field-label">音量 (-50~100)</label><input class="input" type="number" id="s3-volume" value="0" min="-50" max="100"></div>
+              <div><label class="field-label">音调 (-12~12)</label><input class="input" type="number" id="s3-pitch" value="0" min="-12" max="12"></div>
+            </div>
+            <textarea class="textarea" id="s3-text" rows="3" placeholder="输入配音文本（最多3000字）..."></textarea>
+            <button class="btn btn-primary" id="btn-s3" style="width:100%;margin-top:0.8rem;">🎤 生成配音</button>
+            <div id="s3-status" style="text-align:center;margin-top:0.4rem;color:#8a7a6a;font-size:0.85rem;"></div>
           </div>
-          <div class="tool-card" data-ffop="clip" style="background:#fff;border-radius:18px;padding:1.5rem;text-align:center;border:1px solid #f0e8de;cursor:pointer;transition:all 0.2s;">
-            <div style="font-size:2.5rem;margin-bottom:0.5rem;">✂️</div>
-            <div style="font-weight:700;color:#3d2c1b;font-size:1.1rem;">视频剪辑</div>
-            <div style="color:#8a7a6a;font-size:0.9rem;">裁剪片段</div>
-          </div>
-          <div class="tool-card" data-ffop="remove_audio" style="background:#fff;border-radius:18px;padding:1.5rem;text-align:center;border:1px solid #f0e8de;cursor:pointer;transition:all 0.2s;">
-            <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔇</div>
-            <div style="font-weight:700;color:#3d2c1b;font-size:1.1rem;">去除音频</div>
-            <div style="color:#8a7a6a;font-size:0.9rem;">静音输出</div>
+          <div class="card" id="s3-result" style="display:flex;align-items:center;justify-content:center;min-height:300px;background:#fcf9f5;">
+            <div class="empty-state"><div class="empty-icon">🎵</div><div class="empty-text">输入文本，点击生成</div></div>
           </div>
         </div>
-        <div id="ffmpeg-result-card" class="card" hidden>
-          <div class="card-title">📺 处理结果</div>
-          <div id="ffmpeg-player-container"></div>
-          <button class="btn btn-primary btn-sm" id="btn-ffmpeg-download" style="margin-top:0.8rem;">📥 下载</button>
+      </div>
+      <!-- Step ④: FFmpeg 工具箱 -->
+      <div class="step-panel" id="step-panel-4">
+        <div class="tool-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.8rem;margin-bottom:1.2rem;">
+          <div class="ff-tool-card" data-ff="transcode"><span style="font-size:2rem;">🔄</span><span>视频转码</span><small>H.264 + 缩放</small></div>
+          <div class="ff-tool-card" data-ff="clip"><span style="font-size:2rem;">✂️</span><span>视频剪辑</span><small>裁剪片段</small></div>
+          <div class="ff-tool-card" data-ff="remove_audio"><span style="font-size:2rem;">🔇</span><span>去除音频</span><small>静音输出</small></div>
+          <div class="ff-tool-card" data-ff="compose"><span style="font-size:2rem;">🎵</span><span>合并音频</span><small>配音合成</small></div>
         </div>
+        <div id="ff-modal" class="ffmpeg-modal">
+  <div class="modal-card">
+    <h3 id="ff-title" style="margin-bottom:1rem;">FFmpeg 工具</h3>
+    <div id="ff-form"></div>
+    <div id="ff-status" style="text-align:center;margin-top:0.5rem;color:#8a7a6a;font-size:0.85rem;"></div>
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+      <button class="btn btn-ghost btn-sm" id="btn-ff-close" style="flex:1;">取消</button>
+              <button class="btn btn-primary btn-sm" id="btn-ff-run" style="flex:1;">▶ 执行</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="ff-result" hidden><div class="card-title">📺 处理结果</div><div id="ff-player"></div><button class="btn btn-primary btn-sm" id="btn-ff-dl" style="margin-top:0.8rem;">📥 下载</button></div>
+        <div class="card" id="ff-empty" style="display:flex;align-items:center;justify-content:center;min-height:200px;background:#fcf9f5;">
+          <div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-text">选择上方工具开始</div></div>
+        </div>
+      </div>
+      <!-- 📦 资源库 -->
+      <div class="step-panel" id="step-panel-lib">
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;" id="lib-filter-bar">
+          <button class="lib-filter-btn active" data-lib-filter="all">全部</button>
+          <button class="lib-filter-btn" data-lib-filter="image">🖼️ 图片</button>
+          <button class="lib-filter-btn" data-lib-filter="video">🎥 视频</button>
+          <button class="lib-filter-btn" data-lib-filter="audio">🎵 音频</button>
+          <button class="lib-filter-btn" data-lib-filter="composed">🎬 合成</button>
+        </div>
+        <div id="lib-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;"></div>
+        <div id="lib-empty" class="empty-state" style="padding:3rem;"><div class="empty-icon">📦</div><div class="empty-text">资源库为空，生成内容后自动出现在这里</div></div>
       </div>
     </div>
     <div class="page" id="page-knowledge">
@@ -1960,215 +2004,358 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     });
   };
 
+
   // ========== 短视频生成功能 ==========
-  // Tab 切换
-  document.querySelectorAll('.tab-pill').forEach(function(pill) {
-    pill.addEventListener('click', function() {
-      var vtab = this.getAttribute('data-vtab');
-      document.querySelectorAll('.tab-pill').forEach(function(p) { p.classList.remove('active'); });
+  var pipeline = { s1:{}, s2:{}, s3:{}, s4:{}, ffResultUrl:null, ffDownloadUrl:null };
+  var resourceLib = JSON.parse(localStorage.getItem('mm_resource_lib') || '[]');
+  var sdPollTimer = null;
+  var currentFFOp = '';
+
+  function saveLib() { localStorage.setItem('mm_resource_lib', JSON.stringify(resourceLib)); updateLibBadge(); }
+  function addToLib(type, url, prompt, params) {
+    resourceLib.unshift({id:Date.now(), type:type, url:url, prompt:prompt||'', params:params||{}, time:new Date().toISOString().slice(0,19)});
+    if (resourceLib.length > 50) resourceLib = resourceLib.slice(0,50);
+    saveLib();
+  }
+  function updateLibBadge() { var el=document.getElementById('lib-count'); if(el) el.textContent=resourceLib.length; }
+
+  // ---- 步骤导航 ----
+  document.querySelectorAll('.step-nav-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var step=this.getAttribute('data-step');
+      document.querySelectorAll('.step-nav-btn').forEach(function(b){b.classList.remove('active');});
       this.classList.add('active');
-      document.querySelectorAll('.vtab-panel').forEach(function(p) { p.classList.remove('active'); });
-      document.getElementById(vtab).classList.add('active');
+      document.querySelectorAll('.step-panel').forEach(function(p){p.classList.remove('active');});
+      document.getElementById('step-panel-'+step).classList.add('active');
+      if(step==='lib') renderLibrary();
     });
   });
 
-  // ---- Tab 1: AI 生图 → 短视频 ----
-  var videoGenUrl = null;
-
-  document.getElementById('btn-video-gen').addEventListener('click', function() {
-    var prompt = document.getElementById('video-img-prompt').value.trim();
-    var text = document.getElementById('video-tts-text').value.trim();
-    var speaker = document.getElementById('video-speaker').value;
-    if (!prompt) { showToast('请输入图片描述 prompt', 'error'); return; }
-    if (!text) { showToast('请输入配音文本', 'error'); return; }
-    var btn = this, statusEl = document.getElementById('video-gen-status');
-    var resultCard = document.getElementById('video-result-card');
-    var emptyCard = document.getElementById('video-result-empty');
-    var playerEl = document.getElementById('video-player-container');
-    btn.disabled = true; statusEl.textContent = '🎨 AI 正在生成封面图...'; resultCard.hidden = true; emptyCard.hidden = true;
-
-    var fd = new FormData();
-    fd.append('image_prompt', prompt); fd.append('tts_text', text); fd.append('speaker', speaker);
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API_BASE + '/creation/generate-video');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.responseType = 'blob'; xhr.timeout = 300000;
-    var stepTimer = setInterval(function() {
-      if (statusEl.textContent.indexOf('封面图') !== -1) statusEl.textContent = '🎤 正在生成 TTS 配音...';
-      else if (statusEl.textContent.indexOf('TTS') !== -1) statusEl.textContent = '🎬 FFmpeg 合成视频中...';
-    }, 5000);
-
-    xhr.onload = function() {
-      clearInterval(stepTimer); btn.disabled = false; statusEl.textContent = '';
-      if (xhr.status >= 200 && xhr.status < 300) {
-        if (videoGenUrl) URL.revokeObjectURL(videoGenUrl);
-        videoGenUrl = URL.createObjectURL(xhr.response);
-        playerEl.innerHTML = '<video controls autoplay style="width:100%;max-height:500px;border-radius:16px;" src="'+videoGenUrl+'"></video>';
-        resultCard.hidden = false; emptyCard.style.display = 'none';
-        showToast('🎉 短视频生成成功！', 'success');
-      } else {
-        try { var r=new FileReader(); r.onload=function(){try{var d=JSON.parse(r.result);showToast(extractError(d)||d.message||'失败','error');}catch(e){showToast('生成失败','error');}}; r.readAsText(xhr.response); } catch(e) { showToast('生成失败','error'); }
-      }
-    };
-    xhr.onerror = function() { clearInterval(stepTimer); btn.disabled = false; statusEl.textContent = ''; showToast('网络错误', 'error'); };
-    xhr.ontimeout = function() { clearInterval(stepTimer); btn.disabled = false; statusEl.textContent = ''; showToast('生成超时', 'error'); };
-    xhr.send(fd);
-  });
-  document.getElementById('btn-video-download').addEventListener('click', function() {
-    if (!videoGenUrl) return; var a=document.createElement('a'); a.href=videoGenUrl; a.download='ai_video.mp4'; a.click();
-  });
-
-  // ---- Tab 2: Seedance AI 生视频 ----
-  var sdTaskId = null, sdPollTimer = null, sdVideoUrl = null;
-
-  document.getElementById('btn-sd-create').addEventListener('click', function() {
-    var prompt = document.getElementById('sd-prompt').value.trim();
-    if (!prompt) { showToast('请输入视频描述 prompt', 'error'); return; }
-    var btn = this, statusEl = document.getElementById('sd-status');
-    btn.disabled = true; statusEl.textContent = '🎬 正在创建 Seedance 任务...';
-    document.getElementById('sd-result-card').hidden = true;
-    document.getElementById('sd-result-empty').style.display = 'none';
-
-    var fd = new FormData();
-    fd.append('prompt', prompt);
-    fd.append('resolution', document.getElementById('sd-resolution').value);
-    fd.append('duration', document.getElementById('sd-duration').value);
-    fd.append('aspect_ratio', document.getElementById('sd-ratio').value);
-    fd.append('count', document.getElementById('sd-count').value);
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API_BASE + '/creation/seedance-create');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.onload = function() {
-      btn.disabled = false;
-      if (xhr.status === 200) {
-        var d = JSON.parse(xhr.responseText);
-        sdTaskId = d.task_id; statusEl.textContent = '⏳ 任务已创建，正在等待 AI 生成视频...';
-        showToast('Seedance 任务已创建: ' + sdTaskId, 'success');
-        pollSeedance();
-      } else {
-        try { var e = JSON.parse(xhr.responseText); showToast(extractError(e)||'创建失败','error'); }
-        catch(er) { showToast('创建任务失败', 'error'); }
-        statusEl.textContent = '';
-      }
-    };
-    xhr.onerror = function() { btn.disabled = false; statusEl.textContent = ''; showToast('网络错误', 'error'); };
-    xhr.send(fd);
-  });
-
-  function pollSeedance() {
-    if (!sdTaskId) return;
-    var statusEl = document.getElementById('sd-status');
-    var pollCount = 0;
-    if (sdPollTimer) clearInterval(sdPollTimer);
-    sdPollTimer = setInterval(function() {
-      pollCount++;
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', API_BASE + '/creation/seedance-status/' + sdTaskId);
-      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-      xhr.onload = function() {
-        if (xhr.status === 200) {
-          var d = JSON.parse(xhr.responseText);
-          if (d.status === 'succeeded') {
-            clearInterval(sdPollTimer); sdPollTimer = null;
-            statusEl.textContent = '✅ 视频生成完成！正在加载播放器...';
-            sdVideoUrl = d.data && d.data.video_url;
-            if (sdVideoUrl) {
-              var playerEl = document.getElementById('sd-player-container');
-              playerEl.innerHTML = '<video controls autoplay style="width:100%;max-height:500px;border-radius:16px;" src="'+sdVideoUrl+'"></video>';
-              document.getElementById('sd-result-card').hidden = false;
-              document.getElementById('sd-result-empty').style.display = 'none';
-            }
-            showToast('🎉 AI 视频生成成功！', 'success');
-          } else if (d.status === 'failed') {
-            clearInterval(sdPollTimer); sdPollTimer = null;
-            statusEl.textContent = '❌ 生成失败'; showToast('视频生成失败，请重试', 'error');
-          } else {
-            var dots = '.'.repeat((pollCount % 3) + 1);
-            statusEl.textContent = '⏳ AI 正在生成视频' + dots + ' (' + d.status + ')';
-          }
-          if (pollCount > 120) { clearInterval(sdPollTimer); sdPollTimer = null; statusEl.textContent = '⏰ 超时，请稍后查询'; showToast('生成超时，任务可能仍在运行', 'info'); }
-        }
-      };
-      xhr.send();
-    }, 3000);
-  }
-
-  document.getElementById('btn-sd-download').addEventListener('click', function() {
-    if (!sdVideoUrl) return;
-    if (!sdTaskId) { var a=document.createElement('a'); a.href=sdVideoUrl; a.download='seedance_video.mp4'; a.click(); return; }
-    // 通过后端代理下载
+  // ---- Step 1: AI 生图 ----
+  document.getElementById('btn-s1').addEventListener('click',function(){
+    var prompt=document.getElementById('s1-prompt').value.trim();
+    if(!prompt){showToast('请输入画面描述','error');return;}
+    var btn=this,st=document.getElementById('s1-status');
+    btn.disabled=true;st.textContent='🎨 AI 正在生成...';
+    var fd=new FormData();
+    fd.append('image_prompt',prompt);
+    fd.append('model',document.getElementById('s1-model').value);
+    fd.append('size',document.getElementById('s1-size').value);
+    fd.append('aspect_ratio',document.getElementById('s1-ratio').value);
+    fd.append('output_format',document.getElementById('s1-fmt').value);
+    fd.append('watermark',document.getElementById('s1-watermark').value==='1');
+    fd.append('optimize_mode',document.getElementById('s1-optimize').value);
+    var ref=document.getElementById('s1-ref').value.trim();
+    if(ref) fd.append('reference_image_url',ref);
     var xhr=new XMLHttpRequest();
-    xhr.open('GET', API_BASE + '/creation/seedance-download/' + sdTaskId);
-    xhr.setRequestHeader('Authorization', 'Bearer '+token);
-    xhr.responseType='blob';
-    xhr.onload = function() {
-      if (xhr.status===200) { var a=document.createElement('a'); a.href=URL.createObjectURL(xhr.response); a.download='seedance_'+sdTaskId.slice(0,8)+'.mp4'; a.click(); showToast('下载成功','success'); }
-      else { showToast('下载失败','error'); }
+    xhr.open('POST',API_BASE+'/creation/generate-image');
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.timeout=180000;
+    xhr.onload=function(){
+      btn.disabled=false;st.textContent='';
+      if(xhr.status>=200&&xhr.status<300){
+        var d=JSON.parse(xhr.responseText);
+        pipeline.s1={imageUrl:'http://127.0.0.1:8000'+d.image_url,localPath:d.local_path,prompt:prompt,params:{model:d.model,size:d.size}};
+        document.getElementById('s1-result').innerHTML='<img src="'+pipeline.s1.imageUrl+'" style="max-width:100%;max-height:400px;border-radius:12px;"><div style="margin-top:0.6rem;display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary btn-sm" onclick="downloadURL(\''+pipeline.s1.imageUrl+'\',\'ai_image.'+(d.image_url.endsWith('.png')?'png':'jpg')+'\')">📥 下载</button></div>';
+        addToLib('image',pipeline.s1.imageUrl,prompt,{model:d.model,size:d.size});
+        showToast('✅ 封面图生成成功！','success');
+      }else{showToast('生图失败','error');}
     };
-    xhr.send();
+    xhr.onerror=function(){btn.disabled=false;st.textContent='网络错误';};
+    xhr.send(fd);
   });
 
-  // ---- Tab 3: FFmpeg 工具箱 ----
-  var ffmpegVideoUrl = null;
-  document.querySelectorAll('.tool-card').forEach(function(card) {
-    card.addEventListener('click', function() {
-      var op = this.getAttribute('data-ffop');
-      showFFmpegModal(op);
-    });
+  // model 切换时更新 size 选项
+  document.getElementById('s1-model').addEventListener('change',function(){
+    var sizes={'pro':['2K','1K'],'lite':['2K','3K','4K'],'4.5':['2K','4K'],'4.0':['2K','1K','4K']};
+    var sel=document.getElementById('s1-size'),cur=sel.value;
+    sel.innerHTML=sizes[this.value].map(function(s){return '<option value="'+s+'"'+(s===cur?' selected':'')+'>'+s+'</option>';}).join('');
   });
 
-  function showFFmpegModal(op) {
-    // 移除已有模态框
-    var exist = document.querySelector('.ffmpeg-modal');
-    if (exist) exist.remove();
-    var titles = {transcode:'🔄 视频转码', clip:'✂️ 视频剪辑', remove_audio:'🔇 去除音频'};
-    var extra = '';
-    if (op === 'clip') extra = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem;"><div><label class="field-label">起始 (秒)</label><input class="input" id="ff-start" type="number" value="0" min="0" step="0.5"></div><div><label class="field-label">时长 (秒)</label><input class="input" id="ff-duration" type="number" value="5" min="1" step="0.5"></div></div>';
-    if (op === 'transcode') extra = '<div class="form-group"><label class="field-label">输出宽度</label><select class="select" id="ff-width"><option value="640">640px</option><option value="1080">1080px</option><option value="1920">1920px</option></select></div>';
-    var modal = document.createElement('div');
-    modal.className = 'ffmpeg-modal';
-    modal.innerHTML = '<div class="modal-card"><h3 style="margin-bottom:1rem;">'+titles[op]+'</h3>' +
-      '<div class="form-group"><label class="field-label">选择视频文件</label><input type="file" id="ff-file" accept="video/*"></div>' +
-      extra +
-      '<div style="margin-top:1rem;display:flex;gap:0.8rem;"><button class="btn btn-primary btn-sm" id="btn-ff-run">▶ 执行</button><button class="btn btn-ghost btn-sm" id="btn-ff-close">取消</button></div>' +
-      '<div id="ff-status" style="margin-top:0.5rem;color:#8a7a6a;font-size:0.9rem;"></div></div>';
-    document.body.appendChild(modal);
-
-    document.getElementById('btn-ff-close').addEventListener('click', function() { modal.remove(); });
-    document.getElementById('btn-ff-run').addEventListener('click', function() {
-      var fileInput = document.getElementById('ff-file');
-      var file = fileInput.files[0];
-      if (!file) { showToast('请选择视频文件', 'error'); return; }
-      var statusEl = document.getElementById('ff-status');
-      statusEl.textContent = '处理中...';
-      var fd = new FormData(); fd.append('video', file); fd.append('operation', op);
-      if (op === 'clip') { fd.append('start', document.getElementById('ff-start').value); fd.append('duration', document.getElementById('ff-duration').value); }
-      if (op === 'transcode') fd.append('width', document.getElementById('ff-width').value);
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', API_BASE + '/creation/video-tool');
-      xhr.setRequestHeader('Authorization', 'Bearer '+token);
-      xhr.responseType = 'blob'; xhr.timeout = 120000;
-      xhr.onload = function() {
-        statusEl.textContent = '';
-        if (xhr.status >= 200 && xhr.status < 300) {
-          if (ffmpegVideoUrl) URL.revokeObjectURL(ffmpegVideoUrl);
-          ffmpegVideoUrl = URL.createObjectURL(xhr.response);
-          var resultCard = document.getElementById('ffmpeg-result-card');
-          document.getElementById('ffmpeg-player-container').innerHTML = '<video controls style="width:100%;max-height:400px;border-radius:16px;" src="'+ffmpegVideoUrl+'"></video>';
-          resultCard.hidden = false;
-          modal.remove(); showToast('处理完成！', 'success');
-        } else {
-          try { var r=new FileReader(); r.onload=function(){try{showToast(extractError(JSON.parse(r.result)),'error');}catch(e){showToast('处理失败','error');}}; r.readAsText(xhr.response); } catch(e) { showToast('处理失败','error'); }
-        }
+  // ---- Step 2: Seedance 生视频 ----
+  function pollSeedance(taskId){
+    var st=document.getElementById('s2-status'),dots=0;
+    if(sdPollTimer) clearInterval(sdPollTimer);
+    sdPollTimer=setInterval(function(){
+      dots=(dots+1)%4;st.textContent='⏳ AI 生成中'+'.'.repeat(dots);
+      var sx=new XMLHttpRequest();
+      sx.open('GET',API_BASE+'/creation/seedance-status/'+taskId);
+      sx.setRequestHeader('Authorization','Bearer '+token);sx.timeout=15000;
+      sx.onload=function(){
+        if(sx.status!==200)return;
+        var sd=JSON.parse(sx.responseText);
+        if(sd.status==='succeeded'&&sd.data&&sd.data.video_url){
+          clearInterval(sdPollTimer);st.textContent='';
+          document.getElementById('btn-s2').disabled=false;
+          pipeline.s2={videoUrl:sd.data.video_url};
+          document.getElementById('s2-result').innerHTML='<video controls src="'+sd.data.video_url+'" style="max-width:100%;max-height:400px;border-radius:12px;"></video><div style="margin-top:0.6rem;display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary btn-sm" onclick="downloadURL(\''+sd.data.video_url+'\',\'ai_video.mp4\')">📥 下载</button></div>';
+          addToLib('video',sd.data.video_url,document.getElementById('s2-prompt').value.trim(),{});
+          showToast('✅ 视频生成成功！','success');
+        }else if(sd.status==='failed'){clearInterval(sdPollTimer);st.textContent='❌ 失败';document.getElementById('btn-s2').disabled=false;}
       };
-      xhr.onerror = function() { statusEl.textContent = ''; showToast('网络错误','error'); };
-      xhr.send(fd);
-    });
+      sx.send();
+    },5000);
   }
 
-  document.getElementById('btn-ffmpeg-download').addEventListener('click', function() {
-    if (!ffmpegVideoUrl) return; var a=document.createElement('a'); a.href=ffmpegVideoUrl; a.download='ffmpeg_output.mp4'; a.click();
+  document.getElementById('btn-s2').addEventListener('click',function(){
+    var prompt=document.getElementById('s2-prompt').value.trim();
+    if(!prompt){showToast('请输入视频描述','error');return;}
+    var btn=this,st=document.getElementById('s2-status');
+    btn.disabled=true;st.textContent='🎬 创建任务...';
+    var fd=new FormData();
+    fd.append('prompt',prompt);
+    fd.append('resolution',document.getElementById('s2-resolution').value);
+    fd.append('duration',document.getElementById('s2-duration').value);
+    fd.append('aspect_ratio',document.getElementById('s2-ratio').value);
+    fd.append('count',document.getElementById('s2-count').value);
+    var ref2=document.getElementById('s2-ref').value.trim();
+    if(ref2) fd.append('image_url',ref2);
+    fd.append('camera_fixed',document.getElementById('s2-camera').value==='1');
+    fd.append('watermark',document.getElementById('s2-watermark').value==='1');
+    fd.append('seed_value',document.getElementById('s2-seed').value);
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',API_BASE+'/creation/seedance-create');
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.timeout=30000;
+    xhr.onload=function(){
+      if(xhr.status>=200&&xhr.status<300){
+        var d=JSON.parse(xhr.responseText);
+        st.textContent='⏳ 任务 '+d.task_id.slice(0,8)+'...';
+        showToast('视频任务已创建','success');
+        pollSeedance(d.task_id);
+      }else{btn.disabled=false;st.textContent='创建失败';}
+    };
+    xhr.onerror=function(){btn.disabled=false;st.textContent='网络错误';};
+    xhr.send(fd);
+  });
+
+  // ---- Step 3: TTS 配音 ----
+  document.getElementById('btn-s3').addEventListener('click',function(){
+    var text=document.getElementById('s3-text').value.trim();
+    if(!text){showToast('请输入配音文本','error');return;}
+    var btn=this,st=document.getElementById('s3-status');
+    btn.disabled=true;st.textContent='🎤 合成中...';
+    var fd=new FormData();fd.append('text',text);
+    fd.append('speaker',document.getElementById('s3-speaker').value);
+    fd.append('speed',document.getElementById('s3-speed').value);
+    fd.append('volume',document.getElementById('s3-volume').value);
+    fd.append('pitch',document.getElementById('s3-pitch').value);
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',API_BASE+'/creation/tts');
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.responseType='blob';xhr.timeout=120000;
+    xhr.onload=function(){
+      btn.disabled=false;st.textContent='';
+      if(xhr.status>=200&&xhr.status<300){
+        var blobUrl=URL.createObjectURL(xhr.response);
+        pipeline.s3={audioBlobUrl:blobUrl,text:text};
+        document.getElementById('s3-result').innerHTML='<audio controls src="'+blobUrl+'" style="width:100%;"></audio><div style="margin-top:0.6rem;display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary btn-sm" onclick="downloadBlob(\''+blobUrl+'\',\'tts_audio.mp3\')">📥 下载</button></div>';
+        addToLib('audio',blobUrl,text,{speaker:document.getElementById('s3-speaker').value});
+        showToast('✅ 配音生成成功！','success');
+      }else{showToast('配音失败','error');}
+    };
+    xhr.onerror=function(){btn.disabled=false;st.textContent='网络错误';};
+    xhr.send(fd);
+  });
+
+  // ---- Step 4: FFmpeg 工具箱 ----
+  document.querySelectorAll('.ff-tool-card').forEach(function(card){
+    card.addEventListener('click',function(){
+      var modal=document.getElementById('ff-modal');
+      if(!modal) return;
+      modal.classList.add('show');
+      document.getElementById('ff-status').textContent='';
+      currentFFOp=this.getAttribute('data-ff');
+      var title=document.getElementById('ff-title');
+      var form=document.getElementById('ff-form');
+      if(currentFFOp==='compose'){
+        title.textContent='🎵 合并音频 — 视频+配音合成';
+        form.innerHTML='<div class="form-group"><label class="field-label">上传视频</label><input type="file" class="input" id="ff-file-vid" accept="video/*"></div>'
+          +'<div class="form-group"><label class="field-label">音频来源</label><select class="select" id="ff-audio-src"><option value="tts">TTS 配音输入文本</option><option value="file">上传音频文件</option></select></div>'
+          +'<div class="form-group" id="ff-tts-grp"><label class="field-label">配音文本</label><textarea class="textarea" id="ff-tts-text" rows="2" placeholder="输入配音文本..."></textarea><select class="select" id="ff-tts-speaker" style="margin-top:0.4rem;"><option value="zh_female_qingxin">清新女声</option><option value="zh_female_tianmei">恬美女声</option></select></div>'
+          +'<div class="form-group" id="ff-aud-grp" hidden><label class="field-label">上传音频文件</label><input type="file" class="input" id="ff-file-aud" accept="audio/*"></div>';
+        document.getElementById('ff-audio-src').addEventListener('change',function(){
+          var isTTS=this.value==='tts';
+          document.getElementById('ff-tts-grp').hidden=!isTTS;
+          document.getElementById('ff-aud-grp').hidden=isTTS;
+        });
+      }else if(currentFFOp==='transcode'){
+        title.textContent='🔄 视频转码';form.innerHTML='<div class="form-group"><label class="field-label">上传视频</label><input type="file" class="input" id="ff-file" accept="video/*"></div><div class="form-group"><label class="field-label">宽度</label><input class="input" type="number" id="ff-width" value="640" min="200" max="3840"></div><div class="form-group"><label class="field-label">质量 CRF (0-51, 越小越好)</label><input class="input" type="number" id="ff-crf" value="23" min="0" max="51"></div>';
+      }else if(currentFFOp==='clip'){
+        title.textContent='✂️ 视频剪辑';form.innerHTML='<div class="form-group"><label class="field-label">上传视频</label><input type="file" class="input" id="ff-file" accept="video/*"></div><div class="form-group"><label class="field-label">起始秒</label><input class="input" type="number" id="ff-start" value="0" min="0" step="0.1"></div><div class="form-group"><label class="field-label">时长</label><input class="input" type="number" id="ff-duration" value="5" min="1" step="0.1"></div><div class="form-group"><label class="field-label">CRF</label><input class="input" type="number" id="ff-crf" value="23" min="0" max="51"></div>';
+      }else if(currentFFOp==='remove_audio'){
+        title.textContent='🔇 去除音频';form.innerHTML='<div class="form-group"><label class="field-label">上传视频</label><input type="file" class="input" id="ff-file" accept="video/*"></div><div class="form-group"><label class="field-label">CRF</label><input class="input" type="number" id="ff-crf" value="23" min="0" max="51"></div>';}
+    });
+  });
+  document.getElementById('btn-ff-close').addEventListener('click',function(){
+    var m=document.getElementById('ff-modal');
+    if(m) m.classList.remove('show');
+    currentFFOp='';
+  });
+  document.getElementById('btn-ff-run').addEventListener('click',function(){
+    if(!currentFFOp)return;
+    var st=document.getElementById('ff-status'),fd=new FormData();
+    if(currentFFOp==='compose'){
+      var vidInput=document.getElementById('ff-file-vid');
+      if(!vidInput||!vidInput.files[0]){showToast('请选择视频文件','error');return;}
+      fd.append('video',vidInput.files[0]);
+      var audSrc=document.getElementById('ff-audio-src').value;
+      if(audSrc==='tts'){
+        var audText=document.getElementById('ff-tts-text').value.trim();
+        if(!audText){showToast('请输入配音文本','error');return;}
+        fd.append('tts_text',audText);
+        fd.append('speaker',document.getElementById('ff-tts-speaker').value);
+      }else{
+        var audInput=document.getElementById('ff-file-aud');
+        if(!audInput||!audInput.files[0]){showToast('请选择音频文件','error');return;}
+        fd.append('audio',audInput.files[0]);
+      }
+      st.textContent='🎵 合成中...';
+      callVideoToolAPI('/creation/video-compose',fd,st);
+    }else{
+      var fileInput=document.getElementById('ff-file');
+      if(!fileInput||!fileInput.files[0]){showToast('请选择视频文件','error');return;}
+      fd.append('video',fileInput.files[0]);fd.append('operation',currentFFOp);
+      if(currentFFOp==='transcode'){fd.append('width',document.getElementById('ff-width').value);fd.append('crf',document.getElementById('ff-crf').value);}
+      else if(currentFFOp==='clip'){fd.append('start',document.getElementById('ff-start').value);fd.append('duration',document.getElementById('ff-duration').value);fd.append('crf',document.getElementById('ff-crf').value);}
+      else if(currentFFOp==='remove_audio'){fd.append('crf',document.getElementById('ff-crf').value);}
+      st.textContent='🔧 处理中...';
+      callVideoToolAPI('/creation/video-tool',fd,st);
+    }
+  });
+
+  function callVideoToolAPI(endpoint, fd, st) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API_BASE + endpoint);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.responseType = 'json';  // 后端现在返回 JSON {url, download_url}
+    xhr.timeout = 300000;
+    xhr.onload = function() {
+      st.textContent = '';
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.ok) {
+        var url = xhr.response.url;          // /uploads/ai_videos/xxx.mp4
+        var dl = xhr.response.download_url;  // /download/ai_videos/xxx.mp4
+        pipeline.ffResultUrl = url;
+        pipeline.ffDownloadUrl = dl;
+        document.getElementById('ff-empty').style.display = 'none';
+        document.getElementById('ff-result').hidden = false;
+        document.getElementById('ff-player').innerHTML = '<video controls src="' + url + '" style="width:100%;max-height:400px;border-radius:12px;"></video>';
+        document.getElementById('ff-modal').classList.remove('show');
+        addToLib('composed', url, 'FFmpeg ' + currentFFOp, {});
+        showToast('✅ 处理成功！', 'success');
+      } else {
+        var detail = (xhr.response && xhr.response.detail) ? JSON.stringify(xhr.response.detail) : xhr.statusText;
+        showToast('处理失败: ' + detail, 'error');
+      }
+    };
+    xhr.onerror = function() { st.textContent = '网络错误'; };
+    xhr.send(fd);
+  }
+
+  document.getElementById('btn-ff-dl').addEventListener('click', function() {
+    if (pipeline.ffDownloadUrl) {
+      var a = document.createElement('a');
+      a.href = pipeline.ffDownloadUrl;
+      a.download = 'ffmpeg_output.mp4';
+      a.click();
+    } else if (pipeline.ffResultUrl) {
+      downloadBlob(pipeline.ffResultUrl, 'ffmpeg_output.mp4');
+    }
+  });
+
+  // ---- 资源库 ----
+  function renderLibrary(filter){
+    filter=filter||'all';
+    var grid=document.getElementById('lib-grid'),empty=document.getElementById('lib-empty');
+    var items=filter==='all'?resourceLib:resourceLib.filter(function(r){return r.type===filter;});
+    if(!items.length){grid.innerHTML='';empty.style.display='block';return;}
+    empty.style.display='none';
+    grid.innerHTML=items.map(function(r,i){
+      var preview='',iconMap={image:'🖼️',video:'🎥',audio:'🎵',composed:'🎬'};
+      if(r.type==='image') preview='<img src="'+r.url+'" style="width:100%;height:120px;object-fit:cover;border-radius:8px;">';
+      else if(r.type==='video'||r.type==='composed') preview='<video src="'+r.url+'" style="width:100%;height:120px;object-fit:cover;border-radius:8px;" muted></video>';
+      else if(r.type==='audio') preview='<audio controls src="'+r.url+'" style="width:100%;margin-top:0.5rem;"></audio>';
+      return '<div class="card" style="padding:0.8rem;"><div style="font-size:0.8rem;color:#8a7a6a;margin-bottom:0.3rem;">'+iconMap[r.type]+' '+r.type+' · '+r.time+'</div>'+preview+'<div style="font-size:0.8rem;margin-top:0.3rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(r.prompt||'').slice(0,40)+'</div><button class="btn btn-ghost btn-sm" style="margin-top:0.4rem;width:100%;" onclick="downloadURL(\''+r.url+'\',\''+r.type+'_'+r.id+'\')">📥 下载</button></div>';
+    }).join('');
+  }
+  document.querySelectorAll('.lib-filter-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.lib-filter-btn').forEach(function(b){b.classList.remove('active');});
+      this.classList.add('active');renderLibrary(this.getAttribute('data-lib-filter'));
+    });
+  });
+
+  // ---- 工具函数 ----
+  window.downloadURL=function(url,filename){
+    // Local files: use /download/ proxy to force Content-Disposition: attachment
+    if(url.indexOf('/uploads/')!==-1){
+      var dl=url.replace('/uploads/','/download/');
+      var a=document.createElement('a');a.href=dl;a.download=filename||'download';document.body.appendChild(a);a.click();a.remove();
+    }else{
+      // Remote URLs (TOS, Seedance) - fetch+blob for forced download
+      if(url.startsWith('blob:')){
+        var a=document.createElement('a');a.href=url;a.download=filename||'download';document.body.appendChild(a);a.click();a.remove();
+      }else{
+        fetch(url).then(function(r){return r.blob();}).then(function(b){
+          var blobUrl=URL.createObjectURL(b);
+          var a=document.createElement('a');a.href=blobUrl;a.download=filename||'download';document.body.appendChild(a);a.click();a.remove();
+          setTimeout(function(){URL.revokeObjectURL(blobUrl);},60000);
+        }).catch(function(){
+          window.open(url,'_blank');
+        });
+      }
+    }
+  };
+  window.downloadBlob=function(blobUrl,filename){
+    var a=document.createElement('a');a.href=blobUrl;a.download=filename||'download';document.body.appendChild(a);a.click();a.remove();
+  };
+
+  updateLibBadge();
+
+  // ---- TOS 上传参考图 (Seedance Step 2) ----
+  document.getElementById('btn-s2-upload').addEventListener('click',function(){
+    var fileInput=document.getElementById('s2-ref-file');
+    var file=fileInput.files[0];
+    if(!file){showToast('请先选择图片文件','error');return;}
+    var btn=this;btn.disabled=true;btn.textContent='上传中...';
+    var fd=new FormData();fd.append('file',file);
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',API_BASE+'/creation/tos-upload');
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.timeout=60000;
+    xhr.onload=function(){
+      btn.disabled=false;btn.textContent='📤 上传参考图';
+      if(xhr.status>=200&&xhr.status<300){
+        var d=JSON.parse(xhr.responseText);
+        document.getElementById('s2-ref').value=d.url;
+        showToast('参考图上传成功！','success');
+      }else{showToast('上传失败','error');}
+    };
+    xhr.onerror=function(){btn.disabled=false;btn.textContent='📤 上传参考图';showToast('网络错误','error');};
+    xhr.send(fd);
+  });
+
+  // ---- TOS 上传参考图 (Seedream Step 1) ----
+  document.getElementById('btn-s1-upload').addEventListener('click',function(){
+    var fileInput=document.getElementById('s1-ref-file');
+    var file=fileInput.files[0];
+    if(!file){showToast('请先选择图片文件','error');return;}
+    var btn=this;btn.disabled=true;btn.textContent='上传中...';
+    var fd=new FormData();fd.append('file',file);
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',API_BASE+'/creation/tos-upload');
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.timeout=60000;
+    xhr.onload=function(){
+      btn.disabled=false;btn.textContent='📤 上传参考图';
+      if(xhr.status>=200&&xhr.status<300){
+        var d=JSON.parse(xhr.responseText);
+        document.getElementById('s1-ref').value=d.url;
+        showToast('参考图上传成功！','success');
+      }else{showToast('上传失败','error');}
+    };
+    xhr.onerror=function(){btn.disabled=false;btn.textContent='📤 上传参考图';showToast('网络错误','error');};
+    xhr.send(fd);
   });
 
 })();

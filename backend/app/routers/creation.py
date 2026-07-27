@@ -7,25 +7,96 @@
 import os
 import uuid
 import sys
-import shutil
-import threading
-import concurrent.futures
-from pathlib import Path
-from typing import Optional, List
-from datetime import datetime
 import io
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse, StreamingResponse
+import shutil
+import hashlib as _hl
+from pathlib import Path
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
+from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
-from app.database import get_db, SessionLocal
+
+from app.database import get_db
 from app.models.user import User
-from app.models.business import CreationSession, Scheme, AgentLog, Review
-from app.schemas.creation import CreationRequest, TaskStatusResponse
+from app.schemas.creation import CreationRequest
 from app.utils.deps import get_current_user
 
-router = APIRouter(prefix="/api", tags=["创作"])
+router = APIRouter(prefix="/api", tags=["creation"])
 
-# 上传文件存储目录
+# ── TOS 上传配置 ─────────────────────────────────────────
+_TOS_AK = os.environ.get("VOLC_ACCESS_KEY", "")
+_TOS_SK = os.environ.get("VOLC_SECRET_KEY", "")
+_TOS_REGION = os.environ.get("VOLC_TOS_REGION", "cn-beijing")
+_TOS_BUCKET = os.environ.get("VOLC_TOS_BUCKET", "xiaoluo233")
+_TOS_ENDPOINT = f"https://tos-{_TOS_REGION}.volces.com"
+_SERVER_BASE = "http://127.0.0.1:8000"
+_HAS_TOS = False
+try:
+    import tos
+    _HAS_TOS = True
+except ImportError:
+    pass
+
+
+@router.post("/creation/tos-upload")
+async def tos_upload(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """上传图片到火山 TOS，返回公网 URL（供 Seedream/Seedance 参考图使用）"""
+    if not _HAS_TOS:
+        raise HTTPException(status_code=503, detail={"error": "tos_unavailable", "detail": "tos SDK 未安装: pip install tos"})
+
+    try:
+        content = await file.read()
+        h = _hl.md5(content).hexdigest()[:8]
+        month = datetime.now().strftime("%Y%m")
+        ext = Path(file.filename or "image.png").suffix or ".png"
+        object_key = f"uploads/{month}/{Path(file.filename or 'img').stem}_{h}{ext}"
+
+        client = tos.TosClient(
+            auth=tos.Auth(_TOS_AK, _TOS_SK, _TOS_REGION),
+            endpoint=_TOS_ENDPOINT,
+        )
+        # 确保 bucket 存在
+        try:
+            client.head_bucket(Bucket=_TOS_BUCKET)
+        except Exception:
+            client.create_bucket(Bucket=_TOS_BUCKET, ACL="public-read")
+
+        from io import BytesIO
+        client.put_object(Bucket=_TOS_BUCKET, Key=object_key, Body=BytesIO(content), ACL="public-read")
+        public_url = f"https://{_TOS_BUCKET}.tos-{_TOS_REGION}.volces.com/{object_key}"
+        return {"ok": True, "url": public_url, "key": object_key}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "tos_upload_failed", "detail": str(e)})
+
+@router.get("/creation/download")
+def download_proxy(url: str, filename: str = "download"):
+    """下载代理 — 强制 attachment 头，让浏览器触发下载而非内联预览"""
+    import urllib.request as _ur
+    import mimetypes
+    try:
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=60) as resp:
+            data = resp.read()
+        content_type = resp.headers.get("Content-Type", mimetypes.guess_type(filename)[0] or "application/octet-stream")
+        return StreamingResponse(io.BytesIO(data), media_type=content_type,
+                                 headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "download_failed", "detail": str(e)})
+
+# ── 原有导入（去重） ──
+import threading
+import concurrent.futures
+from typing import Optional, List
+from app.database import SessionLocal
+from app.models.business import CreationSession, Scheme, AgentLog
+from app.schemas.creation import TaskStatusResponse
+from app.utils.deps import get_current_user as _get_current_user
+
+# 已上传文件存储目录
 UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -261,9 +332,6 @@ def _run_fallback_mock(task_id: str, session_id: int, topic: str, platform: str,
     session = db.query(CreationSession).filter(CreationSession.id == session_id).first()
     if session:
         session.status = "completed"
-        # 为每个新方案自动创建「待审核」记录
-        for sid in scheme_ids:
-            db.add(Review(scheme_id=sid, reviewer_id=session.user_id, status="pending"))
         db.commit()
     db.close()
 
@@ -394,13 +462,10 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
                 db.refresh(scheme)
                 scheme_ids.append(scheme.id)
 
-            # 更新 session 状态 + 自动创建审核记录
+            # 更新 session 状态
             session = db.query(CreationSession).filter(CreationSession.id == session_id).first()
             if session:
                 session.status = "completed"
-                # 为每个新方案自动创建「待审核」记录
-                for sid in scheme_ids:
-                    db.add(Review(scheme_id=sid, reviewer_id=session.user_id, status="pending"))
                 db.commit()
             db.close()
 
@@ -907,6 +972,81 @@ def download_material_file(
 
 # ====================== 短视频样片生成（进阶#1：图像+TTS+FFmpeg） ======================
 
+@router.post("/creation/generate-image")
+def generate_image(
+    image_prompt: str = Form(..., min_length=1, max_length=2000),
+    model: str = Form("pro"),
+    size: str = Form("2K"),
+    aspect_ratio: str = Form("1:1"),
+    output_format: str = Form("jpeg"),
+    watermark: bool = Form(True),
+    optimize_mode: str = Form(""),
+    reference_image_url: str = Form(""),
+    current_user: User = Depends(get_current_user),
+):
+    """Step 1: AI 生图 — Seedream 全参数支持"""
+    import json as _json, urllib.request as _ur
+
+    # 模型 endpoint 映射
+    MODEL_ENDPOINTS = {
+        "pro": "ep-20260726092049-jklk6",
+        "lite": "ep-20260726093953-hgkbz",
+        "4.5": "ep-20260726093919-8br8x",
+        "4.0": "ep-20260726093814-k7ffv",
+    }
+    endpoint = MODEL_ENDPOINTS.get(model, MODEL_ENDPOINTS["pro"])
+    # Pro 限 1K/2K, LRM 限 3K/4K, 4.5 限 2K/4K, 4.0 限 1K/2K/4K
+    model_sizes = {"pro": ["1K","2K"], "lite": ["2K","3K","4K"], "4.5": ["2K","4K"], "4.0": ["1K","2K","4K"]}
+    if size not in model_sizes.get(model, ["2K"]):
+        size = model_sizes.get(model, ["2K"])[0]
+
+    # 比例 → 像素映射 (Pro 2K)
+    ASPECT_PIXELS = {
+        "1:1":"2048x2048","16:9":"2816x1584","9:16":"1584x2816",
+        "4:3":"2368x1776","3:4":"1776x2368","3:2":"2496x1664","2:3":"1664x2496","21:9":"3136x1344",
+    }
+    final_size = ASPECT_PIXELS.get(aspect_ratio, size) if model == "pro" and size == "2K" else size
+
+    try:
+        ark_key = os.environ.get("ARK_API_KEY", "")
+        if not ark_key:
+            raise RuntimeError("ARK_API_KEY 未设置")
+        img_dir = Path(__file__).parent.parent.parent / "uploads" / "ai_images"
+        img_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "model": endpoint,
+            "prompt": image_prompt.strip(),
+            "response_format": "url",
+            "size": final_size,
+            "watermark": watermark,
+        }
+        if output_format and model in ("pro", "lite"):
+            payload["output_format"] = output_format
+        if optimize_mode and model == "pro":
+            payload["optimize_prompt_options"] = {"mode": optimize_mode}
+        if reference_image_url.strip():
+            payload["image"] = reference_image_url.strip()
+
+        payload_bytes = _json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = _ur.Request("https://ark.cn-beijing.volces.com/api/v3/images/generations",
+                          data=payload_bytes,
+                          headers={"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer " + ark_key})
+        with _ur.urlopen(req, timeout=180) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        img_url = data.get("data", [{}])[0].get("url", "")
+        if not img_url:
+            raise RuntimeError("Seedream 无图片 URL: " + str(data))
+        suffix = ".png" if output_format == "png" else ".jpg"
+        img_filename = f"ai_cover_{uuid.uuid4().hex[:8]}{suffix}"
+        img_path = str(img_dir / img_filename)
+        _ur.urlretrieve(img_url, img_path)
+        relative_url = f"/uploads/ai_images/{img_filename}"
+        full_url = _SERVER_BASE + relative_url
+        return {"ok": True, "image_url": relative_url, "full_url": full_url, "local_path": img_path, "model": model, "size": final_size}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "image_gen_failed", "detail": str(e)})
+
+
 @router.post("/creation/generate-video")
 def generate_video(
     image_prompt: str = Form(..., min_length=1, max_length=500),
@@ -914,32 +1054,34 @@ def generate_video(
     speaker: str = Form("zh_female_qingxin"),
     current_user: User = Depends(get_current_user),
 ):
-    """进阶#1：串联 Seedream 生图 + 豆包 TTS + FFmpeg → 自动生成短视频 MP4"""
+    """一键模式：串联 Seedream 生图 + 豆包 TTS + FFmpeg → 自动生成短视频 MP4"""
     import base64 as _b64, tempfile, os as _os, subprocess
-    import requests as _requests
+    import json as _json, urllib.request as _ur
 
     # Step 1: Seedream AI 生图
     try:
         ark_key = os.environ.get("ARK_API_KEY", "")
         if not ark_key:
-            raise RuntimeError("ARK_API_KEY 环境变量未设置")
+            raise RuntimeError("ARK_API_KEY 未设置")
         img_dir = Path(__file__).parent.parent.parent / "uploads" / "ai_images"
         img_dir.mkdir(parents=True, exist_ok=True)
-        resp = _requests.post(
-            "https://ark.cn-beijing.volces.com/api/v3/images/generations",
-            json={"model": "ep-20260726092049-jklk6", "prompt": image_prompt.strip(), "response_format": "url", "size": "2K", "watermark": True},
-            headers={"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer " + ark_key},
-            timeout=120,
-        )
-        resp.encoding = "utf-8"
-        data = resp.json()
+        payload = _json.dumps({
+            "model": "ep-20260726092049-jklk6",
+            "prompt": image_prompt.strip(),
+            "response_format": "url",
+            "size": "2K",
+            "watermark": True,
+        }, ensure_ascii=False).encode("utf-8")
+        req = _ur.Request("https://ark.cn-beijing.volces.com/api/v3/images/generations",
+                          data=payload,
+                          headers={"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer " + ark_key})
+        with _ur.urlopen(req, timeout=180) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
         img_url = data.get("data", [{}])[0].get("url", "")
         if not img_url:
             raise RuntimeError("Seedream 无图片 URL: " + str(data))
         img_path = str(img_dir / f"ai_cover_{uuid.uuid4().hex[:8]}.png")
-        r = _requests.get(img_url, timeout=60)
-        with open(img_path, "wb") as f:
-            f.write(r.content)
+        _ur.urlretrieve(img_url, img_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": "image_gen_failed", "detail": str(e)})
 
@@ -999,22 +1141,41 @@ def seedance_create(
     prompt: str = Form(..., min_length=1, max_length=500),
     resolution: str = Form("1080p"),
     duration: int = Form(5),
-    aspect_ratio: str = Form("16:9"),
+    aspect_ratio: str = Form("智能比例"),
     count: int = Form(1),
+    image_url: str = Form(""),
+    camera_fixed: bool = Form(False),
+    watermark: bool = Form(True),
+    seed_value: int = Form(-1),
     current_user: User = Depends(get_current_user),
 ):
-    """Seedance 1.0 文生视频 — 创建异步生成任务"""
+    """Seedance 1.0 文生视频 / 图生视频 — 全参数异步生成"""
     import requests as _r
-    ark_key = os.environ.get("ARK_API_KEY", "")
+    ark_key = os.environ.get("ARK_VIDEO_KEY", "")
     if not ark_key:
-        raise HTTPException(status_code=500, detail={"error": "no_api_key", "detail": "ARK_API_KEY 未设置"})
+        raise HTTPException(status_code=500, detail={"error": "no_api_key", "detail": "ARK_VIDEO_KEY 未设置"})
     try:
+        full_prompt = prompt.strip()
+        # 拼接参数标记到 prompt（与 seedance skill 一致）
+        params = []
+        if resolution: params.append(f"--resolution {resolution}")
+        if duration: params.append(f"--duration {duration}")
+        if aspect_ratio and aspect_ratio != "智能比例": params.append(f"--aspect {aspect_ratio}")
+        if count > 1: params.append(f"--count {count}")
+        if seed_value >= 0: params.append(f"--seed {seed_value}")
+        params.append(f"--camerafixed {str(camera_fixed).lower()}")
+        params.append(f"--watermark {str(watermark).lower()}")
+        if params:
+            full_prompt = f"{prompt.strip()}  {' '.join(params)}"
+
+        content = [{"type": "text", "text": full_prompt}]
+        if image_url.strip():
+            content.append({"type": "image_url", "image_url": {"url": image_url.strip()}})
         resp = _r.post(
             "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
             json={
                 "model": "ep-20260725142122-7m24m",
-                "content": [{"type": "text", "text": prompt.strip()}],
-                "parameters": {"resolution": resolution, "duration": duration, "aspect_ratio": aspect_ratio, "count": count},
+                "content": content,
             },
             headers={"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer " + ark_key},
             timeout=30,
@@ -1033,7 +1194,7 @@ def seedance_create(
 def seedance_status(task_id: str, current_user: User = Depends(get_current_user)):
     """查询 Seedance 任务状态"""
     import requests as _r
-    ark_key = os.environ.get("ARK_API_KEY", "")
+    ark_key = os.environ.get("ARK_VIDEO_KEY", "")
     if not ark_key:
         raise HTTPException(status_code=500, detail={"error": "no_api_key"})
     try:
@@ -1044,11 +1205,20 @@ def seedance_status(task_id: str, current_user: User = Depends(get_current_user)
         status = data.get("status", "unknown")
         result = {}
         if status == "succeeded":
-            content_list = data.get("content", [])
-            for c in content_list:
-                if c.get("type") == "video" and c.get("video_url"):
-                    result["video_url"] = c["video_url"]
-                    break
+            content_data = data.get("content", {})
+            video_url = ""
+            if isinstance(content_data, dict):
+                video_url = content_data.get("video_url", "")
+            elif isinstance(content_data, list):
+                for item in content_data:
+                    if isinstance(item, dict):
+                        if item.get("type") == "video_url":
+                            video_url = item.get("video_url", {}).get("url", "")
+                            break
+                        elif item.get("type") == "video":
+                            video_url = item.get("video", {}).get("url", "")
+                            break
+            result["video_url"] = video_url
         return {"status": status, "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": "seedance_query_failed", "detail": str(e)})
@@ -1059,7 +1229,7 @@ def seedance_download(task_id: str, current_user: User = Depends(get_current_use
     """下载 Seedance 生成的视频"""
     import requests as _r
     # 先查状态获取 video_url
-    ark_key = os.environ.get("ARK_API_KEY", "")
+    ark_key = os.environ.get("ARK_VIDEO_KEY", "")
     resp = _r.get(f"https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{task_id}",
                   headers={"Authorization": "Bearer " + ark_key}, timeout=15)
     resp.encoding = "utf-8"
@@ -1082,6 +1252,114 @@ def seedance_download(task_id: str, current_user: User = Depends(get_current_use
 
 # ====================== FFmpeg 工具箱 ======================
 
+def _find_ffmpeg() -> str:
+    """查找 FFmpeg 可执行文件路径。
+    优先级：FFMPEG_BINARY 环境变量 → 系统 PATH → imageio_ffmpeg 内置 → 'ffmpeg'"""
+    configured = os.environ.get("FFMPEG_BINARY")
+    if configured and Path(configured).is_file():
+        return configured
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg:
+        return system_ffmpeg
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except (ImportError, AttributeError):
+        return "ffmpeg"
+
+
+def _has_audio(path: str) -> bool:
+    """检查视频文件是否包含音频流（参考 Day07 media_service.py）"""
+    import subprocess as _sp
+    result = _sp.run(
+        [_find_ffmpeg(), "-hide_banner", "-i", str(path)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    return "Audio:" in result.stderr
+
+
+# 输出目录（供 FFmpeg 结果保存）
+_FF_OUTPUT_DIR = Path(__file__).parent.parent.parent / "uploads" / "ai_videos"
+_FF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/creation/video-compose")
+def video_compose(
+    video: UploadFile = File(...),
+    audio: UploadFile = File(None),
+    tts_text: str = Form(""),
+    speaker: str = Form("zh_female_qingxin"),
+    current_user: User = Depends(get_current_user),
+):
+    """FFmpeg 合成 — 上传视频 + 音频文件或 TTS 文本 → 合成 MP4"""
+    import base64 as _b64, tempfile as _tmp, subprocess as _sp, os as _os
+
+    # 保存上传视频
+    vid_suffix = "." + (video.filename.rsplit(".", 1)[-1] if "." in (video.filename or "") else "mp4")
+    vid_path = _tmp.mktemp(suffix=vid_suffix)
+    with open(vid_path, "wb") as f:
+        f.write(video.file.read())
+
+    audio_path = None
+    cleanup_paths = [vid_path]
+
+    try:
+        if audio and audio.filename:
+            # 用户上传了音频文件
+            aud_suffix = "." + (audio.filename.rsplit(".", 1)[-1] if "." in (audio.filename or "") else "mp3")
+            audio_path = _tmp.mktemp(suffix=aud_suffix)
+            with open(audio_path, "wb") as f:
+                f.write(audio.file.read())
+            cleanup_paths.append(audio_path)
+        elif tts_text.strip():
+            # TTS 生成配音
+            try:
+                p4_path = Path(__file__).parent.parent.parent / "p4_agent"
+                if str(p4_path) not in sys.path:
+                    sys.path.insert(0, str(p4_path))
+                from multimodal.doubao_tts import generate_tts as _tts
+                tts_result = _tts(text=tts_text.strip(), speaker=speaker, audio_format="mp3")
+                if not tts_result.get("success"):
+                    raise RuntimeError(tts_result.get("error", "TTS failed"))
+                tts_b64 = tts_result["audio_base64"]
+            except Exception as e:
+                raise HTTPException(status_code=500, detail={"error": "tts_failed", "detail": str(e)})
+            audio_path = _tmp.mktemp(suffix=".mp3")
+            with open(audio_path, "wb") as f:
+                f.write(_b64.b64decode(tts_b64))
+            cleanup_paths.append(audio_path)
+        else:
+            raise HTTPException(status_code=400, detail={"error": "no_audio", "detail": "请上传音频文件或输入配音文本"})
+
+        # 输出到 uploads 目录
+        out_name = f"composed_{uuid.uuid4().hex[:8]}.mp4"
+        out_path = _FF_OUTPUT_DIR / out_name
+        ff = _find_ffmpeg()
+
+        _sp.run([
+            ff, "-y", "-i", vid_path, "-i", audio_path,
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+            "-map", "0:v:0", "-map", "1:a:0", "-shortest", str(out_path),
+        ], check=True, capture_output=True, timeout=180)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail={"error": "no_ffmpeg", "detail": "FFmpeg 未安装，请安装 FFmpeg 后重试"})
+    except _sp.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
+    finally:
+        for p in cleanup_paths:
+            try: _os.unlink(p)
+            except Exception: pass
+
+    return {
+        "ok": True,
+        "operation": "compose",
+        "url": f"/uploads/ai_videos/{out_name}",
+        "download_url": f"/download/ai_videos/{out_name}",
+        "filename": out_name,
+    }
+
+
 @router.post("/creation/video-tool")
 def video_tool(
     operation: str = Form(...),
@@ -1092,43 +1370,66 @@ def video_tool(
     crf: int = Form(23),
     current_user: User = Depends(get_current_user),
 ):
-    """FFmpeg 工具箱：transcode / clip / remove_audio"""
+    """FFmpeg 工具箱：transcode / clip / remove_audio（参考 Day07 media_service.py）"""
     import tempfile as _tmp, os as _os, subprocess
+
+    if operation not in ("transcode", "clip", "remove_audio"):
+        raise HTTPException(status_code=400, detail={"error": "bad_operation", "detail": f"不支持的操作: {operation}"})
 
     # 保存上传视频到临时文件
     src_suffix = "." + (video.filename.rsplit(".", 1)[-1] if "." in (video.filename or "") else "mp4")
     src_path = _tmp.mktemp(suffix=src_suffix)
     with open(src_path, "wb") as f:
         f.write(video.file.read())
-    out_path = _tmp.mktemp(suffix=".mp4")
+
+    out_name = f"ff_{operation}_{uuid.uuid4().hex[:8]}.mp4"
+    out_path = _FF_OUTPUT_DIR / out_name
+    ff = _find_ffmpeg()
+    has_audio = _has_audio(src_path)
 
     try:
+        cmd = [ff, "-y"]
+
+        # 剪辑时 -ss 放在 -i 前面做快速 seek（参考 Day07）
         if operation == "clip":
-            cmd = ["ffmpeg", "-y", "-ss", str(start), "-t", str(duration), "-i", src_path,
-                   "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast", "-crf", str(crf),
-                   "-pix_fmt", "yuv420p", out_path]
-        elif operation == "remove_audio":
-            cmd = ["ffmpeg", "-y", "-i", src_path, "-c:v", "libx264", "-an",
-                   "-preset", "veryfast", "-crf", str(crf), "-pix_fmt", "yuv420p", out_path]
-        else:  # transcode
-            cmd = ["ffmpeg", "-y", "-i", src_path, "-vf", f"scale={width}:-2",
-                   "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast", "-crf", str(crf),
-                   "-pix_fmt", "yuv420p", out_path]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+            cmd += ["-ss", str(start), "-t", str(duration)]
+        cmd += ["-i", src_path]
+
+        # 视频滤镜
+        if operation == "transcode" and width:
+            cmd += ["-vf", f"scale={width}:-2"]
+
+        # 编码参数（参考 Day07）
+        cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+
+        # 音频：无音频流时不加 aac（避免 FFmpeg 报错）
+        if operation == "remove_audio":
+            cmd += ["-an"]
+        elif has_audio:
+            cmd += ["-c:a", "aac"]
+
+        if operation == "clip":
+            cmd += ["-reset_timestamps", "1"]
+
+        cmd.append(str(out_path))
+        subprocess.run(cmd, check=True, capture_output=True, timeout=180)
+
     except FileNotFoundError:
-        _os.unlink(src_path)
         raise HTTPException(status_code=500, detail={"error": "no_ffmpeg", "detail": "FFmpeg 未安装"})
     except subprocess.CalledProcessError as e:
-        _os.unlink(src_path)
         raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
-
-    with open(out_path, "rb") as f:
-        result_bytes = f.read()
-    for p in [src_path, out_path]:
-        try: _os.unlink(p)
+    finally:
+        try: _os.unlink(src_path)
         except Exception: pass
-    return StreamingResponse(io.BytesIO(result_bytes), media_type="video/mp4",
-                             headers={"Content-Disposition": "attachment; filename=tool_output.mp4"})
+
+    return {
+        "ok": True,
+        "operation": operation,
+        "url": f"/uploads/ai_videos/{out_name}",
+        "download_url": f"/download/ai_videos/{out_name}",
+        "filename": out_name,
+    }
 
 
 @router.post("/creation/render-video/{scheme_id}")
@@ -1238,6 +1539,10 @@ def render_video(
 @router.post("/creation/tts")
 def text_to_speech(
     text: str = Form(..., min_length=1, max_length=3000),
+    speaker: str = Form("zh_female_qingxin"),
+    speed: int = Form(0),
+    volume: int = Form(0),
+    pitch: int = Form(0),
     current_user: User = Depends(get_current_user),
 ):
     """豆包 TTS — 脚本文字转语音 MP3"""
@@ -1247,7 +1552,8 @@ def text_to_speech(
             sys.path.insert(0, str(p4_path))
         from multimodal.doubao_tts import generate_tts as _tts
 
-        result = _tts(text=text, speaker="zh_female_qingxin", audio_format="mp3")
+        result = _tts(text=text, speaker=speaker, audio_format="mp3",
+                      speed=speed, volume=volume, pitch=pitch)
         if result.get("success") and result.get("audio_base64"):
             import base64 as _b64
             audio_bytes = _b64.b64decode(result["audio_base64"])

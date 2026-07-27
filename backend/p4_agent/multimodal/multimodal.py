@@ -59,7 +59,7 @@ except ImportError:
 
 # ── 配置 ──────────────────────────────────────────────────
 def _get_api_key():
-    return os.environ.get("ARK_API_KEY", "你的火山方舟_API_Key")
+    return os.environ.get("ARK_VISION_KEY", os.environ.get("ARK_API_KEY", "你的火山方舟_API_Key"))
 API_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 MODEL = "doubao-seed-2-0-pro-260215"
 

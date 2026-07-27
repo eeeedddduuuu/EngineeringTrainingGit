@@ -1,9 +1,34 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
+from pathlib import Path
 from app.database import engine, Base
 from app.routers import auth, creation, schemes, history, export_routes, stats, knowledge, review, coze
 
 app = FastAPI(title="AI 数字媒体创作助手", version="0.1.0")
+
+# 确保所有 ARK Key 在导入路由前注入环境变量
+from app.config import ARK_API_KEY, ARK_VIDEO_KEY, ARK_VISION_KEY, TTS_API_KEY  # noqa: E402
+ARK_API_KEY = ARK_API_KEY; ARK_VIDEO_KEY = ARK_VIDEO_KEY; ARK_VISION_KEY = ARK_VISION_KEY; TTS_API_KEY = TTS_API_KEY
+
+# 挂载 uploads 目录为静态文件服务
+UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+(UPLOADS_DIR / "ai_images").mkdir(parents=True, exist_ok=True)
+(UPLOADS_DIR / "ai_videos").mkdir(parents=True, exist_ok=True)
+
+@app.get("/download/{filename:path}")
+def download_file(filename: str):
+    """下载代理 — 强制 Content-Disposition: attachment"""
+    from urllib.parse import unquote
+    file_path = UPLOADS_DIR / unquote(filename)
+    if not file_path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(file_path), filename=file_path.name, media_type="application/octet-stream")
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # CORS 配置
 app.add_middleware(
