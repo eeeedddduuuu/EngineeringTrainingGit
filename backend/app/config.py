@@ -25,5 +25,7 @@ for _key in ("ARK_API_KEY", "ARK_VIDEO_KEY", "ARK_VISION_KEY", "TTS_API_KEY"):
 SEEDREAM_MODEL = os.getenv("SEEDREAM_MODEL", "doubao-seedream-4-0-250828")
 SEEDANCE_MODEL = os.getenv("SEEDANCE_MODEL", "doubao-seedance-1-0-pro-250528")
 
-CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "data/chroma_db")
+CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", str(
+    __import__("pathlib").Path(__file__).resolve().parent.parent / "data" / "chroma_db"
+))
 HF_ENDPOINT = os.getenv("HF_ENDPOINT", "https://hf-mirror.com")
