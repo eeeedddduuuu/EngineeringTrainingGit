@@ -853,8 +853,10 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     token = null; user = null;
     console.log('[logout] 清空 schemesList');
     schemesList = [];
+    recommendationData = null;
     localStorage.removeItem('ai_creator_token');
     localStorage.removeItem('ai_creator_user');
+    localStorage.removeItem('ai_creator_recommendation');
     $appPage.style.display = 'none';
     $loginPage.style.display = 'block';
     $body.classList.remove('app-view');
@@ -1011,6 +1013,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
             btnSubmit.disabled = false;
             // 替换为真实方案
             schemesList = d.result.schemes;
+            saveSchemesToStorage();
             // 推荐数据: 优先用API返回的recommendation，其次从raw_markdown解析
             var apiRec = d.result.recommendation || {};
             var rawMD = d.result.raw_markdown || '';
@@ -1550,10 +1553,14 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   /* ===== localStorage 方案持久化 ===== */
   function saveSchemesToStorage() {
-    try { localStorage.setItem('ai_creator_schemes', JSON.stringify(schemesList)); } catch(e) { console.warn('方案保存失败:', e); }
+    try {
+      localStorage.setItem('ai_creator_schemes', JSON.stringify(schemesList));
+      if (recommendationData) localStorage.setItem('ai_creator_recommendation', JSON.stringify(recommendationData));
+    } catch(e) { console.warn('方案保存失败:', e); }
   }
   function loadSchemesFromStorage() {
     try { var raw = localStorage.getItem('ai_creator_schemes'); if (raw) { schemesList = JSON.parse(raw); } } catch(e) { schemesList = []; }
+    try { var rawRec = localStorage.getItem('ai_creator_recommendation'); if (rawRec) { recommendationData = JSON.parse(rawRec); } } catch(e) { recommendationData = null; }
   }
   loadSchemesFromStorage();
 
