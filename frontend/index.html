@@ -498,7 +498,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         </div>
         <div class="action-row" id="scheme-actions" style="display:none;">
           <button class="btn btn-primary btn-sm" id="btn-export">📥 导出全部方案 Markdown</button>
-          <button class="btn btn-ghost btn-sm" id="btn-compare">🔍 A / B 方案对比分析</button>
         </div>
       </div>
     </div>
@@ -1150,6 +1149,53 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       html += '</div><div id="media-preview-'+i+'"></div></div>';
     });
     html += '</div>';
+
+    // 三方案对比表格
+    if (schemesList.length >= 2) {
+      html += '<div class="card" style="margin-top:1.5rem;"><div class="card-title">📊 三方案横向对比</div>';
+      html += '<div style="overflow-x:auto;"><table class="history-table" style="min-width:700px;">';
+      html += '<thead><tr><th>维度</th>';
+      schemesList.forEach(function(s) { html += '<th>方案 ' + escapeHtml(s.version) + '</th>'; });
+      html += '</tr></thead><tbody>';
+
+      // 标题
+      html += '<tr><td><strong>标题</strong></td>';
+      schemesList.forEach(function(s) { html += '<td>' + escapeHtml(s.title || '-') + '</td>'; });
+      html += '</tr>';
+
+      // 钩子
+      html += '<tr><td><strong>开头钩子</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.9rem;">' + escapeHtml((s.hook || '-').substring(0, 80)) + '</td>'; });
+      html += '</tr>';
+
+      // 场景数
+      html += '<tr><td><strong>场景数</strong></td>';
+      schemesList.forEach(function(s) { html += '<td>' + (s.scenes ? s.scenes.length : 0) + ' 个</td>'; });
+      html += '</tr>';
+
+      // 标签
+      html += '<tr><td><strong>标签</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.85rem;">' + escapeHtml((s.hashtags || []).join(' ')) + '</td>'; });
+      html += '</tr>';
+
+      // 评分
+      html += '<tr><td><strong>评分</strong></td>';
+      schemesList.forEach(function(s) { html += '<td>⭐' + (s.score || 0).toFixed(1) + '</td>'; });
+      html += '</tr>';
+
+      // 推荐理由
+      html += '<tr><td><strong>推荐理由</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.85rem;">' + escapeHtml((s.recommendation_reason || s.reason || '-').substring(0, 100)) + '</td>'; });
+      html += '</tr>';
+
+      // 封面文案
+      html += '<tr><td><strong>封面文案</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.85rem;">' + escapeHtml((s.cover_text || '-').substring(0, 80)) + '</td>'; });
+      html += '</tr>';
+
+      html += '</tbody></table></div></div>';
+    }
+
     container.innerHTML = html;
     actions.style.display = 'flex';
   }
@@ -1356,11 +1402,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     });
     downloadFile(md, '创作方案.md', 'text/markdown');
     showToast('方案已导出为 Markdown 文件', 'success');
-  });
-
-  document.getElementById('btn-compare').addEventListener('click', function() {
-    if (schemesList.length < 2) { showToast('至少需要 2 套方案才能对比', 'error'); return; }
-    showToast('正在调用对比分析模块...', 'info');
   });
 
   function downloadFile(content, filename, mime) {
