@@ -1407,20 +1407,26 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function loadHistory() {
     var container = document.getElementById('history-container');
     var actions = document.getElementById('history-actions');
-    apiRequest('/history', 'GET').then(function(res) {
+    console.log('[历史记录] 开始加载...');
+    // 改用 /api/schemes 获取完整方案数据（/api/history 只返回会话摘要，无描述/推荐）
+    apiRequest('/schemes?t=' + Date.now(), 'GET').then(function(res) {
       var records = [];
-      if (res.ok && Array.isArray(res.data)) { records = res.data; }
-      if (!records.length && schemesList.length) {
-        records = schemesList.map(function(s) { return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason }; });
+      if (res.data && Array.isArray(res.data.schemes)) {
+        records = res.data.schemes;
       }
+      if (!records.length) {
+        records = getAllSchemesFromStorage();
+      }
+      console.log('[历史记录] 加载完成，共', records.length, '条');
       if (!records.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无历史创作记录，前往工作台生成第一条内容</div></div>';
         actions.style.display = 'none';
         return;
       }
+      records.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
       var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案版本</th><th>标题</th><th>描述</th><th>平台</th><th>推荐理由</th></tr></thead><tbody>';
       records.forEach(function(r) {
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || '') + '</td><td>' + escapeHtml(r.description || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || '') + '</td></tr>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || r.topic || '') + '</td><td>' + escapeHtml(r.description || r.hook || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || r.recommendation_reason || '') + '</td></tr>';
       });
       html += '</tbody></table></div>';
       container.innerHTML = html;
@@ -1599,46 +1605,46 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   /* ===== 方案浏览 (API) ===== */
   function renderSchemeBrowse() {
     var container = document.getElementById('scheme-browse-container');
+    console.log('[方案浏览] 开始加载...');
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
-    apiRequest('/schemes', 'GET').then(function(res) {
+    // 加时间戳参数破浏览器缓存
+    apiRequest('/schemes?t=' + Date.now(), 'GET').then(function(res) {
       var schemes = [];
-      if (res.ok && Array.isArray(res.data)) { schemes = res.data; }
-      if (!schemes.length) {
-        schemes = mergeAllSchemes();
+      // 新接口返回 { schemes: [...], total: N }
+      if (res.data && Array.isArray(res.data.schemes)) {
+        schemes = res.data.schemes;
       }
+      if (!schemes.length) {
+        schemes = getAllSchemesFromStorage();
+      }
+      console.log('[方案浏览] 加载完成，共', schemes.length, '条');
       if (!schemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
       schemes.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
-      schemes.forEach(function(s) {
-        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-      container.innerHTML = html;
+      renderSchemeTable(schemes, container);
     }).catch(function(err) {
-      // API 失败时回退到本地缓存
-      var allSchemes = mergeAllSchemes();
+      var allSchemes = getAllSchemesFromStorage();
       if (!allSchemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
-      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
-      allSchemes.forEach(function(s) {
-        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-      container.innerHTML = html;
+      renderSchemeTable(allSchemes, container);
       showToast('后端连接失败，显示本地缓存数据', 'error');
     });
   }
+  function renderSchemeTable(schemes, container) {
+    var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+    schemes.forEach(function(s) {
+      var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+      html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
   function mergeAllSchemes() {
-    var all = schemesList.slice();
-    all.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-    return all;
+    return getAllSchemesFromStorage();
   }
 
   /* ===== 素材分析 (API + localStorage回退) ===== */
