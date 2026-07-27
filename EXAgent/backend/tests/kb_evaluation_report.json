@@ -1,0 +1,153 @@
+{
+  "test_queries": [
+    {
+      "query": "秋季护肤好物推荐",
+      "expected_keywords": [
+        "护肤",
+        "美妆",
+        "秋季"
+      ],
+      "expected_platform": "douyin",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "网红零食测评",
+      "expected_keywords": [
+        "零食",
+        "美食",
+        "测评"
+      ],
+      "expected_platform": "xiaohongshu",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "游戏攻略教程",
+      "expected_keywords": [
+        "游戏",
+        "攻略",
+        "教程"
+      ],
+      "expected_platform": "bilibili",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "旅行vlog打卡",
+      "expected_keywords": [
+        "旅行",
+        "vlog",
+        "打卡"
+      ],
+      "expected_platform": "douyin",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "数码产品开箱",
+      "expected_keywords": [
+        "数码",
+        "开箱",
+        "科技"
+      ],
+      "expected_platform": "bilibili",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "穿搭日常分享",
+      "expected_keywords": [
+        "穿搭",
+        "时尚",
+        "日常"
+      ],
+      "expected_platform": "xiaohongshu",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "美食制作教程",
+      "expected_keywords": [
+        "美食",
+        "教程",
+        "烹饪"
+      ],
+      "expected_platform": "douyin",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "健身减脂计划",
+      "expected_keywords": [
+        "健身",
+        "减肥",
+        "运动"
+      ],
+      "expected_platform": "xiaohongshu",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "情感故事分享",
+      "expected_keywords": [
+        "情感",
+        "故事",
+        "生活"
+      ],
+      "expected_platform": "douyin",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    },
+    {
+      "query": "职场干货经验",
+      "expected_keywords": [
+        "职场",
+        "干货",
+        "经验"
+      ],
+      "expected_platform": "bilibili",
+      "top1_relevant": false,
+      "top3_relevant": false,
+      "top5_relevant": false,
+      "top_result": "N/A",
+      "top_similarity": 0
+    }
+  ],
+  "summary": {
+    "total_queries": 10,
+    "top1_hits": 0,
+    "top1_hit_rate": 0.0,
+    "top3_hits": 0,
+    "top3_hit_rate": 0.0,
+    "top5_hits": 0,
+    "top5_hit_rate": 0.0
+  }
+}

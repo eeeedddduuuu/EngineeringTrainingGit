@@ -1,0 +1,72 @@
+"""
+测试工具函数 — 供 agent_stability / cross_platform / 15_requirements 测试共享
+"""
+import os
+import sys
+from pathlib import Path
+
+# 确保 backend 和 p4_agent 在 sys.path
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+P4_DIR = BACKEND_DIR / "p4_agent"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+if str(P4_DIR) not in sys.path:
+    sys.path.insert(0, str(P4_DIR))
+
+
+def run_mock_creation(topic: str, target_audience: str, platform: str,
+                      duration: str, style: str) -> dict:
+    """直接调用 P4 pipeline_adapter.create_content() 进行 Mock 创作"""
+    try:
+        from p4_agent.pipeline_adapter import create_content
+    except ImportError as e:
+        raise RuntimeError(
+            f"无法导入 p4_agent: {e}. "
+            f"注：p4_agent 的 'parser' 目录名与 Python stdlib 冲突（Python 3.9），"
+            f"建议将 parser/ 重命名为 p4_parser/ 并更新内部导入。"
+        )
+    return create_content(
+        topic=topic,
+        target_audience=target_audience,
+        platform=platform,
+        duration=duration,
+        style=style,
+        provider="mock",
+        enable_trend=False,
+        enable_review=False,
+        enable_strategy=False,
+    )
+
+
+BASIC_REQUIREMENTS = [
+    {"id": 1, "name": "明确Agent角色/用户/能力边界/输出格式",
+     "check_method": "检查 agents/__init__.py 中 Agent 定义 + prompts/*.yaml 文件"},
+    {"id": 2, "name": "支持输入主题/受众/平台/时长/风格",
+     "check_method": "检查 CreationRequest Pydantic schema 和前端表单"},
+    {"id": 3, "name": "导入不少于30条场景相关样例",
+     "check_method": "检查 data/collected_samples.xlsx 行数 + Chroma 知识库条目数"},
+    {"id": 4, "name": "接入不少于3个工具或插件",
+     "check_method": "检查 tools/__init__.py 中的 TOOL_DEFINITIONS"},
+    {"id": 5, "name": "生成不少于3个候选方案+推荐理由",
+     "check_method": "检查创作结果中 schemes 数量 ≥ 3 + recommendation 字段"},
+    {"id": 6, "name": "输出脚本/分镜表/拍摄清单/提示词/发布文案",
+     "check_method": "检查 Scheme 表中的 scenes/storyboard_json/hashtags/cover_text 字段"},
+    {"id": 7, "name": "保存会话/用户偏好/不同版本结果",
+     "check_method": "检查 sessions/schemes 表 + User.preferences JSON 字段"},
+    {"id": 8, "name": "提供Agent配置截图和工作流YAML/JSON导出",
+     "check_method": "检查 p4_agent/prompts/ 目录下的 YAML 文件"},
+    {"id": 9, "name": "采集不少于30条样例+标题/标签/平台/时间/来源",
+     "check_method": "检查 samples.xlsx 列和知识库 metadata"},
+    {"id": 10, "name": "使用图表展示主题分布/平台分布/时间趋势",
+     "check_method": "检查 /api/stats/samples 响应 + 前端 ECharts"},
+    {"id": 11, "name": "增加热点分析/脚本创作/合规审查/发布策略多个Agent",
+     "check_method": "检查 agents/__init__.py 中 run_agent_pipeline()"},
+    {"id": 12, "name": "针对抖音/小红书/B站生成不同版本",
+     "check_method": "同一主题不同 platform 参数 → 检查输出差异"},
+    {"id": 13, "name": "支持标题/封面文案/开头钩子A/B比较",
+     "check_method": "检查 /api/schemes/compare 接口 + CompareResponse"},
+    {"id": 14, "name": "导出Markdown/Word/素材清单",
+     "check_method": "检查 /api/export/{scheme_id}?format=md|docx 接口"},
+    {"id": 15, "name": "根据历史数据计算候选方案评分+迭代建议",
+     "check_method": "检查 workflow/scoring.py 的 rank_schemes() + scoring_report()"},
+]
