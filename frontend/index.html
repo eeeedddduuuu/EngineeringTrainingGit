@@ -922,7 +922,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       btnSubmit.disabled = false;
       return;
     }
-    statusEl.textContent = '正在提交...';
+    statusEl.innerHTML = '<span style="color:#d48c5c;">⏳ 正在提交...</span>';
     var payload = {
       topic: topic,
       target_audience: document.getElementById('input-audience').value.trim(),
@@ -931,37 +931,87 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       style: document.getElementById('input-style').value,
       provider: currentProvider
     };
-    // 先生成本地方案（不依赖后端），确保卡片始终能渲染
-    var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
-    var platformName = platformMap[payload.platform] || payload.platform;
-    console.log('[submit] 设置 schemesList (3 条方案), 当前 schemesList 长度:', schemesList.length);
-    var now = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    schemesList = [
-      { id: Date.now(), version: 'A', theme: topic, title: topic + '｜简洁干货版', description: '开篇直击痛点，结构简短清晰，适合新手创作者快速落地', platform: platformName, duration: payload.duration, style: payload.style, reason: '钩子吸引力强，适合新手创作者', created_at: now, status: 'pending' },
-      { id: Date.now()+1, version: 'B', theme: topic, title: topic + '｜剧情种草版', description: '以生活化小故事切入，搭配情绪递进，自然引出主题价值', platform: platformName, duration: payload.duration, style: payload.style, reason: '综合评分最高，推荐首选', created_at: now, status: 'pending' },
-      { id: Date.now()+2, version: 'C', theme: topic, title: topic + '｜深度测评版', description: '多角度拆解主题细节，数据对比与成分分析，内容厚度扎实', platform: platformName, duration: payload.duration, style: payload.style, reason: '适合深度粉丝，留存率高', created_at: now, status: 'pending' }
-    ];
-    saveSchemesToStorage();
-    renderSchemes();
-    // 异步提交到后端（后端不可用时也不影响前端展示）
+    // 显示进度卡片
+    var schemesContainer = document.getElementById('schemes-container');
+    var progressHtml = '<div class="card" style="text-align:center;padding:2.5rem;" id="progress-card">';
+    progressHtml += '<div style="font-size:2rem;margin-bottom:0.8rem;" id="progress-icon">🧠</div>';
+    progressHtml += '<div style="font-size:1.1rem;font-weight:600;color:#5f4a34;margin-bottom:0.5rem;" id="progress-title">AI 创作进行中</div>';
+    progressHtml += '<div style="color:#8a7a6a;font-size:0.9rem;margin-bottom:1rem;" id="progress-text">正在连接 DeepSeek v4-pro...</div>';
+    progressHtml += '<div style="width:100%;height:8px;background:#ede5db;border-radius:10px;overflow:hidden;margin-bottom:0.5rem;">';
+    progressHtml += '<div id="progress-bar-fill" style="width:5%;height:100%;background:linear-gradient(90deg,#d48c5c,#c08050);border-radius:10px;transition:width 0.5s ease;"></div></div>';
+    progressHtml += '<div style="font-size:0.8rem;color:#a09080;" id="progress-time">准备中...</div></div>';
+    schemesContainer.innerHTML = progressHtml;
+    document.getElementById('scheme-actions').style.display = 'none';
+
+    // 动画图标轮换
+    var icons = ['🧠','📊','✍️','🔍','✨'];
+    var iconIdx = 0;
+    var iconTimer = setInterval(function() {
+      iconIdx = (iconIdx + 1) % icons.length;
+      var el = document.getElementById('progress-icon');
+      if (el) el.textContent = icons[iconIdx];
+    }, 800);
+
+    // 提交任务
     apiRequest('/creation/start', 'POST', payload).then(function(res) {
-      statusEl.textContent = '';
-      btnSubmit.disabled = false;
-      if (res.ok) {
-        showToast('任务已提交，任务ID：' + (res.data.task_id || '未知'), 'success');
-        // 如果后端返回了方案数据，替换本地方案
-        if (res.data.schemes && Array.isArray(res.data.schemes)) {
-          console.log('[API回调] 用后端数据替换 schemesList, 条数:', res.data.schemes.length);
-          schemesList = res.data.schemes;
-          renderSchemes();
-        }
-      } else {
-        console.warn('后端提交失败（前端已渲染本地方案）：', res.status, extractError(res.data));
+      if (!res.ok || !res.data || !res.data.task_id) {
+        clearInterval(iconTimer);
+        btnSubmit.disabled = false;
+        schemesContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-text">任务提交失败</div></div>';
+        return;
       }
+      var taskId = res.data.task_id;
+      document.getElementById('progress-text').textContent = '任务已提交，DeepSeek 创作中...';
+      document.getElementById('progress-time').textContent = '任务ID: ' + taskId.substring(0, 8) + '...';
+      // 轮询进度
+      var pollCount = 0;
+      var pollTimer = setInterval(function() {
+        pollCount++;
+        apiRequest('/task/' + taskId + '/status', 'GET').then(function(statusRes) {
+          if (!statusRes.ok || !statusRes.data) return;
+          var d = statusRes.data;
+          var pct = Math.min(95, 5 + pollCount * 5);
+          var fill = document.getElementById('progress-bar-fill');
+          var text = document.getElementById('progress-text');
+          var time = document.getElementById('progress-time');
+          if (fill) fill.style.width = pct + '%';
+          if (text && d.progress) text.textContent = d.progress;
+          if (time) time.textContent = '轮询 #' + pollCount + ' | ' + (d.status || '');
+
+          if (d.status === 'completed' && d.result && d.result.schemes) {
+            clearInterval(pollTimer);
+            clearInterval(iconTimer);
+            if (fill) fill.style.width = '100%';
+            document.getElementById('progress-icon').textContent = '✅';
+            document.getElementById('progress-title').textContent = '创作完成！';
+            document.getElementById('progress-text').textContent = 'DeepSeek v4-pro 生成了 ' + d.result.schemes.length + ' 个方案';
+            document.getElementById('progress-time').textContent = '';
+            btnSubmit.disabled = false;
+            // 替换为真实方案
+            schemesList = d.result.schemes;
+            saveSchemesToStorage();
+            setTimeout(function() { renderSchemes(); }, 500);
+            showToast('DeepSeek 创作完成！', 'success');
+          } else if (d.status === 'failed') {
+            clearInterval(pollTimer);
+            clearInterval(iconTimer);
+            document.getElementById('progress-icon').textContent = '❌';
+            document.getElementById('progress-title').textContent = '创作失败';
+            btnSubmit.disabled = false;
+          }
+        });
+        // 最多轮询 60 次（3分钟）
+        if (pollCount >= 60) {
+          clearInterval(pollTimer);
+          clearInterval(iconTimer);
+          document.getElementById('progress-time').textContent = '超时，后台仍在处理，可在历史记录查看';
+          btnSubmit.disabled = false;
+        }
+      }, 3000);
     }).catch(function(err) {
-      statusEl.textContent = '';
+      clearInterval(iconTimer);
       btnSubmit.disabled = false;
-      console.error('提交异常（前端已渲染本地方案）：', err);
+      schemesContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-text">提交失败: ' + err.message + '</div></div>';
     });
   });
 
