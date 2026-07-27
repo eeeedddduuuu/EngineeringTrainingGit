@@ -2,35 +2,70 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
-from app.models.business import CreationSession, Scheme
+from app.models.business import CreationSession, Scheme, Review
 from app.schemas.scheme import SchemeBrief, SchemeDetail, SchemeListResponse, CompareRequest, CompareResponse
 from app.utils.deps import get_current_user
 
 router = APIRouter(prefix="/api", tags=["方案"])
 
 
-@router.get("/schemes", response_model=SchemeListResponse)
-def list_schemes(session_id: int = Query(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """获取某次会话的所有方案"""
-    session = db.query(CreationSession).filter(
-        CreationSession.id == session_id,
-        CreationSession.user_id == current_user.id
-    ).first()
-    if not session:
-        raise HTTPException(status_code=404, detail={"error": "not_found", "detail": "会话不存在"})
+@router.get("/schemes")
+def list_schemes(
+    session_id: int = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取方案列表：指定 session_id 返回该会话的方案，不指定则返回当前用户全部方案（按时间倒序）"""
+    # 查询当前用户的所有会话ID
+    user_session_ids = [
+        s[0] for s in
+        db.query(CreationSession.id).filter(CreationSession.user_id == current_user.id).all()
+    ]
+    if not user_session_ids:
+        return {"schemes": [], "total": 0}
 
-    schemes = db.query(Scheme).filter(Scheme.session_id == session_id).order_by(Scheme.rank).all()
-    return SchemeListResponse(
-        session_id=session.id,
-        topic=session.topic,
-        platform=session.platform,
-        created_at=str(session.created_at),
-        schemes=[SchemeBrief(id=s.id, version=s.version, title=s.title, hook=s.hook,
-            scenes=s.scenes, storyboard_json=s.storyboard_json,
-            hashtags=s.hashtags, cover_text=s.cover_text,
-            score=s.score or 0, rank=s.rank or 0,
-            recommendation_reason=s.recommendation_reason) for s in schemes]
-    ).model_dump()
+    if session_id:
+        if session_id not in user_session_ids:
+            raise HTTPException(status_code=404, detail={"error": "not_found", "detail": "会话不存在"})
+        schemes = db.query(Scheme).filter(Scheme.session_id == session_id).order_by(Scheme.rank).all()
+    else:
+        schemes = db.query(Scheme).filter(
+            Scheme.session_id.in_(user_session_ids)
+        ).order_by(Scheme.id.desc()).all()
+
+    # 批量查询审核状态
+    scheme_ids = [s.id for s in schemes]
+    review_map = {}
+    if scheme_ids:
+        reviews = db.query(Review).filter(Review.scheme_id.in_(scheme_ids)).all()
+        for r in reviews:
+            review_map[r.scheme_id] = r.status
+
+    # 批量查询 session 信息（平台、时长）
+    session_ids = list(set(s.session_id for s in schemes))
+    session_map = {}
+    if session_ids:
+        sessions = db.query(CreationSession).filter(CreationSession.id.in_(session_ids)).all()
+        for sess in sessions:
+            session_map[sess.id] = sess
+
+    return {
+        "schemes": [
+            {
+                "id": s.id, "session_id": s.session_id, "version": s.version,
+                "title": s.title, "hook": s.hook, "scenes": s.scenes,
+                "storyboard_json": s.storyboard_json, "hashtags": s.hashtags,
+                "cover_text": s.cover_text, "score": s.score or 0, "rank": s.rank or 0,
+                "recommendation_reason": s.recommendation_reason,
+                "created_at": str(s.created_at) if s.created_at else "",
+                "status": review_map.get(s.id, "pending"),  # 无审核记录默认 pending
+                "platform": (session_map.get(s.session_id).platform if s.session_id in session_map else ""),
+                "duration": (session_map.get(s.session_id).duration if s.session_id in session_map else ""),
+            }
+            for s in schemes
+        ],
+        "total": len(schemes),
+    }
 
 
 @router.get("/scheme/{scheme_id}", response_model=SchemeDetail)

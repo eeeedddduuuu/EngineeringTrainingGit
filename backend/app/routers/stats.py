@@ -121,7 +121,7 @@ def get_dashboard_summary(
         CreationSession.status == "processing"
     ).scalar() or 0
     pending_review = db.query(func.count(Scheme.id)).filter(
-        ~Scheme.id.in_(db.query(Review.scheme_id).filter(Review.status.in_(["approved", "rejected"])))
+        Scheme.id.in_(db.query(Review.scheme_id).filter(Review.status == "pending"))
     ).scalar() or 0
     completed_this_week = db.query(func.count(CreationSession.id)).filter(
         CreationSession.status == "completed",

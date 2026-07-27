@@ -295,20 +295,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 .search-result-item .match-snippet { color: #8a7a6a; font-size: 0.95rem; margin-top: 0.3rem; }
 .search-result-item .match-snippet em { background: #fff3cd; font-style: normal; padding: 0 2px; border-radius: 2px; }
 .search-result-item .match-time { color: #a09080; font-size: 0.85rem; margin-top: 0.4rem; }
-/* 多媒体工坊 */
-.tab-pills { display: flex; gap: 0.5rem; margin-bottom: 1.8rem; }
-.tab-pill {
-  padding: 0.7rem 1.5rem; border-radius: 30px; border: 1px solid #f0e8de;
-  background: #fff; color: #8a7a6a; font-weight: 600; font-size: 0.95rem;
-  cursor: pointer; transition: all 0.2s; font-family: inherit;
-}
-.tab-pill:hover { border-color: #d48c5c; color: #d48c5c; }
-.tab-pill.active { background: #d48c5c; color: #fff; border-color: #d48c5c; }
-.vtab-panel { display: none; }
-.vtab-panel.active { display: block; }
-.tool-card:hover { border-color: #d48c5c !important; box-shadow: 0 4px 16px rgba(212,140,92,0.12); transform: translateY(-2px); }
-.ffmpeg-modal { position: fixed; inset:0; background:rgba(0,0,0,0.4); z-index:999; display:flex; align-items:center; justify-content:center; }
-.ffmpeg-modal .modal-card { background:#fff; border-radius:24px; padding:2rem; width:90%; max-width:480px; }
 .toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.6rem; }
 .toast {
   padding: 1rem 1.5rem; border-radius: 16px; font-weight: 500; font-size: 0.95rem;
@@ -318,21 +304,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 .toast-error { background: #fef0ed; color: #b8452a; border: 1px solid #f5d0c8; }
 .toast-info { background: #fcf9f5; color: #5f4a34; border: 1px solid #f0e8de; }
 @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
-.scheme-actions-row { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
-.scheme-actions-row button { flex: 1; min-width: 70px; padding: 0.5rem 0.6rem; border: 1px solid #d4c4b0; border-radius: 12px; background: #fff; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; color: #5f4a34; font-family: inherit; }
-.scheme-actions-row button:hover { background: #fcf0e5; border-color: #d48c5c; color: #d48c5c; }
-.scheme-actions-row button:disabled { opacity: 0.5; cursor: not-allowed; }
-.scene-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.8rem; }
-.scene-table th { background: #fcf9f5; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600; color: #5f4a34; font-size: 0.8rem; border-bottom: 2px solid #f0e8de; }
-.scene-table td { padding: 0.5rem 0.8rem; border-bottom: 1px solid #f0e8de; color: #3d2c1b; }
-.scene-table tr:hover td { background: #fdfaf7; }
-.detail-expander { cursor: pointer; color: #d48c5c; font-weight: 600; font-size: 0.9rem; margin-top: 0.8rem; display: inline-flex; align-items: center; gap: 4px; }
-.detail-expander:hover { color: #c08050; }
-.detail-content { display: none; margin-top: 0.8rem; padding: 1rem; background: #fff; border-radius: 14px; border: 1px solid #f0e8de; }
-.detail-content.open { display: block; }
-.video-preview-box { margin-top: 0.8rem; border-radius: 14px; overflow: hidden; border: 1px solid #f0e8de; }
-.video-preview-box video { width: 100%; display: block; }
-.audio-preview-box { margin-top: 0.8rem; }
 @media (max-width: 1024px) {
   .workbench-grid { grid-template-columns: 1fr; }
   .schemes-grid { grid-template-columns: 1fr; }
@@ -400,10 +371,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       <span class="engine-label">AI引擎</span>
       <span class="engine-name" id="engine-platform-name">扣子平台</span>
     </div>
-    <div class="sidebar-engine" id="sidebar-provider-btn" style="margin-top:-1px;">
-      <span class="engine-label">生成模式</span>
-      <span class="engine-name" id="provider-mode-name">快速模板</span>
-    </div>
     <div class="nav-group">
       <button class="nav-item active" data-page="workbench"><span class="nav-icon">📊</span>工作台</button>
       <button class="nav-item" data-page="scheme-browse"><span class="nav-icon">📄</span>方案浏览</button>
@@ -411,9 +378,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       <button class="nav-item" data-page="material-analysis"><span class="nav-icon">📁</span>素材分析</button>
       <button class="nav-item" data-page="dashboard"><span class="nav-icon">📈</span>数据看板</button>
       <button class="nav-item" data-page="knowledge"><span class="nav-icon">📚</span>知识库搜索</button>
-      <button class="nav-item" data-page="tts"><span class="nav-icon">🔊</span>TTS 配音</button>
-      <button class="nav-item" data-page="review"><span class="nav-icon">✅</span>审核看板</button>
-      <button class="nav-item" data-page="video-gen"><span class="nav-icon">🎬</span>短视频生成</button>
     </div>
     <div class="sidebar-footer">
       <button class="nav-item logout" id="btn-logout"><span class="nav-icon">🚪</span>退出登录</button>
@@ -513,10 +477,10 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     <div class="page" id="page-dashboard">
       <div class="page-header"><h2>创作数据统计看板</h2><p>创作趋势、平台分布与主题分析</p></div>
       <div class="kpi-grid" id="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">总项目</div><div class="kpi-value" id="kpi-total">-- <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">进行中</div><div class="kpi-value" id="kpi-active">-- <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">待审核</div><div class="kpi-value" id="kpi-review">-- <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">-- <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">总项目</div><div class="kpi-value" id="kpi-total">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">进行中</div><div class="kpi-value" id="kpi-active">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">待审核</div><div class="kpi-value" id="kpi-review">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">0 <small>个</small></div></div>
       </div>
       <div class="charts-grid">
         <div class="chart-box"><div id="chart-platform" style="width:100%; height:380px;"></div></div>
@@ -528,151 +492,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       <div class="card"><div id="scheme-browse-container"><div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div></div></div>
     </div>
     <div class="page" id="page-material-analysis">
-      <div class="page-header"><h2>素材分析</h2><p>上传图片/视频/音频，AI 自动分析内容并提取关键信息</p></div>
-      <div class="card">
-        <div class="card-title">📤 上传素材进行分析</div>
-        <div class="file-upload-area" id="analysis-drop-area" style="margin-bottom:1rem;">
-          <div class="upload-text">📎 点击或拖拽上传图片 / 视频 / 音频文件</div>
-          <div class="upload-hint">支持 JPG、PNG、MP4、MP3、WAV 等格式</div>
-        </div>
-        <input type="file" id="analysis-file-input" accept="image/*,video/*,audio/*" style="display:none;">
-        <div id="analysis-file-preview" style="margin-bottom:1rem;"></div>
-        <button class="btn btn-primary" id="btn-analyze" disabled>🔍 AI 分析素材内容</button>
-        <span id="analysis-status" style="margin-left:1rem; color:#8a7a6a; font-size:0.95rem;"></span>
-        <div id="analysis-result" style="margin-top:1.5rem;"></div>
-      </div>
-      <div class="card" style="margin-top:1.5rem;">
-        <div class="card-title">📋 分析历史记录</div>
-        <div id="analysis-history-container"><div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无分析记录</div></div></div>
-        <div style="margin-top:1rem; display:flex; gap:0.5rem;" id="analysis-pagination"></div>
-      </div>
-    </div>
-    <div class="page" id="page-tts">
-      <div class="page-header"><h2>🔊 TTS 语音合成</h2><p>输入文本，豆包 AI 自动生成高质量配音 MP3</p></div>
-      <div class="card">
-        <div class="card-title">📝 输入配音文本</div>
-        <textarea class="textarea" id="tts-text" rows="6" placeholder="输入要合成语音的文本内容（最多3000字）..." style="margin-bottom:1rem;"></textarea>
-        <div style="display:flex; align-items:center; gap:1rem;">
-          <button class="btn btn-primary" id="btn-tts-generate">🎤 生成配音</button>
-          <span id="tts-status" style="color:#8a7a6a; font-size:0.95rem;"></span>
-        </div>
-        <div id="tts-player" style="margin-top:1.5rem;"></div>
-      </div>
-    </div>
-    <div class="page" id="page-review">
-      <div class="page-header"><h2>✅ 审核看板</h2><p>查看与管理方案审核记录，通过/拒绝/添加意见</p></div>
-      <div style="display:flex; gap:1rem; margin-bottom:1.5rem;">
-        <select class="select" id="review-status-filter" style="max-width:200px;">
-          <option value="">全部状态</option>
-          <option value="pending">待审核</option>
-          <option value="approved">已通过</option>
-          <option value="rejected">已拒绝</option>
-        </select>
-        <button class="btn btn-ghost btn-sm" id="btn-review-refresh">🔄 刷新</button>
-      </div>
-      <div class="card">
-        <div id="review-container"><div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无审核记录</div></div></div>
-        <div style="margin-top:1rem; display:flex; gap:0.5rem;" id="review-pagination"></div>
-      </div>
-    </div>
-    <!-- 短视频生成页 -->
-    <div class="page" id="page-video-gen">
-      <div class="video-hero" style="background:linear-gradient(135deg,#3d2c1b 0%,#5f4a34 50%,#8a6a4a 100%);border-radius:24px;padding:2.5rem 2.2rem;margin-bottom:1.5rem;color:#fff;">
-        <h2 style="font-size:2rem;font-weight:700;margin-bottom:0.4rem;">🎬 多媒体工坊</h2>
-        <p style="font-size:1.05rem;color:rgba(255,255,255,0.75);">AI 生图 + AI 生视频 + FFmpeg 工具箱，一站式视频创作</p>
-      </div>
-      <!-- Tab 切换 -->
-      <div class="tab-pills" style="display:flex;gap:0.5rem;margin-bottom:1.8rem;">
-        <button class="tab-pill active" data-vtab="tab-img2video">🎨 AI 生图 → 短视频</button>
-        <button class="tab-pill" data-vtab="tab-seedance">🎥 AI 生视频</button>
-        <button class="tab-pill" data-vtab="tab-ffmpeg">✂️ FFmpeg 工具箱</button>
-      </div>
-      <!-- Tab 1: AI 生图 → 短视频 -->
-      <div class="vtab-panel active" id="tab-img2video">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;">
-          <div>
-            <div class="card"><div class="card-title">🎨 AI 封面图</div>
-              <textarea class="textarea" id="video-img-prompt" rows="3" placeholder="描述你想生成的封面图，例如：赛博朋克城市夜景，紫色霓虹灯，竖屏构图"></textarea>
-            </div>
-            <div class="card" style="margin-top:1rem;"><div class="card-title">🎤 配音设置</div>
-              <textarea class="textarea" id="video-tts-text" rows="3" placeholder="输入配音文本..."></textarea>
-              <select class="select" id="video-speaker" style="margin-top:0.8rem;">
-                <option value="zh_female_qingxin">女声 — 清新</option><option value="zh_female_tianmei">女声 — 甜美</option>
-                <option value="zh_female_zhixing">女声 — 知性</option><option value="zh_female_wenrou">女声 — 温柔</option>
-              </select>
-            </div>
-            <div style="margin-top:1rem;">
-              <button class="btn btn-primary" id="btn-video-gen" style="width:100%;font-size:1.1rem;padding:1rem;">🚀 一键生成短视频</button>
-              <div id="video-gen-status" style="text-align:center;margin-top:0.6rem;color:#8a7a6a;font-size:0.95rem;"></div>
-            </div>
-          </div>
-          <div>
-            <div class="card" id="video-result-card" hidden><div class="card-title">📺 生成结果</div>
-              <div id="video-player-container"></div>
-              <button class="btn btn-primary btn-sm" id="btn-video-download" style="margin-top:0.8rem;">📥 下载 MP4</button>
-            </div>
-            <div class="card" id="video-result-empty" style="display:flex;align-items:center;justify-content:center;min-height:320px;background:#fcf9f5;">
-              <div class="empty-state"><div class="empty-icon">🎬</div><div class="empty-text">输入提示词，点击按钮开始生成</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Tab 2: Seedance AI 生视频 -->
-      <div class="vtab-panel" id="tab-seedance">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;">
-          <div>
-            <div class="card"><div class="card-title">🎥 视频描述 Prompt</div>
-              <textarea class="textarea" id="sd-prompt" rows="4" placeholder="描述你想生成的视频，例如：一只白色狐狸在雪地中奔跑，电影级光影，4K画质"></textarea>
-            </div>
-            <div class="card" style="margin-top:1rem;"><div class="card-title">⚙️ 参数设置</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">
-                <div><label class="field-label">分辨率</label><select class="select" id="sd-resolution"><option value="720p">720p</option><option value="1080p" selected>1080p</option></select></div>
-                <div><label class="field-label">时长</label><select class="select" id="sd-duration"><option value="3">3秒</option><option value="5" selected>5秒</option><option value="8">8秒</option><option value="10">10秒</option></select></div>
-                <div><label class="field-label">比例</label><select class="select" id="sd-ratio"><option value="16:9" selected>16:9 横屏</option><option value="9:16">9:16 竖屏</option><option value="1:1">1:1 方形</option></select></div>
-                <div><label class="field-label">数量</label><select class="select" id="sd-count"><option value="1">1个</option><option value="2">2个</option></select></div>
-              </div>
-            </div>
-            <div style="margin-top:1rem;">
-              <button class="btn btn-primary" id="btn-sd-create" style="width:100%;font-size:1.1rem;padding:1rem;">🎬 创建视频任务</button>
-              <div id="sd-status" style="text-align:center;margin-top:0.6rem;color:#8a7a6a;font-size:0.95rem;"></div>
-            </div>
-          </div>
-          <div>
-            <div class="card" id="sd-result-card" hidden><div class="card-title">📺 生成结果</div>
-              <div id="sd-player-container"></div>
-              <button class="btn btn-primary btn-sm" id="btn-sd-download" style="margin-top:0.8rem;">📥 下载 MP4</button>
-            </div>
-            <div class="card" id="sd-result-empty" style="display:flex;align-items:center;justify-content:center;min-height:320px;background:#fcf9f5;">
-              <div class="empty-state"><div class="empty-icon">🎥</div><div class="empty-text">输入提示词，点击按钮创建 AI 视频任务</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Tab 3: FFmpeg 工具箱 -->
-      <div class="vtab-panel" id="tab-ffmpeg">
-        <div class="tool-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
-          <div class="tool-card" data-ffop="transcode" style="background:#fff;border-radius:18px;padding:1.5rem;text-align:center;border:1px solid #f0e8de;cursor:pointer;transition:all 0.2s;">
-            <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔄</div>
-            <div style="font-weight:700;color:#3d2c1b;font-size:1.1rem;">视频转码</div>
-            <div style="color:#8a7a6a;font-size:0.9rem;">H.264 MP4 + 缩放</div>
-          </div>
-          <div class="tool-card" data-ffop="clip" style="background:#fff;border-radius:18px;padding:1.5rem;text-align:center;border:1px solid #f0e8de;cursor:pointer;transition:all 0.2s;">
-            <div style="font-size:2.5rem;margin-bottom:0.5rem;">✂️</div>
-            <div style="font-weight:700;color:#3d2c1b;font-size:1.1rem;">视频剪辑</div>
-            <div style="color:#8a7a6a;font-size:0.9rem;">裁剪片段</div>
-          </div>
-          <div class="tool-card" data-ffop="remove_audio" style="background:#fff;border-radius:18px;padding:1.5rem;text-align:center;border:1px solid #f0e8de;cursor:pointer;transition:all 0.2s;">
-            <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔇</div>
-            <div style="font-weight:700;color:#3d2c1b;font-size:1.1rem;">去除音频</div>
-            <div style="color:#8a7a6a;font-size:0.9rem;">静音输出</div>
-          </div>
-        </div>
-        <div id="ffmpeg-result-card" class="card" hidden>
-          <div class="card-title">📺 处理结果</div>
-          <div id="ffmpeg-player-container"></div>
-          <button class="btn btn-primary btn-sm" id="btn-ffmpeg-download" style="margin-top:0.8rem;">📥 下载</button>
-        </div>
-      </div>
+      <div class="page-header"><h2>素材分析</h2><p>查看已上传的参考素材及其分析状态</p></div>
+      <div class="card"><div id="material-container"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">暂无上传素材，前往工作台上传文件</div></div></div></div>
     </div>
     <div class="page" id="page-knowledge">
       <div class="page-header"><h2>知识库搜索</h2><p>在历史方案中搜索相关内容</p></div>
@@ -705,7 +526,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var currentPage = 'workbench';
   var schemesList = [];
   var selectedFiles = [];
-  var currentProvider = 'mock';
 
   var $body = document.body;
   var $loginPage = document.getElementById('login-page');
@@ -876,8 +696,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     if (nav) { nav.classList.add('active'); }
     if (page === 'dashboard') { renderDashboardCharts(); }
     if (page === 'history') { loadHistory(); }
-    if (page === 'material-analysis') { loadMaterialAnalysis(); }
-    if (page === 'review') { loadReviews(); }
     if (page === 'workbench') { console.log('[navigateTo] 触发 renderSchemes, schemesList长度:', schemesList.length); renderSchemes(); }
     if (page === 'scheme-browse') { renderSchemeBrowse(); }
     if (page === 'material-analysis') { renderMaterialAnalysis(); }
@@ -947,21 +765,19 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       target_audience: document.getElementById('input-audience').value.trim(),
       platform: document.getElementById('input-platform').value,
       duration: document.getElementById('input-duration').value,
-      style: document.getElementById('input-style').value,
-      provider: currentProvider
+      style: document.getElementById('input-style').value
     };
     // 先生成本地方案（不依赖后端），确保卡片始终能渲染
     var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
     var platformName = platformMap[payload.platform] || payload.platform;
     console.log('[submit] 设置 schemesList (3 条方案), 当前 schemesList 长度:', schemesList.length);
     var now = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    var newSchemes = [
+    schemesList = [
       { id: Date.now(), version: 'A', theme: topic, title: topic + '｜简洁干货版', description: '开篇直击痛点，结构简短清晰，适合新手创作者快速落地', platform: platformName, duration: payload.duration, style: payload.style, reason: '钩子吸引力强，适合新手创作者', created_at: now, status: 'pending' },
       { id: Date.now()+1, version: 'B', theme: topic, title: topic + '｜剧情种草版', description: '以生活化小故事切入，搭配情绪递进，自然引出主题价值', platform: platformName, duration: payload.duration, style: payload.style, reason: '综合评分最高，推荐首选', created_at: now, status: 'pending' },
       { id: Date.now()+2, version: 'C', theme: topic, title: topic + '｜深度测评版', description: '多角度拆解主题细节，数据对比与成分分析，内容厚度扎实', platform: platformName, duration: payload.duration, style: payload.style, reason: '适合深度粉丝，留存率高', created_at: now, status: 'pending' }
     ];
-    schemesList = newSchemes;
-    appendSchemesToStorage(newSchemes);
+    saveSchemesToStorage();
     renderSchemes();
     // 异步提交到后端（后端不可用时也不影响前端展示）
     apiRequest('/creation/start', 'POST', payload).then(function(res) {
@@ -986,42 +802,25 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   });
 
   function renderSchemes() {
-    if (!schemesList.length) return;
+    console.log('方案已渲染', schemesList);
+    // 保护：如果数据为空则不覆盖已有卡片（避免方案一闪而过消失）
+    if (!schemesList.length) {
+      console.log('renderSchemes: schemesList 为空，跳过渲染保留已有内容');
+      console.trace('调用栈 - schemesList 为空时是谁调用了 renderSchemes');
+      return;
+    }
     var container = document.getElementById('schemes-container');
     var actions = document.getElementById('scheme-actions');
     var colors = ['#d48c5c', '#c08050', '#b87040'];
-    var medals = {1:'🥇',2:'🥈',3:'🥉'};
     var html = '<div class="schemes-grid">';
     schemesList.forEach(function(item, i) {
-      var rank = item.rank || (i + 1);
-      var scenes = item.scenes || [];
-      var hashtags = item.hashtags || [];
-      var score = item.score || item.total_score || 0;
       html += '<div class="scheme-card" style="border-left-color:' + colors[i] + ';">';
-      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + ' ' + (medals[rank]||'') + ' ⭐' + score + '</div>';
+      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + '</div>';
       html += '<div class="scheme-title">' + escapeHtml(item.title) + '</div>';
-      html += '<div class="scheme-desc">' + escapeHtml(item.hook || item.description || '') + '</div>';
-      html += '<div style="margin-bottom:0.5rem;">';
-      (hashtags.length ? hashtags : [escapeHtml(item.platform||'')]).forEach(function(t) {
-        html += '<span class="scheme-tag">' + escapeHtml(t) + '</span>';
-      });
+      html += '<div class="scheme-desc">' + escapeHtml(item.description) + '</div>';
+      html += '<span class="scheme-tag">' + escapeHtml(item.platform) + '</span>';
+      html += '<div class="scheme-reason"><span class="reason-label">系统推荐理由</span><br>' + escapeHtml(item.reason) + '</div>';
       html += '</div>';
-      if (item.reason || item.recommendation_reason) {
-        html += '<div class="scheme-reason"><span class="reason-label">推荐理由</span><br>' + escapeHtml(item.recommendation_reason || item.reason) + '</div>';
-      }
-      if (scenes.length > 0) {
-        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📋 完整分镜脚本 ▴\':\'📋 完整分镜脚本 ▾\';">📋 完整分镜脚本 ▾</div>';
-        html += '<div class="detail-content"><table class="scene-table"><thead><tr><th>#</th><th>类型</th><th>时长</th><th>描述</th><th>配音</th></tr></thead><tbody>';
-        scenes.forEach(function(sc) {
-          html += '<tr><td>'+(sc.seq||'')+'</td><td>'+escapeHtml(sc.type||'')+'</td><td>'+escapeHtml(sc.duration||'')+'</td><td>'+escapeHtml(sc.description||'')+'</td><td style="font-size:0.8rem;color:#8a7a6a;">'+escapeHtml((sc.voiceover||'').substring(0,80))+'</td></tr>';
-        });
-        html += '</tbody></table></div>';
-      }
-      html += '<div class="scheme-actions-row">';
-      html += '<button onclick="generateTTS('+i+')">🔊 配音</button>';
-      html += '<button onclick="renderVideo('+i+')">🎬 视频</button>';
-      html += '<button onclick="exportSchemeMD('+i+')">📥 MD</button>';
-      html += '</div><div id="media-preview-'+i+'"></div></div>';
     });
     html += '</div>';
     container.innerHTML = html;
@@ -1030,120 +829,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   function escapeHtml(str) {
     var div = document.createElement('div');
-    div.textContent = str || '';
+    div.textContent = str;
     return div.innerHTML;
   }
-
-  function generateTTS(idx) {
-    var scheme = schemesList[idx]; if (!scheme) return;
-    var text = (scheme.hook || scheme.title || '').substring(0, 500);
-    if (!text) { showToast('无可用于配音的文本', 'error'); return; }
-    var previewEl = document.getElementById('media-preview-' + idx);
-    previewEl.innerHTML = '<div style="padding:0.8rem;color:#8a7a6a;">🎙️ TTS合成中...</div>';
-    var authToken = token || localStorage.getItem('ai_creator_token');
-    fetch(API_BASE + '/creation/tts', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + authToken },
-      body: new URLSearchParams({ text: text })
-    }).then(function(r) { if (!r.ok) throw new Error('HTTP '+r.status); return r.blob(); })
-    .then(function(blob) {
-      previewEl.innerHTML = '<div class="audio-preview-box"><audio controls src="'+URL.createObjectURL(blob)+'" style="width:100%;"></audio></div>';
-      showToast('🔊 配音生成成功', 'success');
-    }).catch(function(err) {
-      previewEl.innerHTML = '<div style="padding:0.8rem;color:#b8452a;">❌ 配音失败: '+err.message+'</div>';
-    });
-  }
-
-  function renderVideo(idx) {
-    var scheme = schemesList[idx]; if (!scheme) return;
-    var previewEl = document.getElementById('media-preview-' + idx);
-    previewEl.innerHTML = '<div style="padding:0.8rem;color:#8a7a6a;">🎬 视频生成中（TTS→封面→合成）...</div>';
-    var authToken = token || localStorage.getItem('ai_creator_token');
-    fetch(API_BASE + '/creation/render-video/' + scheme.id, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + authToken }
-    }).then(function(r) {
-      var ct = r.headers.get('content-type') || '';
-      if (ct.indexOf('json') !== -1) return r.json().then(function(d) { return { type: 'json', data: d }; });
-      if (ct.indexOf('video') !== -1) return r.blob().then(function(b) { return { type: 'video', blob: b }; });
-      return r.blob().then(function(b) { return { type: 'audio', blob: b }; });
-    }).then(function(result) {
-      if (result.type === 'json') {
-        var audioB64 = result.data.audio_base64;
-        if (audioB64) {
-          var binary = atob(audioB64), bytes = new Uint8Array(binary.length);
-          for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-          var url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mp3' }));
-          previewEl.innerHTML = '<div class="audio-preview-box"><p style="font-size:0.85rem;color:#8a7a6a;">⚠️ FFmpeg未安装，仅配音</p><audio controls src="'+url+'" style="width:100%;"></audio></div>';
-          return;
-        }
-        previewEl.innerHTML = '<div style="padding:0.8rem;color:#b8452a;">❌ '+escapeHtml(result.data.message||'失败')+'</div>';
-      } else if (result.type === 'video') {
-        previewEl.innerHTML = '<div class="video-preview-box"><video controls src="'+URL.createObjectURL(result.blob)+'" style="width:100%;"></video></div>';
-        showToast('🎬 短视频生成成功！', 'success');
-      } else {
-        previewEl.innerHTML = '<div class="audio-preview-box"><audio controls src="'+URL.createObjectURL(result.blob)+'" style="width:100%;"></audio></div>';
-      }
-    }).catch(function(err) {
-      previewEl.innerHTML = '<div style="padding:0.8rem;color:#b8452a;">❌ 视频生成失败: '+err.message+'</div>';
-    });
-  }
-
-  function exportSchemeMD(idx) {
-    var s = schemesList[idx]; if (!s) return;
-    var md = '# 方案 ' + s.version + '：' + (s.title || '') + '\n\n';
-    md += '- **钩子**：' + (s.hook || '') + '\n';
-    md += '- **评分**：' + (s.score || 0) + '\n';
-    md += '- **推荐理由**：' + (s.recommendation_reason || s.reason || '') + '\n\n';
-    if (s.scenes && s.scenes.length) {
-      md += '## 分镜脚本\n\n| # | 类型 | 时长 | 描述 | 配音 |\n|---|---|---|---|---|\n';
-      s.scenes.forEach(function(sc) { md += '| '+(sc.seq||'')+' | '+(sc.type||'')+' | '+(sc.duration||'')+' | '+(sc.description||'')+' | '+(sc.voiceover||'')+' |\n'; });
-    }
-    downloadFile(md, '方案'+s.version+'.md', 'text/markdown');
-    showToast('方案已导出', 'success');
-  }
-
-  function showProviderModal() {
-    var overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.id = 'provider-modal-overlay';
-    var providers = [
-      { key: 'mock', name: '⚡ 快速模板生成（离线）', desc: '预置模板即时生成，秒出结果' },
-      { key: 'deepseek', name: '🧠 DeepSeek v4（真实AI）', desc: '大模型AI创作，需有效API Key' },
-      { key: 'coze', name: '🔗 Coze 扣子（平台Bot）', desc: '多Agent协作生成，需绑定Token' }
-    ];
-    var h = '<div class="modal-box" style="width:480px;"><h3>🤖 选择AI生成模式</h3><p style="color:#8a7a6a;font-size:0.9rem;margin-bottom:1rem;">切换后影响后续所有创作</p>';
-    providers.forEach(function(p) {
-      var active = currentProvider === p.key;
-      h += '<div style="padding:0.9rem 1rem;margin-bottom:0.6rem;border-radius:14px;border:2px solid '+(active?'#d48c5c':'#f0e8de')+';background:'+(active?'#fcf0e5':'#fff')+';cursor:pointer;" onclick="switchProvider(\''+p.key+'\')">';
-      h += '<div style="font-weight:600;">'+p.name+'</div><div style="font-size:0.85rem;color:#8a7a6a;">'+p.desc+'</div></div>';
-    });
-    h += '<div class="modal-actions"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'provider-modal-overlay\').remove()">关闭</button></div></div>';
-    overlay.innerHTML = h;
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-    document.body.appendChild(overlay);
-  }
-
-  function switchProvider(provider) {
-    currentProvider = provider;
-    var names = { mock: '快速模板', deepseek: 'DeepSeek AI', coze: '扣子平台' };
-    document.getElementById('provider-mode-name').textContent = names[provider] || provider;
-    localStorage.setItem('ai_creator_provider', provider);
-    var o = document.getElementById('provider-modal-overlay'); if (o) o.remove();
-    showToast('已切换: ' + (names[provider]||provider), 'success');
-  }
-  document.getElementById('sidebar-provider-btn').addEventListener('click', showProviderModal);
-
-  // 暴露给内联onclick（IIFE内部函数需绑定到window）
-  window.generateTTS = generateTTS;
-  window.renderVideo = renderVideo;
-  window.exportSchemeMD = exportSchemeMD;
-  window.switchProvider = switchProvider;
-
-  (function() {
-    var sp = localStorage.getItem('ai_creator_provider');
-    if (sp && ['mock','deepseek','coze'].indexOf(sp) !== -1) currentProvider = sp;
-    var names = { mock: '快速模板', deepseek: 'DeepSeek AI', coze: '扣子平台' };
-    document.getElementById('provider-mode-name').textContent = names[currentProvider] || '快速模板';
-  })();
 
   document.getElementById('btn-export').addEventListener('click', function() {
     if (!schemesList.length) return;
@@ -1177,16 +865,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     var actions = document.getElementById('history-actions');
     apiRequest('/history', 'GET').then(function(res) {
       var records = [];
-      // 接口返回 { items: [...], total, page, size }
-      if (res.data && Array.isArray(res.data.items)) {
-        records = res.data.items;
-      } else if (res.ok && Array.isArray(res.data)) {
-        records = res.data;
-      }
-      if (!records.length) {
-        records = getAllSchemesFromStorage().map(function(s) {
-          return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason || s.recommendation_reason };
-        });
+      if (res.ok && Array.isArray(res.data)) { records = res.data; }
+      if (!records.length && schemesList.length) {
+        records = schemesList.map(function(s) { return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason }; });
       }
       if (!records.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无历史创作记录，前往工作台生成第一条内容</div></div>';
@@ -1195,7 +876,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       }
       var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案版本</th><th>标题</th><th>描述</th><th>平台</th><th>推荐理由</th></tr></thead><tbody>';
       records.forEach(function(r) {
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || r.topic || '') + '</td><td>' + escapeHtml(r.description || r.hook || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || r.recommendation_reason || '') + '</td></tr>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || '') + '</td><td>' + escapeHtml(r.description || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || '') + '</td></tr>';
       });
       html += '</tbody></table></div>';
       container.innerHTML = html;
@@ -1235,13 +916,14 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     // 异步获取真实统计数据
     apiRequest('/statistics/summary', 'GET').then(function(res) {
       console.log('看板API原始返回:', res);
-      // res.data = { total_sessions, in_progress, pending_review, completed_this_week, total_schemes, total_users }
-      if (res.data) {
-        var stats = res.data;
-        kpiTotal.innerHTML = (stats.total_sessions != null ? stats.total_sessions : '--') + ' <small>个</small>';
+      if (res.ok && res.data) {
+        // 兼容两种返回结构：扁平 { total: 10 } 和嵌套 { data: { total: 10 } }
+        var stats = res.data.data || res.data;
+        console.log('看板数据:', stats);
+        kpiTotal.innerHTML = (stats.total != null ? stats.total : '--') + ' <small>个</small>';
         kpiActive.innerHTML = (stats.in_progress != null ? stats.in_progress : '--') + ' <small>个</small>';
         kpiReview.innerHTML = (stats.pending_review != null ? stats.pending_review : '--') + ' <small>个</small>';
-        kpiDone.innerHTML = (stats.completed_this_week != null ? stats.completed_this_week : '--') + ' <small>个</small>';
+        kpiDone.innerHTML = (stats.weekly_completed != null ? stats.weekly_completed : '--') + ' <small>个</small>';
       }
     }).catch(function(err) {
       console.warn('统计数据获取失败，保留默认占位:', err);
@@ -1275,32 +957,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function saveSchemesToStorage() {
     try { localStorage.setItem('ai_creator_schemes', JSON.stringify(schemesList)); } catch(e) { console.warn('方案保存失败:', e); }
   }
-  function appendSchemesToStorage(newSchemes) {
-    // 追加新方案到 localStorage（按 id 去重，不覆盖已有数据）
-    try {
-      var existing = JSON.parse(localStorage.getItem('ai_creator_schemes') || '[]');
-      var ids = new Set(existing.map(function(s) { return s.id; }));
-      newSchemes.forEach(function(s) {
-        if (!ids.has(s.id)) { existing.push(s); ids.add(s.id); }
-      });
-      localStorage.setItem('ai_creator_schemes', JSON.stringify(existing));
-    } catch(e) { console.warn('方案追加保存失败:', e); }
-  }
   function loadSchemesFromStorage() {
     try { var raw = localStorage.getItem('ai_creator_schemes'); if (raw) { schemesList = JSON.parse(raw); } } catch(e) { schemesList = []; }
-  }
-  function getAllSchemesFromStorage() {
-    // 合并 localStorage + 内存中的 schemesList（去重，按时间倒序）
-    try {
-      var stored = JSON.parse(localStorage.getItem('ai_creator_schemes') || '[]');
-    } catch(e) { stored = []; }
-    var merged = schemesList.slice();
-    var ids = new Set(merged.map(function(s) { return s.id; }));
-    stored.forEach(function(s) {
-      if (!ids.has(s.id)) { merged.push(s); ids.add(s.id); }
-    });
-    merged.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-    return merged;
   }
   loadSchemesFromStorage();
 
@@ -1393,43 +1051,43 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
     apiRequest('/schemes', 'GET').then(function(res) {
       var schemes = [];
-      // 新接口返回 { schemes: [...], total: N }
-      if (res.data && Array.isArray(res.data.schemes)) {
-        schemes = res.data.schemes;
-      } else if (res.ok && Array.isArray(res.data)) {
-        schemes = res.data;  // 兼容旧格式
-      }
+      if (res.ok && Array.isArray(res.data)) { schemes = res.data; }
       if (!schemes.length) {
-        schemes = getAllSchemesFromStorage();
+        schemes = mergeAllSchemes();
       }
       if (!schemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
       schemes.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-      renderSchemeTable(schemes, container);
+      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+      schemes.forEach(function(s) {
+        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
     }).catch(function(err) {
       // API 失败时回退到本地缓存
-      var allSchemes = getAllSchemesFromStorage();
+      var allSchemes = mergeAllSchemes();
       if (!allSchemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
-      renderSchemeTable(allSchemes, container);
+      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+      allSchemes.forEach(function(s) {
+        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
       showToast('后端连接失败，显示本地缓存数据', 'error');
     });
   }
-  function renderSchemeTable(schemes, container) {
-    var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
-    schemes.forEach(function(s) {
-      var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
-      html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
-    });
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-  }
   function mergeAllSchemes() {
-    return getAllSchemesFromStorage();
+    var all = schemesList.slice();
+    all.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
+    return all;
   }
 
   /* ===== 素材分析 (API + localStorage回退) ===== */
@@ -1493,16 +1151,15 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">搜索中...</div></div>';
     apiRequest('/knowledge/search?q=' + encodeURIComponent(keyword) + '&top_k=5', 'GET').then(function(res) {
       var results = [];
-      if (res.ok && res.data) {
-        // API 返回 { query, results: [...] }
-        results = Array.isArray(res.data.results) ? res.data.results : (Array.isArray(res.data) ? res.data : []);
-      }
+      if (res.ok && Array.isArray(res.data)) { results = res.data; }
       if (!results.length) {
+        // API无结果 → 回退到 localStorage 搜索
         searchLocalSchemes(keyword, resultsContainer);
         return;
       }
       renderSearchResults(results, keyword, resultsContainer);
     }).catch(function(err) {
+      // API失败 → 回退到 localStorage 搜索
       console.warn('知识库API失败，回退到本地搜索:', err);
       searchLocalSchemes(keyword, resultsContainer);
     });
@@ -1565,425 +1222,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     resizeTimer = setTimeout(function() {
       if (currentPage === 'dashboard') { renderDashboardCharts(); }
     }, 300);
-  });
-
-  // ========== 素材分析功能 ==========
-  window._analysisPage = 1;
-  var analysisFile = null;
-
-  document.getElementById('analysis-drop-area').addEventListener('click', function() {
-    document.getElementById('analysis-file-input').click();
-  });
-  document.getElementById('analysis-drop-area').addEventListener('dragover', function(e) {
-    e.preventDefault(); this.style.borderColor = '#d48c5c';
-  });
-  document.getElementById('analysis-drop-area').addEventListener('dragleave', function() {
-    this.style.borderColor = '#d4c4b0';
-  });
-  document.getElementById('analysis-drop-area').addEventListener('drop', function(e) {
-    e.preventDefault(); this.style.borderColor = '#d4c4b0';
-    if (e.dataTransfer.files.length) { selectAnalysisFile(e.dataTransfer.files[0]); }
-  });
-  document.getElementById('analysis-file-input').addEventListener('change', function() {
-    if (this.files.length) { selectAnalysisFile(this.files[0]); }
-  });
-
-  function selectAnalysisFile(file) {
-    analysisFile = file;
-    var preview = document.getElementById('analysis-file-preview');
-    var btn = document.getElementById('btn-analyze');
-    var isImg = file.type.startsWith('image/');
-    preview.innerHTML = '<div class="file-item" style="font-size:1rem;">' +
-      (isImg ? '🖼️ ' : '📁 ') + escapeHtml(file.name) + ' (' + (file.size/1024).toFixed(1) + ' KB)</div>';
-    if (isImg) {
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        preview.innerHTML += '<img src="' + e.target.result + '" style="max-width:300px;max-height:200px;border-radius:12px;margin-top:0.5rem;display:block;">';
-      };
-      reader.readAsDataURL(file);
-    }
-    btn.disabled = false;
-  }
-
-  document.getElementById('btn-analyze').addEventListener('click', function() {
-    if (!analysisFile) return;
-    var btn = this, statusEl = document.getElementById('analysis-status'), resultEl = document.getElementById('analysis-result');
-    btn.disabled = true; statusEl.textContent = '正在分析中（可能需要 1~2 分钟）...'; resultEl.innerHTML = '';
-    var fd = new FormData(); fd.append('file', analysisFile);
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API_BASE + '/creation/analyze'); xhr.setRequestHeader('Authorization', 'Bearer ' + token); xhr.timeout = 300000;
-    xhr.onload = function() {
-      btn.disabled = false; statusEl.textContent = '';
-      if (xhr.status >= 200 && xhr.status < 300) {
-        var data = JSON.parse(xhr.responseText); showToast('分析完成！', 'success');
-        resultEl.innerHTML = renderAnalysisResult(data);
-        window._analysisPage = 1; loadAnalysisHistory();
-      } else {
-        var err = '分析失败'; try { err = extractError(JSON.parse(xhr.responseText)); } catch(e) {}
-        showToast(err, 'error'); statusEl.textContent = '分析失败: ' + err;
-      }
-    };
-    xhr.onerror = function() { btn.disabled = false; statusEl.textContent = '网络错误，请重试'; showToast('网络错误', 'error'); };
-    xhr.ontimeout = function() { btn.disabled = false; statusEl.textContent = '分析超时，请重试'; showToast('分析超时', 'error'); };
-    xhr.send(fd);
-  });
-
-  function renderAnalysisResult(data) {
-    var ar = data.analysis_result || {};
-    var content = ar.content || (typeof ar === 'string' ? ar : '');
-    // 简单 Markdown 渲染
-    var html = content
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/^### (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
-      .replace(/^## (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
-      .replace(/^# (.+)$/gm, '<h3 style="color:#3d2c1b;margin:1.2rem 0 0.5rem;">$1</h3>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^---+/gm, '<hr style="border:none;border-top:1px solid #f0e8de;margin:0.8rem 0;">')
-      .replace(/^- (.+)$/gm, '<li style="color:#3d2c1b;margin:0.2rem 0 0.2rem 1.2rem;">$1</li>')
-      .replace(/\n\n/g, '<br><br>')
-      .replace(/\n/g, '<br>');
-    var r = '<div class="card" style="background:#f0fdf4;border-color:#c8e6cc;">';
-    r += '<div class="card-title" style="color:#16a34a;">✅ 分析完成</div>';
-    r += '<p style="color:#3a7040;margin-bottom:0.5rem;"><strong>' + escapeHtml(data.filename||'') + '</strong> (' + (data.file_type||'') + ')';
-    if (data.id) {
-      r += ' <a href="' + API_BASE + '/creation/analyses/' + data.id + '/file" target="_blank" style="color:#d48c5c;font-size:0.85rem;">🖼️ 查看原图</a>';
-    }
-    r += '</p>';
-    r += '<div style="background:#fff;padding:1.2rem 1.5rem;border-radius:14px;color:#2c2c2c;line-height:1.9;max-height:500px;overflow-y:auto;font-size:0.95rem;">' + html + '</div>';
-    if (ar.usage) {
-      r += '<p style="color:#8a7a6a;font-size:0.8rem;margin-top:0.6rem;">📊 Token: ' + ar.usage.total_tokens + ' (输入' + ar.usage.prompt_tokens + ' + 输出' + ar.usage.completion_tokens + ') | ⏱️ ' + (ar.elapsed||data.elapsed||0).toFixed(1) + 's</p>';
-    }
-    r += '</div>'; return r;
-  }
-
-  window.loadAnalysisHistory = function() {
-    var container = document.getElementById('analysis-history-container');
-    apiRequest('/creation/analyses?page=' + (window._analysisPage||1) + '&size=10', 'GET').then(function(res) {
-      if (!res.ok || !res.data || !res.data.items || !res.data.items.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无分析记录</div></div>';
-        document.getElementById('analysis-pagination').innerHTML = ''; return;
-      }
-      var html = '<table class="history-table"><thead><tr><th>ID</th><th>文件名</th><th>类型</th><th>大小</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>';
-      res.data.items.forEach(function(item) {
-        html += '<tr><td>' + item.id + '</td><td>' + escapeHtml(item.filename) + '</td><td>' + (item.file_type||'') + '</td><td>' + (item.file_size?(item.file_size/1024).toFixed(1)+'KB':'') + '</td><td>' + (item.status==='completed'?'✅ 完成':item.status) + '</td><td>' + (item.created_at||'') + '</td>';
-        html += '<td><button class="btn btn-ghost btn-sm" onclick="window.viewAnalysisDetail(' + item.id + ')" style="font-size:0.8rem;">📋 查看</button></td></tr>';
-      });
-      html += '</tbody></table>'; container.innerHTML = html;
-      var total = res.data.total||0, p = window._analysisPage||1;
-      document.getElementById('analysis-pagination').innerHTML =
-        '<span style="color:#8a7a6a;font-size:0.9rem;">共 '+total+' 条，第 '+p+' 页</span> ' +
-        '<button class="btn btn-ghost btn-sm" onclick="window._analysisPage=Math.max(1,(window._analysisPage||1)-1);window.loadAnalysisHistory();">上一页</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="window._analysisPage=(window._analysisPage||1)+1;window.loadAnalysisHistory();">下一页</button>';
-    });
-  };
-
-  window.viewAnalysisDetail = function(id) {
-    var resultEl = document.getElementById('analysis-result');
-    resultEl.innerHTML = '<div style="padding:1rem;color:#8a7a6a;">⏳ 加载分析详情...</div>';
-    apiRequest('/creation/analyses/' + id, 'GET').then(function(res) {
-      if (res.ok && res.data) {
-        resultEl.innerHTML = renderAnalysisResult(res.data);
-        resultEl.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        resultEl.innerHTML = '<div style="padding:1rem;color:#b8452a;">❌ 加载失败</div>';
-      }
-    }).catch(function() {
-      resultEl.innerHTML = '<div style="padding:1rem;color:#b8452a;">❌ 网络错误</div>';
-    });
-  };
-
-  function loadMaterialAnalysis() {
-    window._analysisPage = 1; window.loadAnalysisHistory();
-  }
-
-  // ========== TTS 配音功能 ==========
-  document.getElementById('btn-tts-generate').addEventListener('click', function() {
-    var text = document.getElementById('tts-text').value.trim();
-    if (!text) { showToast('请输入配音文本内容', 'error'); return; }
-    var btn = this, statusEl = document.getElementById('tts-status'), playerEl = document.getElementById('tts-player');
-    btn.disabled = true; statusEl.textContent = '正在生成配音...';
-    var fd = new FormData(); fd.append('text', text);
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API_BASE + '/creation/tts'); xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.responseType = 'blob'; xhr.timeout = 120000;
-    xhr.onload = function() {
-      btn.disabled = false; statusEl.textContent = '';
-      if (xhr.status >= 200 && xhr.status < 300) {
-        playerEl.innerHTML = '<audio controls autoplay style="width:100%;"><source src="' + URL.createObjectURL(xhr.response) + '" type="audio/mpeg"></audio>';
-        showToast('配音生成成功！', 'success');
-      } else {
-        statusEl.textContent = '生成失败，请重试'; showToast('TTS 生成失败', 'error');
-      }
-    };
-    xhr.onerror = function() { btn.disabled = false; statusEl.textContent = '网络错误'; };
-    xhr.send(fd);
-  });
-
-  // ========== 审核看板 ==========
-  var reviewPage = 1, reviewStatusFilter = '';
-
-  // 直接监听审核看板导航按钮，确保一定触发 loadReviews
-  var reviewNavBtn = document.querySelector('.nav-item[data-page="review"]');
-  if (reviewNavBtn) {
-    reviewNavBtn.addEventListener('click', function() {
-      setTimeout(function() { loadReviews(); }, 50);
-    });
-  }
-
-  document.getElementById('review-status-filter').addEventListener('change', function() {
-    reviewStatusFilter = this.value; reviewPage = 1; loadReviews();
-  });
-  document.getElementById('btn-review-refresh').addEventListener('click', function() { loadReviews(); });
-
-  function loadReviews() {
-    console.log('[审核看板] loadReviews 触发, API_BASE:', API_BASE);
-    var container = document.getElementById('review-container');
-    if (!container) { console.error('[审核看板] review-container 元素未找到'); return; }
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
-    var url = '/reviews?page=' + reviewPage + '&size=10' + (reviewStatusFilter ? '&status=' + reviewStatusFilter : '');
-    console.log('[审核看板] 请求URL:', API_BASE + url);
-    apiRequest(url, 'GET').then(function(res) {
-      console.log('[审核看板] API返回:', res);
-      if (!res.data || !res.data.items || !res.data.items.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无审核记录</div></div>';
-        document.getElementById('review-pagination').innerHTML = ''; return;
-      }
-      var html = '<table class="history-table"><thead><tr><th>ID</th><th>方案ID</th><th>方案标题</th><th>状态</th><th>审核意见</th><th>时间</th><th>操作</th></tr></thead><tbody>';
-      res.data.items.forEach(function(item) {
-        var badge = item.status==='approved' ? '<span style="color:#16a34a;">✅ 通过</span>' :
-                    item.status==='rejected' ? '<span style="color:#dc2626;">❌ 拒绝</span>' : '<span style="color:#8a7a6a;">⏳ 待审</span>';
-        html += '<tr><td>'+item.id+'</td><td>'+item.scheme_id+'</td><td>'+escapeHtml(item.scheme_title||'')+'</td><td>'+badge+'</td><td>'+escapeHtml(item.comment||'-')+'</td><td>'+(item.created_at||'')+'</td>';
-        html += '<td><button class="btn btn-ghost btn-sm" onclick="submitReview('+item.scheme_id+',\'approved\',\'\','+item.id+')">✅</button> <button class="btn btn-ghost btn-sm" onclick="var c=prompt(\'拒绝原因:\');if(c)submitReview('+item.scheme_id+',\'rejected\',c,'+item.id+')">❌</button></td></tr>';
-      });
-      html += '</tbody></table>'; container.innerHTML = html;
-      var total = res.data.total||0;
-      document.getElementById('review-pagination').innerHTML =
-        '<span style="color:#8a7a6a;font-size:0.9rem;">共 '+total+' 条，第 '+reviewPage+' 页</span> ' +
-        '<button class="btn btn-ghost btn-sm" onclick="reviewPage=Math.max(1,reviewPage-1);loadReviews();">上一页</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="reviewPage++;loadReviews();">下一页</button>';
-    }).catch(function(err) {
-      console.error('[审核看板] API请求失败:', err);
-      container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">加载失败，请检查后端是否启动</div></div>';
-    });
-  }
-
-  window.submitReview = function(schemeId, status, comment, existingId) {
-    var payload = { scheme_id: schemeId, status: status, comment: comment||'' };
-    apiRequest(existingId ? '/review/'+existingId : '/review', existingId ? 'PUT' : 'POST', payload).then(function(res) {
-      if (res.ok) { showToast('审核提交成功！', 'success'); loadReviews(); }
-      else { showToast(extractError(res.data)||'审核提交失败', 'error'); }
-    });
-  };
-
-  // ========== 短视频生成功能 ==========
-  // Tab 切换
-  document.querySelectorAll('.tab-pill').forEach(function(pill) {
-    pill.addEventListener('click', function() {
-      var vtab = this.getAttribute('data-vtab');
-      document.querySelectorAll('.tab-pill').forEach(function(p) { p.classList.remove('active'); });
-      this.classList.add('active');
-      document.querySelectorAll('.vtab-panel').forEach(function(p) { p.classList.remove('active'); });
-      document.getElementById(vtab).classList.add('active');
-    });
-  });
-
-  // ---- Tab 1: AI 生图 → 短视频 ----
-  var videoGenUrl = null;
-
-  document.getElementById('btn-video-gen').addEventListener('click', function() {
-    var prompt = document.getElementById('video-img-prompt').value.trim();
-    var text = document.getElementById('video-tts-text').value.trim();
-    var speaker = document.getElementById('video-speaker').value;
-    if (!prompt) { showToast('请输入图片描述 prompt', 'error'); return; }
-    if (!text) { showToast('请输入配音文本', 'error'); return; }
-    var btn = this, statusEl = document.getElementById('video-gen-status');
-    var resultCard = document.getElementById('video-result-card');
-    var emptyCard = document.getElementById('video-result-empty');
-    var playerEl = document.getElementById('video-player-container');
-    btn.disabled = true; statusEl.textContent = '🎨 AI 正在生成封面图...'; resultCard.hidden = true; emptyCard.hidden = true;
-
-    var fd = new FormData();
-    fd.append('image_prompt', prompt); fd.append('tts_text', text); fd.append('speaker', speaker);
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API_BASE + '/creation/generate-video');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.responseType = 'blob'; xhr.timeout = 300000;
-    var stepTimer = setInterval(function() {
-      if (statusEl.textContent.indexOf('封面图') !== -1) statusEl.textContent = '🎤 正在生成 TTS 配音...';
-      else if (statusEl.textContent.indexOf('TTS') !== -1) statusEl.textContent = '🎬 FFmpeg 合成视频中...';
-    }, 5000);
-
-    xhr.onload = function() {
-      clearInterval(stepTimer); btn.disabled = false; statusEl.textContent = '';
-      if (xhr.status >= 200 && xhr.status < 300) {
-        if (videoGenUrl) URL.revokeObjectURL(videoGenUrl);
-        videoGenUrl = URL.createObjectURL(xhr.response);
-        playerEl.innerHTML = '<video controls autoplay style="width:100%;max-height:500px;border-radius:16px;" src="'+videoGenUrl+'"></video>';
-        resultCard.hidden = false; emptyCard.style.display = 'none';
-        showToast('🎉 短视频生成成功！', 'success');
-      } else {
-        try { var r=new FileReader(); r.onload=function(){try{var d=JSON.parse(r.result);showToast(extractError(d)||d.message||'失败','error');}catch(e){showToast('生成失败','error');}}; r.readAsText(xhr.response); } catch(e) { showToast('生成失败','error'); }
-      }
-    };
-    xhr.onerror = function() { clearInterval(stepTimer); btn.disabled = false; statusEl.textContent = ''; showToast('网络错误', 'error'); };
-    xhr.ontimeout = function() { clearInterval(stepTimer); btn.disabled = false; statusEl.textContent = ''; showToast('生成超时', 'error'); };
-    xhr.send(fd);
-  });
-  document.getElementById('btn-video-download').addEventListener('click', function() {
-    if (!videoGenUrl) return; var a=document.createElement('a'); a.href=videoGenUrl; a.download='ai_video.mp4'; a.click();
-  });
-
-  // ---- Tab 2: Seedance AI 生视频 ----
-  var sdTaskId = null, sdPollTimer = null, sdVideoUrl = null;
-
-  document.getElementById('btn-sd-create').addEventListener('click', function() {
-    var prompt = document.getElementById('sd-prompt').value.trim();
-    if (!prompt) { showToast('请输入视频描述 prompt', 'error'); return; }
-    var btn = this, statusEl = document.getElementById('sd-status');
-    btn.disabled = true; statusEl.textContent = '🎬 正在创建 Seedance 任务...';
-    document.getElementById('sd-result-card').hidden = true;
-    document.getElementById('sd-result-empty').style.display = 'none';
-
-    var fd = new FormData();
-    fd.append('prompt', prompt);
-    fd.append('resolution', document.getElementById('sd-resolution').value);
-    fd.append('duration', document.getElementById('sd-duration').value);
-    fd.append('aspect_ratio', document.getElementById('sd-ratio').value);
-    fd.append('count', document.getElementById('sd-count').value);
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API_BASE + '/creation/seedance-create');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.onload = function() {
-      btn.disabled = false;
-      if (xhr.status === 200) {
-        var d = JSON.parse(xhr.responseText);
-        sdTaskId = d.task_id; statusEl.textContent = '⏳ 任务已创建，正在等待 AI 生成视频...';
-        showToast('Seedance 任务已创建: ' + sdTaskId, 'success');
-        pollSeedance();
-      } else {
-        try { var e = JSON.parse(xhr.responseText); showToast(extractError(e)||'创建失败','error'); }
-        catch(er) { showToast('创建任务失败', 'error'); }
-        statusEl.textContent = '';
-      }
-    };
-    xhr.onerror = function() { btn.disabled = false; statusEl.textContent = ''; showToast('网络错误', 'error'); };
-    xhr.send(fd);
-  });
-
-  function pollSeedance() {
-    if (!sdTaskId) return;
-    var statusEl = document.getElementById('sd-status');
-    var pollCount = 0;
-    if (sdPollTimer) clearInterval(sdPollTimer);
-    sdPollTimer = setInterval(function() {
-      pollCount++;
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', API_BASE + '/creation/seedance-status/' + sdTaskId);
-      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-      xhr.onload = function() {
-        if (xhr.status === 200) {
-          var d = JSON.parse(xhr.responseText);
-          if (d.status === 'succeeded') {
-            clearInterval(sdPollTimer); sdPollTimer = null;
-            statusEl.textContent = '✅ 视频生成完成！正在加载播放器...';
-            sdVideoUrl = d.data && d.data.video_url;
-            if (sdVideoUrl) {
-              var playerEl = document.getElementById('sd-player-container');
-              playerEl.innerHTML = '<video controls autoplay style="width:100%;max-height:500px;border-radius:16px;" src="'+sdVideoUrl+'"></video>';
-              document.getElementById('sd-result-card').hidden = false;
-              document.getElementById('sd-result-empty').style.display = 'none';
-            }
-            showToast('🎉 AI 视频生成成功！', 'success');
-          } else if (d.status === 'failed') {
-            clearInterval(sdPollTimer); sdPollTimer = null;
-            statusEl.textContent = '❌ 生成失败'; showToast('视频生成失败，请重试', 'error');
-          } else {
-            var dots = '.'.repeat((pollCount % 3) + 1);
-            statusEl.textContent = '⏳ AI 正在生成视频' + dots + ' (' + d.status + ')';
-          }
-          if (pollCount > 120) { clearInterval(sdPollTimer); sdPollTimer = null; statusEl.textContent = '⏰ 超时，请稍后查询'; showToast('生成超时，任务可能仍在运行', 'info'); }
-        }
-      };
-      xhr.send();
-    }, 3000);
-  }
-
-  document.getElementById('btn-sd-download').addEventListener('click', function() {
-    if (!sdVideoUrl) return;
-    if (!sdTaskId) { var a=document.createElement('a'); a.href=sdVideoUrl; a.download='seedance_video.mp4'; a.click(); return; }
-    // 通过后端代理下载
-    var xhr=new XMLHttpRequest();
-    xhr.open('GET', API_BASE + '/creation/seedance-download/' + sdTaskId);
-    xhr.setRequestHeader('Authorization', 'Bearer '+token);
-    xhr.responseType='blob';
-    xhr.onload = function() {
-      if (xhr.status===200) { var a=document.createElement('a'); a.href=URL.createObjectURL(xhr.response); a.download='seedance_'+sdTaskId.slice(0,8)+'.mp4'; a.click(); showToast('下载成功','success'); }
-      else { showToast('下载失败','error'); }
-    };
-    xhr.send();
-  });
-
-  // ---- Tab 3: FFmpeg 工具箱 ----
-  var ffmpegVideoUrl = null;
-  document.querySelectorAll('.tool-card').forEach(function(card) {
-    card.addEventListener('click', function() {
-      var op = this.getAttribute('data-ffop');
-      showFFmpegModal(op);
-    });
-  });
-
-  function showFFmpegModal(op) {
-    // 移除已有模态框
-    var exist = document.querySelector('.ffmpeg-modal');
-    if (exist) exist.remove();
-    var titles = {transcode:'🔄 视频转码', clip:'✂️ 视频剪辑', remove_audio:'🔇 去除音频'};
-    var extra = '';
-    if (op === 'clip') extra = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem;"><div><label class="field-label">起始 (秒)</label><input class="input" id="ff-start" type="number" value="0" min="0" step="0.5"></div><div><label class="field-label">时长 (秒)</label><input class="input" id="ff-duration" type="number" value="5" min="1" step="0.5"></div></div>';
-    if (op === 'transcode') extra = '<div class="form-group"><label class="field-label">输出宽度</label><select class="select" id="ff-width"><option value="640">640px</option><option value="1080">1080px</option><option value="1920">1920px</option></select></div>';
-    var modal = document.createElement('div');
-    modal.className = 'ffmpeg-modal';
-    modal.innerHTML = '<div class="modal-card"><h3 style="margin-bottom:1rem;">'+titles[op]+'</h3>' +
-      '<div class="form-group"><label class="field-label">选择视频文件</label><input type="file" id="ff-file" accept="video/*"></div>' +
-      extra +
-      '<div style="margin-top:1rem;display:flex;gap:0.8rem;"><button class="btn btn-primary btn-sm" id="btn-ff-run">▶ 执行</button><button class="btn btn-ghost btn-sm" id="btn-ff-close">取消</button></div>' +
-      '<div id="ff-status" style="margin-top:0.5rem;color:#8a7a6a;font-size:0.9rem;"></div></div>';
-    document.body.appendChild(modal);
-
-    document.getElementById('btn-ff-close').addEventListener('click', function() { modal.remove(); });
-    document.getElementById('btn-ff-run').addEventListener('click', function() {
-      var fileInput = document.getElementById('ff-file');
-      var file = fileInput.files[0];
-      if (!file) { showToast('请选择视频文件', 'error'); return; }
-      var statusEl = document.getElementById('ff-status');
-      statusEl.textContent = '处理中...';
-      var fd = new FormData(); fd.append('video', file); fd.append('operation', op);
-      if (op === 'clip') { fd.append('start', document.getElementById('ff-start').value); fd.append('duration', document.getElementById('ff-duration').value); }
-      if (op === 'transcode') fd.append('width', document.getElementById('ff-width').value);
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', API_BASE + '/creation/video-tool');
-      xhr.setRequestHeader('Authorization', 'Bearer '+token);
-      xhr.responseType = 'blob'; xhr.timeout = 120000;
-      xhr.onload = function() {
-        statusEl.textContent = '';
-        if (xhr.status >= 200 && xhr.status < 300) {
-          if (ffmpegVideoUrl) URL.revokeObjectURL(ffmpegVideoUrl);
-          ffmpegVideoUrl = URL.createObjectURL(xhr.response);
-          var resultCard = document.getElementById('ffmpeg-result-card');
-          document.getElementById('ffmpeg-player-container').innerHTML = '<video controls style="width:100%;max-height:400px;border-radius:16px;" src="'+ffmpegVideoUrl+'"></video>';
-          resultCard.hidden = false;
-          modal.remove(); showToast('处理完成！', 'success');
-        } else {
-          try { var r=new FileReader(); r.onload=function(){try{showToast(extractError(JSON.parse(r.result)),'error');}catch(e){showToast('处理失败','error');}}; r.readAsText(xhr.response); } catch(e) { showToast('处理失败','error'); }
-        }
-      };
-      xhr.onerror = function() { statusEl.textContent = ''; showToast('网络错误','error'); };
-      xhr.send(fd);
-    });
-  }
-
-  document.getElementById('btn-ffmpeg-download').addEventListener('click', function() {
-    if (!ffmpegVideoUrl) return; var a=document.createElement('a'); a.href=ffmpegVideoUrl; a.download='ffmpeg_output.mp4'; a.click();
   });
 
 })();
