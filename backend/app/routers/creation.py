@@ -1119,6 +1119,7 @@ def generate_video(
         for p in [img_path, audio_path]:
             try: _os.unlink(p)
             except Exception: pass
+        # 返回 JSON 让前端显示仅配音（兼容旧前端）
         return {"ok": True, "mode": "audio_only", "message": "FFmpeg 未安装，已返回 TTS 音频", "audio_base64": audio_b64}
     except subprocess.CalledProcessError as e:
         for p in [img_path, audio_path]:
@@ -1133,13 +1134,11 @@ def generate_video(
         try: _os.unlink(p)
         except Exception: pass
 
-    return {
-        "ok": True,
-        "mode": "video",
-        "url": f"/uploads/ai_videos/{out_name}",
-        "download_url": f"/download/ai_videos/{out_name}",
-        "filename": out_name,
-    }
+    # 返回 StreamingResponse 保持前端兼容（同时已存盘到 uploads/ai_videos/）
+    with open(str(out_path), "rb") as f:
+        video_bytes = f.read()
+    return StreamingResponse(io.BytesIO(video_bytes), media_type="video/mp4",
+                             headers={"Content-Disposition": f"attachment; filename={out_name}"})
 
 
 # ====================== Seedance AI 视频生成 ======================
@@ -1530,7 +1529,7 @@ def render_video(
     try:
         subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=60)
     except FileNotFoundError:
-        # FFmpeg 未安装 → 返回独立音频 + 图片
+        # FFmpeg 未安装 → 返回 JSON 让前端显示仅配音
         _os.unlink(img_path)
         _os.unlink(audio_path)
         return {
@@ -1540,6 +1539,10 @@ def render_video(
             "audio_base64": audio_b64,
         }
     except subprocess.CalledProcessError as e:
+        _os.unlink(img_path)
+        _os.unlink(audio_path)
+        try: _os.unlink(str(out_path))
+        except Exception: pass
         raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
 
     # 清理临时文件
@@ -1547,13 +1550,11 @@ def render_video(
         try: _os.unlink(p)
         except Exception: pass
 
-    return {
-        "ok": True,
-        "mode": "video",
-        "url": f"/uploads/ai_videos/{out_name}",
-        "download_url": f"/download/ai_videos/{out_name}",
-        "filename": out_name,
-    }
+    # 返回 StreamingResponse 保持前端兼容（同时已存盘到 uploads/ai_videos/）
+    with open(str(out_path), "rb") as f:
+        video_bytes = f.read()
+    return StreamingResponse(io.BytesIO(video_bytes), media_type="video/mp4",
+                             headers={"Content-Disposition": f"attachment; filename=scheme_{scheme_id}.mp4"})
 
 
 # ====================== TTS 语音合成 ======================
