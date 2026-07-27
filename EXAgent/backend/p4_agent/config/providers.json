@@ -1,0 +1,38 @@
+{
+  "mock": {
+    "enabled": true,
+    "description": "本地模拟模式，离线可用，用于开发和演示"
+  },
+  "coze": {
+    "enabled": false,
+    "base_url": "https://api.coze.cn/open_api/v2/chat",
+    "token": "你的Coze_API_Token",
+    "bot_ids": {
+      "trend": "填入趋势分析Bot ID",
+      "script": "填入脚本创作Bot ID",
+      "review": "填入合规审查Bot ID",
+      "strategy": "填入发布策略Bot ID"
+    },
+    "user": "p4-agent",
+    "description": "Coze 四 Bot。创建指南见 coze_workflows/CREATE_GUIDE.md"
+  },
+  "dify": {
+    "enabled": false,
+    "base_url": "http://localhost:8080/v1",
+    "api_key": "你的Dify_Key",
+    "mode": "workflow",
+    "user": "agent-dev-user",
+    "description": "Dify自托管平台（备选）"
+  },
+  "deepseek": {
+    "enabled": true,
+    "base_url": "https://api.deepseek.com/v1",
+    "api_key": "你的DeepSeek_API_Key",
+    "model": "deepseek-v4-pro",
+    "temperature": 0.7,
+    "max_tokens": 4096,
+    "description": "DeepSeek API 直连"
+  },
+  "default_provider": "deepseek",
+  "note": "自动生成于 2026-07-27。真实凭据勿提交到 Git。"
+}
