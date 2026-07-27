@@ -1600,9 +1600,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function renderAnalysisResult(data) {
     var ar = data.analysis_result || {};
     var content = ar.content || (typeof ar === 'string' ? ar : '');
-    // 简单 Markdown 渲染：标题、粗体、分隔线、列表
+    // 简单 Markdown 渲染
     var html = content
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')  // escape first
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/^### (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
       .replace(/^## (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
       .replace(/^# (.+)$/gm, '<h3 style="color:#3d2c1b;margin:1.2rem 0 0.5rem;">$1</h3>')
@@ -1613,7 +1613,11 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       .replace(/\n/g, '<br>');
     var r = '<div class="card" style="background:#f0fdf4;border-color:#c8e6cc;">';
     r += '<div class="card-title" style="color:#16a34a;">✅ 分析完成</div>';
-    r += '<p style="color:#3a7040;margin-bottom:0.5rem;"><strong>' + escapeHtml(data.filename||'') + '</strong> (' + (data.file_type||'') + ')</p>';
+    r += '<p style="color:#3a7040;margin-bottom:0.5rem;"><strong>' + escapeHtml(data.filename||'') + '</strong> (' + (data.file_type||'') + ')';
+    if (data.id) {
+      r += ' <a href="' + API_BASE + '/creation/analyses/' + data.id + '/file" target="_blank" style="color:#d48c5c;font-size:0.85rem;">🖼️ 查看原图</a>';
+    }
+    r += '</p>';
     r += '<div style="background:#fff;padding:1.2rem 1.5rem;border-radius:14px;color:#2c2c2c;line-height:1.9;max-height:500px;overflow-y:auto;font-size:0.95rem;">' + html + '</div>';
     if (ar.usage) {
       r += '<p style="color:#8a7a6a;font-size:0.8rem;margin-top:0.6rem;">📊 Token: ' + ar.usage.total_tokens + ' (输入' + ar.usage.prompt_tokens + ' + 输出' + ar.usage.completion_tokens + ') | ⏱️ ' + (ar.elapsed||data.elapsed||0).toFixed(1) + 's</p>';
@@ -1628,9 +1632,10 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无分析记录</div></div>';
         document.getElementById('analysis-pagination').innerHTML = ''; return;
       }
-      var html = '<table class="history-table"><thead><tr><th>ID</th><th>文件名</th><th>类型</th><th>大小</th><th>状态</th><th>时间</th></tr></thead><tbody>';
+      var html = '<table class="history-table"><thead><tr><th>ID</th><th>文件名</th><th>类型</th><th>大小</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>';
       res.data.items.forEach(function(item) {
-        html += '<tr><td>' + item.id + '</td><td>' + escapeHtml(item.filename) + '</td><td>' + (item.file_type||'') + '</td><td>' + (item.file_size?(item.file_size/1024).toFixed(1)+'KB':'') + '</td><td>' + (item.status==='completed'?'✅ 完成':item.status) + '</td><td>' + (item.created_at||'') + '</td></tr>';
+        html += '<tr><td>' + item.id + '</td><td>' + escapeHtml(item.filename) + '</td><td>' + (item.file_type||'') + '</td><td>' + (item.file_size?(item.file_size/1024).toFixed(1)+'KB':'') + '</td><td>' + (item.status==='completed'?'✅ 完成':item.status) + '</td><td>' + (item.created_at||'') + '</td>';
+        html += '<td><button class="btn btn-ghost btn-sm" onclick="window.viewAnalysisDetail(' + item.id + ')" style="font-size:0.8rem;">📋 查看</button></td></tr>';
       });
       html += '</tbody></table>'; container.innerHTML = html;
       var total = res.data.total||0, p = window._analysisPage||1;
@@ -1638,6 +1643,21 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         '<span style="color:#8a7a6a;font-size:0.9rem;">共 '+total+' 条，第 '+p+' 页</span> ' +
         '<button class="btn btn-ghost btn-sm" onclick="window._analysisPage=Math.max(1,(window._analysisPage||1)-1);window.loadAnalysisHistory();">上一页</button>' +
         '<button class="btn btn-ghost btn-sm" onclick="window._analysisPage=(window._analysisPage||1)+1;window.loadAnalysisHistory();">下一页</button>';
+    });
+  };
+
+  window.viewAnalysisDetail = function(id) {
+    var resultEl = document.getElementById('analysis-result');
+    resultEl.innerHTML = '<div style="padding:1rem;color:#8a7a6a;">⏳ 加载分析详情...</div>';
+    apiRequest('/creation/analyses/' + id, 'GET').then(function(res) {
+      if (res.ok && res.data) {
+        resultEl.innerHTML = renderAnalysisResult(res.data);
+        resultEl.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        resultEl.innerHTML = '<div style="padding:1rem;color:#b8452a;">❌ 加载失败</div>';
+      }
+    }).catch(function() {
+      resultEl.innerHTML = '<div style="padding:1rem;color:#b8452a;">❌ 网络错误</div>';
     });
   };
 
