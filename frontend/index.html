@@ -1054,6 +1054,12 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   }
   document.getElementById('sidebar-provider-btn').addEventListener('click', showProviderModal);
 
+  // 暴露给内联onclick（IIFE内部函数需绑定到window）
+  window.generateTTS = generateTTS;
+  window.renderVideo = renderVideo;
+  window.exportSchemeMD = exportSchemeMD;
+  window.switchProvider = switchProvider;
+
   (function() {
     var sp = localStorage.getItem('ai_creator_provider');
     if (sp && ['mock','deepseek','coze'].indexOf(sp) !== -1) currentProvider = sp;
@@ -1379,15 +1385,16 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">搜索中...</div></div>';
     apiRequest('/knowledge/search?q=' + encodeURIComponent(keyword) + '&top_k=5', 'GET').then(function(res) {
       var results = [];
-      if (res.ok && Array.isArray(res.data)) { results = res.data; }
+      if (res.ok && res.data) {
+        // API 返回 { query, results: [...] }
+        results = Array.isArray(res.data.results) ? res.data.results : (Array.isArray(res.data) ? res.data : []);
+      }
       if (!results.length) {
-        // API无结果 → 回退到 localStorage 搜索
         searchLocalSchemes(keyword, resultsContainer);
         return;
       }
       renderSearchResults(results, keyword, resultsContainer);
     }).catch(function(err) {
-      // API失败 → 回退到 localStorage 搜索
       console.warn('知识库API失败，回退到本地搜索:', err);
       searchLocalSchemes(keyword, resultsContainer);
     });
