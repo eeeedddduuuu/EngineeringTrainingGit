@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db, SessionLocal
 from app.models.user import User
-from app.models.business import CreationSession, Scheme, AgentLog
+from app.models.business import CreationSession, Scheme, AgentLog, Review
 from app.schemas.creation import CreationRequest, TaskStatusResponse
 from app.utils.deps import get_current_user
 
@@ -261,6 +261,9 @@ def _run_fallback_mock(task_id: str, session_id: int, topic: str, platform: str,
     session = db.query(CreationSession).filter(CreationSession.id == session_id).first()
     if session:
         session.status = "completed"
+        # 为每个新方案自动创建「待审核」记录
+        for sid in scheme_ids:
+            db.add(Review(scheme_id=sid, reviewer_id=session.user_id, status="pending"))
         db.commit()
     db.close()
 
@@ -391,10 +394,13 @@ def _run_agent_workflow(task_id: str, session_id: int, req: CreationRequest):
                 db.refresh(scheme)
                 scheme_ids.append(scheme.id)
 
-            # 更新 session 状态
+            # 更新 session 状态 + 自动创建审核记录
             session = db.query(CreationSession).filter(CreationSession.id == session_id).first()
             if session:
                 session.status = "completed"
+                # 为每个新方案自动创建「待审核」记录
+                for sid in scheme_ids:
+                    db.add(Review(scheme_id=sid, reviewer_id=session.user_id, status="pending"))
                 db.commit()
             db.close()
 

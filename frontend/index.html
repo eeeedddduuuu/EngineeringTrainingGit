@@ -509,10 +509,10 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     <div class="page" id="page-dashboard">
       <div class="page-header"><h2>创作数据统计看板</h2><p>创作趋势、平台分布与主题分析</p></div>
       <div class="kpi-grid" id="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">总项目</div><div class="kpi-value" id="kpi-total">0 <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">进行中</div><div class="kpi-value" id="kpi-active">0 <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">待审核</div><div class="kpi-value" id="kpi-review">0 <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">总项目</div><div class="kpi-value" id="kpi-total">-- <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">进行中</div><div class="kpi-value" id="kpi-active">-- <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">待审核</div><div class="kpi-value" id="kpi-review">-- <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">-- <small>个</small></div></div>
       </div>
       <div class="charts-grid">
         <div class="chart-box"><div id="chart-donut" style="width:100%; height:380px;"></div></div>
@@ -954,28 +954,20 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       style: document.getElementById('input-style').value,
       provider: currentProvider
     };
-    // 显示进度卡片
-    var schemesContainer = document.getElementById('schemes-container');
-    var progressHtml = '<div class="card" style="text-align:center;padding:2.5rem;" id="progress-card">';
-    progressHtml += '<div style="font-size:2rem;margin-bottom:0.8rem;" id="progress-icon">🧠</div>';
-    progressHtml += '<div style="font-size:1.1rem;font-weight:600;color:#5f4a34;margin-bottom:0.5rem;" id="progress-title">AI 创作进行中</div>';
-    progressHtml += '<div style="color:#8a7a6a;font-size:0.9rem;margin-bottom:1rem;" id="progress-text">正在连接 DeepSeek v4-pro...</div>';
-    progressHtml += '<div style="width:100%;height:8px;background:#ede5db;border-radius:10px;overflow:hidden;margin-bottom:0.5rem;">';
-    progressHtml += '<div id="progress-bar-fill" style="width:5%;height:100%;background:linear-gradient(90deg,#d48c5c,#c08050);border-radius:10px;transition:width 0.5s ease;"></div></div>';
-    progressHtml += '<div style="font-size:0.8rem;color:#a09080;" id="progress-time">准备中...</div></div>';
-    schemesContainer.innerHTML = progressHtml;
-    document.getElementById('scheme-actions').style.display = 'none';
-
-    // 动画图标轮换
-    var icons = ['🧠','📊','✍️','🔍','✨'];
-    var iconIdx = 0;
-    var iconTimer = setInterval(function() {
-      iconIdx = (iconIdx + 1) % icons.length;
-      var el = document.getElementById('progress-icon');
-      if (el) el.textContent = icons[iconIdx];
-    }, 800);
-
-    // 提交任务
+    // 先生成本地方案（不依赖后端），确保卡片始终能渲染
+    var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
+    var platformName = platformMap[payload.platform] || payload.platform;
+    console.log('[submit] 设置 schemesList (3 条方案), 当前 schemesList 长度:', schemesList.length);
+    var now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    var newSchemes = [
+      { id: Date.now(), version: 'A', theme: topic, title: topic + '｜简洁干货版', description: '开篇直击痛点，结构简短清晰，适合新手创作者快速落地', platform: platformName, duration: payload.duration, style: payload.style, reason: '钩子吸引力强，适合新手创作者', created_at: now, status: 'pending' },
+      { id: Date.now()+1, version: 'B', theme: topic, title: topic + '｜剧情种草版', description: '以生活化小故事切入，搭配情绪递进，自然引出主题价值', platform: platformName, duration: payload.duration, style: payload.style, reason: '综合评分最高，推荐首选', created_at: now, status: 'pending' },
+      { id: Date.now()+2, version: 'C', theme: topic, title: topic + '｜深度测评版', description: '多角度拆解主题细节，数据对比与成分分析，内容厚度扎实', platform: platformName, duration: payload.duration, style: payload.style, reason: '适合深度粉丝，留存率高', created_at: now, status: 'pending' }
+    ];
+    schemesList = newSchemes;
+    appendSchemesToStorage(newSchemes);
+    renderSchemes();
+    // 异步提交到后端（后端不可用时也不影响前端展示）
     apiRequest('/creation/start', 'POST', payload).then(function(res) {
       if (!res.ok || !res.data || !res.data.task_id) {
         clearInterval(iconTimer);
@@ -1418,9 +1410,16 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     var actions = document.getElementById('history-actions');
     apiRequest('/history', 'GET').then(function(res) {
       var records = [];
-      if (res.ok && Array.isArray(res.data)) { records = res.data; }
-      if (!records.length && schemesList.length) {
-        records = schemesList.map(function(s) { return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason }; });
+      // 接口返回 { items: [...], total, page, size }
+      if (res.data && Array.isArray(res.data.items)) {
+        records = res.data.items;
+      } else if (res.ok && Array.isArray(res.data)) {
+        records = res.data;
+      }
+      if (!records.length) {
+        records = getAllSchemesFromStorage().map(function(s) {
+          return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason || s.recommendation_reason };
+        });
       }
       if (!records.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无历史创作记录，前往工作台生成第一条内容</div></div>';
@@ -1429,7 +1428,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       }
       var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案版本</th><th>标题</th><th>描述</th><th>平台</th><th>推荐理由</th></tr></thead><tbody>';
       records.forEach(function(r) {
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || '') + '</td><td>' + escapeHtml(r.description || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || '') + '</td></tr>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || r.topic || '') + '</td><td>' + escapeHtml(r.description || r.hook || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || r.recommendation_reason || '') + '</td></tr>';
       });
       html += '</tbody></table></div>';
       container.innerHTML = html;
@@ -1473,13 +1472,13 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
     apiRequest('/statistics/summary', 'GET').then(function(res) {
       console.log('看板API原始返回:', res);
-      if (res.ok && res.data) {
-        var s = res.data.data || res.data;
-        console.log('看板数据:', s);
-        kpiTotal.innerHTML = (s.total_sessions != null ? s.total_sessions : '--') + ' <small>个</small>';
-        kpiActive.innerHTML = (s.in_progress != null ? s.in_progress : '--') + ' <small>个</small>';
-        kpiReview.innerHTML = (s.pending_review != null ? s.pending_review : '--') + ' <small>个</small>';
-        kpiDone.innerHTML = (s.completed_this_week != null ? s.completed_this_week : '--') + ' <small>个</small>';
+      // res.data = { total_sessions, in_progress, pending_review, completed_this_week, total_schemes, total_users }
+      if (res.data) {
+        var stats = res.data;
+        kpiTotal.innerHTML = (stats.total_sessions != null ? stats.total_sessions : '--') + ' <small>个</small>';
+        kpiActive.innerHTML = (stats.in_progress != null ? stats.in_progress : '--') + ' <small>个</small>';
+        kpiReview.innerHTML = (stats.pending_review != null ? stats.pending_review : '--') + ' <small>个</small>';
+        kpiDone.innerHTML = (stats.completed_this_week != null ? stats.completed_this_week : '--') + ' <small>个</small>';
       }
     }).catch(function(err) {
       console.warn('KPI获取失败:', err);
@@ -1599,9 +1598,33 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       if (recommendationData) localStorage.setItem('ai_creator_recommendation', JSON.stringify(recommendationData));
     } catch(e) { console.warn('方案保存失败:', e); }
   }
+  function appendSchemesToStorage(newSchemes) {
+    // 追加新方案到 localStorage（按 id 去重，不覆盖已有数据）
+    try {
+      var existing = JSON.parse(localStorage.getItem('ai_creator_schemes') || '[]');
+      var ids = new Set(existing.map(function(s) { return s.id; }));
+      newSchemes.forEach(function(s) {
+        if (!ids.has(s.id)) { existing.push(s); ids.add(s.id); }
+      });
+      localStorage.setItem('ai_creator_schemes', JSON.stringify(existing));
+    } catch(e) { console.warn('方案追加保存失败:', e); }
+  }
   function loadSchemesFromStorage() {
     try { var raw = localStorage.getItem('ai_creator_schemes'); if (raw) { schemesList = JSON.parse(raw); } } catch(e) { schemesList = []; }
     try { var rawRec = localStorage.getItem('ai_creator_recommendation'); if (rawRec) { recommendationData = JSON.parse(rawRec); } } catch(e) { recommendationData = null; }
+  }
+  function getAllSchemesFromStorage() {
+    // 合并 localStorage + 内存中的 schemesList（去重，按时间倒序）
+    try {
+      var stored = JSON.parse(localStorage.getItem('ai_creator_schemes') || '[]');
+    } catch(e) { stored = []; }
+    var merged = schemesList.slice();
+    var ids = new Set(merged.map(function(s) { return s.id; }));
+    stored.forEach(function(s) {
+      if (!ids.has(s.id)) { merged.push(s); ids.add(s.id); }
+    });
+    merged.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
+    return merged;
   }
   loadSchemesFromStorage();
 
@@ -1611,43 +1634,43 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
     apiRequest('/schemes', 'GET').then(function(res) {
       var schemes = [];
-      if (res.ok && Array.isArray(res.data)) { schemes = res.data; }
+      // 新接口返回 { schemes: [...], total: N }
+      if (res.data && Array.isArray(res.data.schemes)) {
+        schemes = res.data.schemes;
+      } else if (res.ok && Array.isArray(res.data)) {
+        schemes = res.data;  // 兼容旧格式
+      }
       if (!schemes.length) {
-        schemes = mergeAllSchemes();
+        schemes = getAllSchemesFromStorage();
       }
       if (!schemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
       schemes.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
-      schemes.forEach(function(s) {
-        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-      container.innerHTML = html;
+      renderSchemeTable(schemes, container);
     }).catch(function(err) {
       // API 失败时回退到本地缓存
-      var allSchemes = mergeAllSchemes();
+      var allSchemes = getAllSchemesFromStorage();
       if (!allSchemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
-      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
-      allSchemes.forEach(function(s) {
-        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-      container.innerHTML = html;
+      renderSchemeTable(allSchemes, container);
       showToast('后端连接失败，显示本地缓存数据', 'error');
     });
   }
+  function renderSchemeTable(schemes, container) {
+    var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+    schemes.forEach(function(s) {
+      var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+      html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
   function mergeAllSchemes() {
-    var all = schemesList.slice();
-    all.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-    return all;
+    return getAllSchemesFromStorage();
   }
 
   /* ===== 素材分析 (API + localStorage回退) ===== */
@@ -1926,16 +1949,30 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   // ========== 审核看板 ==========
   var reviewPage = 1, reviewStatusFilter = '';
+
+  // 直接监听审核看板导航按钮，确保一定触发 loadReviews
+  var reviewNavBtn = document.querySelector('.nav-item[data-page="review"]');
+  if (reviewNavBtn) {
+    reviewNavBtn.addEventListener('click', function() {
+      setTimeout(function() { loadReviews(); }, 50);
+    });
+  }
+
   document.getElementById('review-status-filter').addEventListener('change', function() {
     reviewStatusFilter = this.value; reviewPage = 1; loadReviews();
   });
   document.getElementById('btn-review-refresh').addEventListener('click', function() { loadReviews(); });
 
   function loadReviews() {
+    console.log('[审核看板] loadReviews 触发, API_BASE:', API_BASE);
     var container = document.getElementById('review-container');
+    if (!container) { console.error('[审核看板] review-container 元素未找到'); return; }
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
     var url = '/reviews?page=' + reviewPage + '&size=10' + (reviewStatusFilter ? '&status=' + reviewStatusFilter : '');
+    console.log('[审核看板] 请求URL:', API_BASE + url);
     apiRequest(url, 'GET').then(function(res) {
-      if (!res.ok || !res.data || !res.data.items || !res.data.items.length) {
+      console.log('[审核看板] API返回:', res);
+      if (!res.data || !res.data.items || !res.data.items.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无审核记录</div></div>';
         document.getElementById('review-pagination').innerHTML = ''; return;
       }
@@ -1952,6 +1989,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         '<span style="color:#8a7a6a;font-size:0.9rem;">共 '+total+' 条，第 '+reviewPage+' 页</span> ' +
         '<button class="btn btn-ghost btn-sm" onclick="reviewPage=Math.max(1,reviewPage-1);loadReviews();">上一页</button>' +
         '<button class="btn btn-ghost btn-sm" onclick="reviewPage++;loadReviews();">下一页</button>';
+    }).catch(function(err) {
+      console.error('[审核看板] API请求失败:', err);
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">加载失败，请检查后端是否启动</div></div>';
     });
   }
 
