@@ -378,6 +378,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       <button class="nav-item" data-page="material-analysis"><span class="nav-icon">📁</span>素材分析</button>
       <button class="nav-item" data-page="dashboard"><span class="nav-icon">📈</span>数据看板</button>
       <button class="nav-item" data-page="knowledge"><span class="nav-icon">📚</span>知识库搜索</button>
+      <button class="nav-item" data-page="tts"><span class="nav-icon">🔊</span>TTS 配音</button>
+      <button class="nav-item" data-page="review"><span class="nav-icon">✅</span>审核看板</button>
     </div>
     <div class="sidebar-footer">
       <button class="nav-item logout" id="btn-logout"><span class="nav-icon">🚪</span>退出登录</button>
@@ -492,8 +494,52 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       <div class="card"><div id="scheme-browse-container"><div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div></div></div>
     </div>
     <div class="page" id="page-material-analysis">
-      <div class="page-header"><h2>素材分析</h2><p>查看已上传的参考素材及其分析状态</p></div>
-      <div class="card"><div id="material-container"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">暂无上传素材，前往工作台上传文件</div></div></div></div>
+      <div class="page-header"><h2>素材分析</h2><p>上传图片/视频/音频，AI 自动分析内容并提取关键信息</p></div>
+      <div class="card">
+        <div class="card-title">📤 上传素材进行分析</div>
+        <div class="file-upload-area" id="analysis-drop-area" style="margin-bottom:1rem;">
+          <div class="upload-text">📎 点击或拖拽上传图片 / 视频 / 音频文件</div>
+          <div class="upload-hint">支持 JPG、PNG、MP4、MP3、WAV 等格式</div>
+        </div>
+        <input type="file" id="analysis-file-input" accept="image/*,video/*,audio/*" style="display:none;">
+        <div id="analysis-file-preview" style="margin-bottom:1rem;"></div>
+        <button class="btn btn-primary" id="btn-analyze" disabled>🔍 AI 分析素材内容</button>
+        <span id="analysis-status" style="margin-left:1rem; color:#8a7a6a; font-size:0.95rem;"></span>
+        <div id="analysis-result" style="margin-top:1.5rem;"></div>
+      </div>
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-title">📋 分析历史记录</div>
+        <div id="analysis-history-container"><div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无分析记录</div></div></div>
+        <div style="margin-top:1rem; display:flex; gap:0.5rem;" id="analysis-pagination"></div>
+      </div>
+    </div>
+    <div class="page" id="page-tts">
+      <div class="page-header"><h2>🔊 TTS 语音合成</h2><p>输入文本，豆包 AI 自动生成高质量配音 MP3</p></div>
+      <div class="card">
+        <div class="card-title">📝 输入配音文本</div>
+        <textarea class="textarea" id="tts-text" rows="6" placeholder="输入要合成语音的文本内容（最多3000字）..." style="margin-bottom:1rem;"></textarea>
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <button class="btn btn-primary" id="btn-tts-generate">🎤 生成配音</button>
+          <span id="tts-status" style="color:#8a7a6a; font-size:0.95rem;"></span>
+        </div>
+        <div id="tts-player" style="margin-top:1.5rem;"></div>
+      </div>
+    </div>
+    <div class="page" id="page-review">
+      <div class="page-header"><h2>✅ 审核看板</h2><p>查看与管理方案审核记录，通过/拒绝/添加意见</p></div>
+      <div style="display:flex; gap:1rem; margin-bottom:1.5rem;">
+        <select class="select" id="review-status-filter" style="max-width:200px;">
+          <option value="">全部状态</option>
+          <option value="pending">待审核</option>
+          <option value="approved">已通过</option>
+          <option value="rejected">已拒绝</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="btn-review-refresh">🔄 刷新</button>
+      </div>
+      <div class="card">
+        <div id="review-container"><div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无审核记录</div></div></div>
+        <div style="margin-top:1rem; display:flex; gap:0.5rem;" id="review-pagination"></div>
+      </div>
     </div>
     <div class="page" id="page-knowledge">
       <div class="page-header"><h2>知识库搜索</h2><p>在历史方案中搜索相关内容</p></div>
@@ -696,6 +742,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     if (nav) { nav.classList.add('active'); }
     if (page === 'dashboard') { renderDashboardCharts(); }
     if (page === 'history') { loadHistory(); }
+    if (page === 'material-analysis') { loadMaterialAnalysis(); }
+    if (page === 'review') { loadReviews(); }
     if (page === 'workbench') { console.log('[navigateTo] 触发 renderSchemes, schemesList长度:', schemesList.length); renderSchemes(); }
     if (page === 'scheme-browse') { renderSchemeBrowse(); }
     if (page === 'material-analysis') { renderMaterialAnalysis(); }
@@ -1223,6 +1271,162 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       if (currentPage === 'dashboard') { renderDashboardCharts(); }
     }, 300);
   });
+
+  // ========== 素材分析功能 ==========
+  window._analysisPage = 1;
+  var analysisFile = null;
+
+  document.getElementById('analysis-drop-area').addEventListener('click', function() {
+    document.getElementById('analysis-file-input').click();
+  });
+  document.getElementById('analysis-drop-area').addEventListener('dragover', function(e) {
+    e.preventDefault(); this.style.borderColor = '#d48c5c';
+  });
+  document.getElementById('analysis-drop-area').addEventListener('dragleave', function() {
+    this.style.borderColor = '#d4c4b0';
+  });
+  document.getElementById('analysis-drop-area').addEventListener('drop', function(e) {
+    e.preventDefault(); this.style.borderColor = '#d4c4b0';
+    if (e.dataTransfer.files.length) { selectAnalysisFile(e.dataTransfer.files[0]); }
+  });
+  document.getElementById('analysis-file-input').addEventListener('change', function() {
+    if (this.files.length) { selectAnalysisFile(this.files[0]); }
+  });
+
+  function selectAnalysisFile(file) {
+    analysisFile = file;
+    var preview = document.getElementById('analysis-file-preview');
+    var btn = document.getElementById('btn-analyze');
+    var isImg = file.type.startsWith('image/');
+    preview.innerHTML = '<div class="file-item" style="font-size:1rem;">' +
+      (isImg ? '🖼️ ' : '📁 ') + escapeHtml(file.name) + ' (' + (file.size/1024).toFixed(1) + ' KB)</div>';
+    if (isImg) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        preview.innerHTML += '<img src="' + e.target.result + '" style="max-width:300px;max-height:200px;border-radius:12px;margin-top:0.5rem;display:block;">';
+      };
+      reader.readAsDataURL(file);
+    }
+    btn.disabled = false;
+  }
+
+  document.getElementById('btn-analyze').addEventListener('click', function() {
+    if (!analysisFile) return;
+    var btn = this, statusEl = document.getElementById('analysis-status'), resultEl = document.getElementById('analysis-result');
+    btn.disabled = true; statusEl.textContent = '正在分析中（可能需要 1~2 分钟）...'; resultEl.innerHTML = '';
+    var fd = new FormData(); fd.append('file', analysisFile);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API_BASE + '/creation/analyze'); xhr.setRequestHeader('Authorization', 'Bearer ' + token); xhr.timeout = 300000;
+    xhr.onload = function() {
+      btn.disabled = false; statusEl.textContent = '';
+      if (xhr.status >= 200 && xhr.status < 300) {
+        var data = JSON.parse(xhr.responseText); showToast('分析完成！', 'success');
+        resultEl.innerHTML = renderAnalysisResult(data);
+        window._analysisPage = 1; loadAnalysisHistory();
+      } else {
+        var err = '分析失败'; try { err = extractError(JSON.parse(xhr.responseText)); } catch(e) {}
+        showToast(err, 'error'); statusEl.textContent = '分析失败: ' + err;
+      }
+    };
+    xhr.onerror = function() { btn.disabled = false; statusEl.textContent = '网络错误，请重试'; showToast('网络错误', 'error'); };
+    xhr.ontimeout = function() { btn.disabled = false; statusEl.textContent = '分析超时，请重试'; showToast('分析超时', 'error'); };
+    xhr.send(fd);
+  });
+
+  function renderAnalysisResult(data) {
+    var ar = data.analysis_result || {};
+    var r = '<div class="card" style="background:#f0fdf4;border-color:#c8e6cc;"><div class="card-title" style="color:#16a34a;">✅ 分析完成</div>';
+    r += '<p style="color:#3a7040;margin-bottom:0.5rem;"><strong>' + escapeHtml(data.filename||'') + '</strong> (' + (data.file_type||'') + ')</p>';
+    r += '<pre style="white-space:pre-wrap;background:#fff;padding:1rem;border-radius:12px;color:#2c2c2c;">' + escapeHtml(typeof ar==='string' ? ar : JSON.stringify(ar,null,2)) + '</pre>';
+    if (ar.usage) r += '<p style="color:#8a7a6a;font-size:0.85rem;">Token: ' + JSON.stringify(ar.usage) + '</p>';
+    r += '</div>'; return r;
+  }
+
+  window.loadAnalysisHistory = function() {
+    var container = document.getElementById('analysis-history-container');
+    apiRequest('/creation/analyses?page=' + (window._analysisPage||1) + '&size=10', 'GET').then(function(res) {
+      if (!res.ok || !res.data || !res.data.items || !res.data.items.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无分析记录</div></div>';
+        document.getElementById('analysis-pagination').innerHTML = ''; return;
+      }
+      var html = '<table class="history-table"><thead><tr><th>ID</th><th>文件名</th><th>类型</th><th>大小</th><th>状态</th><th>时间</th></tr></thead><tbody>';
+      res.data.items.forEach(function(item) {
+        html += '<tr><td>' + item.id + '</td><td>' + escapeHtml(item.filename) + '</td><td>' + (item.file_type||'') + '</td><td>' + (item.file_size?(item.file_size/1024).toFixed(1)+'KB':'') + '</td><td>' + (item.status==='completed'?'✅ 完成':item.status) + '</td><td>' + (item.created_at||'') + '</td></tr>';
+      });
+      html += '</tbody></table>'; container.innerHTML = html;
+      var total = res.data.total||0, p = window._analysisPage||1;
+      document.getElementById('analysis-pagination').innerHTML =
+        '<span style="color:#8a7a6a;font-size:0.9rem;">共 '+total+' 条，第 '+p+' 页</span> ' +
+        '<button class="btn btn-ghost btn-sm" onclick="window._analysisPage=Math.max(1,(window._analysisPage||1)-1);window.loadAnalysisHistory();">上一页</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="window._analysisPage=(window._analysisPage||1)+1;window.loadAnalysisHistory();">下一页</button>';
+    });
+  };
+
+  function loadMaterialAnalysis() {
+    window._analysisPage = 1; window.loadAnalysisHistory();
+  }
+
+  // ========== TTS 配音功能 ==========
+  document.getElementById('btn-tts-generate').addEventListener('click', function() {
+    var text = document.getElementById('tts-text').value.trim();
+    if (!text) { showToast('请输入配音文本内容', 'error'); return; }
+    var btn = this, statusEl = document.getElementById('tts-status'), playerEl = document.getElementById('tts-player');
+    btn.disabled = true; statusEl.textContent = '正在生成配音...';
+    var fd = new FormData(); fd.append('text', text);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API_BASE + '/creation/tts'); xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.responseType = 'blob'; xhr.timeout = 120000;
+    xhr.onload = function() {
+      btn.disabled = false; statusEl.textContent = '';
+      if (xhr.status >= 200 && xhr.status < 300) {
+        playerEl.innerHTML = '<audio controls autoplay style="width:100%;"><source src="' + URL.createObjectURL(xhr.response) + '" type="audio/mpeg"></audio>';
+        showToast('配音生成成功！', 'success');
+      } else {
+        statusEl.textContent = '生成失败，请重试'; showToast('TTS 生成失败', 'error');
+      }
+    };
+    xhr.onerror = function() { btn.disabled = false; statusEl.textContent = '网络错误'; };
+    xhr.send(fd);
+  });
+
+  // ========== 审核看板 ==========
+  var reviewPage = 1, reviewStatusFilter = '';
+  document.getElementById('review-status-filter').addEventListener('change', function() {
+    reviewStatusFilter = this.value; reviewPage = 1; loadReviews();
+  });
+  document.getElementById('btn-review-refresh').addEventListener('click', function() { loadReviews(); });
+
+  function loadReviews() {
+    var container = document.getElementById('review-container');
+    var url = '/reviews?page=' + reviewPage + '&size=10' + (reviewStatusFilter ? '&status=' + reviewStatusFilter : '');
+    apiRequest(url, 'GET').then(function(res) {
+      if (!res.ok || !res.data || !res.data.items || !res.data.items.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无审核记录</div></div>';
+        document.getElementById('review-pagination').innerHTML = ''; return;
+      }
+      var html = '<table class="history-table"><thead><tr><th>ID</th><th>方案ID</th><th>方案标题</th><th>状态</th><th>审核意见</th><th>时间</th><th>操作</th></tr></thead><tbody>';
+      res.data.items.forEach(function(item) {
+        var badge = item.status==='approved' ? '<span style="color:#16a34a;">✅ 通过</span>' :
+                    item.status==='rejected' ? '<span style="color:#dc2626;">❌ 拒绝</span>' : '<span style="color:#8a7a6a;">⏳ 待审</span>';
+        html += '<tr><td>'+item.id+'</td><td>'+item.scheme_id+'</td><td>'+escapeHtml(item.scheme_title||'')+'</td><td>'+badge+'</td><td>'+escapeHtml(item.comment||'-')+'</td><td>'+(item.created_at||'')+'</td>';
+        html += '<td><button class="btn btn-ghost btn-sm" onclick="submitReview('+item.scheme_id+',\'approved\',\'\','+item.id+')">✅</button> <button class="btn btn-ghost btn-sm" onclick="var c=prompt(\'拒绝原因:\');if(c)submitReview('+item.scheme_id+',\'rejected\',c,'+item.id+')">❌</button></td></tr>';
+      });
+      html += '</tbody></table>'; container.innerHTML = html;
+      var total = res.data.total||0;
+      document.getElementById('review-pagination').innerHTML =
+        '<span style="color:#8a7a6a;font-size:0.9rem;">共 '+total+' 条，第 '+reviewPage+' 页</span> ' +
+        '<button class="btn btn-ghost btn-sm" onclick="reviewPage=Math.max(1,reviewPage-1);loadReviews();">上一页</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="reviewPage++;loadReviews();">下一页</button>';
+    });
+  }
+
+  window.submitReview = function(schemeId, status, comment, existingId) {
+    var payload = { scheme_id: schemeId, status: status, comment: comment||'' };
+    apiRequest(existingId ? '/review/'+existingId : '/review', existingId ? 'PUT' : 'POST', payload).then(function(res) {
+      if (res.ok) { showToast('审核提交成功！', 'success'); loadReviews(); }
+      else { showToast(extractError(res.data)||'审核提交失败', 'error'); }
+    });
+  };
 
 })();
 </script>
