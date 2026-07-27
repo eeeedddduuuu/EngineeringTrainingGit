@@ -1599,10 +1599,25 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   function renderAnalysisResult(data) {
     var ar = data.analysis_result || {};
-    var r = '<div class="card" style="background:#f0fdf4;border-color:#c8e6cc;"><div class="card-title" style="color:#16a34a;">✅ 分析完成</div>';
+    var content = ar.content || (typeof ar === 'string' ? ar : '');
+    // 简单 Markdown 渲染：标题、粗体、分隔线、列表
+    var html = content
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')  // escape first
+      .replace(/^### (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
+      .replace(/^## (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
+      .replace(/^# (.+)$/gm, '<h3 style="color:#3d2c1b;margin:1.2rem 0 0.5rem;">$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^---+/gm, '<hr style="border:none;border-top:1px solid #f0e8de;margin:0.8rem 0;">')
+      .replace(/^- (.+)$/gm, '<li style="color:#3d2c1b;margin:0.2rem 0 0.2rem 1.2rem;">$1</li>')
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+    var r = '<div class="card" style="background:#f0fdf4;border-color:#c8e6cc;">';
+    r += '<div class="card-title" style="color:#16a34a;">✅ 分析完成</div>';
     r += '<p style="color:#3a7040;margin-bottom:0.5rem;"><strong>' + escapeHtml(data.filename||'') + '</strong> (' + (data.file_type||'') + ')</p>';
-    r += '<pre style="white-space:pre-wrap;background:#fff;padding:1rem;border-radius:12px;color:#2c2c2c;">' + escapeHtml(typeof ar==='string' ? ar : JSON.stringify(ar,null,2)) + '</pre>';
-    if (ar.usage) r += '<p style="color:#8a7a6a;font-size:0.85rem;">Token: ' + JSON.stringify(ar.usage) + '</p>';
+    r += '<div style="background:#fff;padding:1.2rem 1.5rem;border-radius:14px;color:#2c2c2c;line-height:1.9;max-height:500px;overflow-y:auto;font-size:0.95rem;">' + html + '</div>';
+    if (ar.usage) {
+      r += '<p style="color:#8a7a6a;font-size:0.8rem;margin-top:0.6rem;">📊 Token: ' + ar.usage.total_tokens + ' (输入' + ar.usage.prompt_tokens + ' + 输出' + ar.usage.completion_tokens + ') | ⏱️ ' + (ar.elapsed||data.elapsed||0).toFixed(1) + 's</p>';
+    }
     r += '</div>'; return r;
   }
 
