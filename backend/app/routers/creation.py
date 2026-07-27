@@ -1184,35 +1184,42 @@ def generate_video(
     audio_path = tempfile.mktemp(suffix=".mp3")
     with open(audio_path, "wb") as f:
         f.write(_b64.b64decode(audio_b64))
-    output_path = tempfile.mktemp(suffix=".mp4")
+
+    import hashlib as _hashlib
+    tag = _hashlib.md5(tts_text.encode()).hexdigest()[:8]
+    out_name = f"ai_video_{tag}.mp4"
+    out_path = _FF_OUTPUT_DIR / out_name
 
     try:
         subprocess.run([
-            "ffmpeg", "-y", "-loop", "1", "-i", img_path, "-i", audio_path,
+            _find_ffmpeg(), "-y", "-loop", "1", "-i", img_path, "-i", audio_path,
             "-c:v", "libx264", "-tune", "stillimage", "-c:a", "aac", "-b:a", "128k",
-            "-pix_fmt", "yuv420p", "-shortest", output_path,
+            "-pix_fmt", "yuv420p", "-shortest", str(out_path),
         ], check=True, capture_output=True, timeout=120)
     except FileNotFoundError:
         for p in [img_path, audio_path]:
             try: _os.unlink(p)
             except Exception: pass
-        return {"ok": True, "mode": "audio_only", "message": "FFmpeg not installed", "audio_base64": audio_b64}
+        # 返回 JSON 让前端显示仅配音（兼容旧前端）
+        return {"ok": True, "mode": "audio_only", "message": "FFmpeg 未安装，已返回 TTS 音频", "audio_base64": audio_b64}
     except subprocess.CalledProcessError as e:
-        for p in [img_path, audio_path, output_path]:
+        for p in [img_path, audio_path]:
             try: _os.unlink(p)
             except Exception: pass
+        try: _os.unlink(str(out_path))
+        except Exception: pass
         raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
 
-    with open(output_path, "rb") as f:
-        video_bytes = f.read()
-    for p in [img_path, audio_path, output_path]:
+    # 清理临时文件
+    for p in [img_path, audio_path]:
         try: _os.unlink(p)
         except Exception: pass
 
-    import hashlib
-    tag = hashlib.md5(tts_text.encode()).hexdigest()[:8]
+    # 返回 StreamingResponse 保持前端兼容（同时已存盘到 uploads/ai_videos/）
+    with open(str(out_path), "rb") as f:
+        video_bytes = f.read()
     return StreamingResponse(io.BytesIO(video_bytes), media_type="video/mp4",
-                             headers={"Content-Disposition": f"attachment; filename=ai_video_{tag}.mp4"})
+                             headers={"Content-Disposition": f"attachment; filename={out_name}"})
 
 
 # ====================== Seedance AI 视频生成 ======================
@@ -1391,6 +1398,127 @@ def seedance_download(task_id: str, current_user: User = Depends(get_current_use
 
 # ====================== FFmpeg 工具箱 ======================
 
+def _find_ffmpeg() -> str:
+    """查找 FFmpeg 可执行文件路径。
+    优先级：FFMPEG_BINARY 环境变量 → 系统 PATH → 常见安装路径 → imageio_ffmpeg 内置 → 'ffmpeg'"""
+    configured = os.environ.get("FFMPEG_BINARY")
+    if configured and Path(configured).is_file():
+        return configured
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg:
+        return system_ffmpeg
+    # 常见 Windows 安装路径（winget / 手动安装）
+    winget_base = Path.home() / "AppData/Local/Microsoft/WinGet/Packages"
+    if winget_base.is_dir():
+        for pkg in winget_base.glob("Gyan.FFmpeg_*"):
+            for ff in pkg.glob("**/bin/ffmpeg.exe"):
+                if ff.is_file():
+                    return str(ff)
+    for candidate in [
+        Path("C:/Program Files/FFmpeg/bin/ffmpeg.exe"),
+        Path("C:/ffmpeg/bin/ffmpeg.exe"),
+    ]:
+        if candidate.is_file():
+            return str(candidate)
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except (ImportError, AttributeError):
+        return "ffmpeg"
+
+
+def _has_audio(path: str) -> bool:
+    """检查视频文件是否包含音频流（参考 Day07 media_service.py）"""
+    import subprocess as _sp
+    result = _sp.run(
+        [_find_ffmpeg(), "-hide_banner", "-i", str(path)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    return "Audio:" in result.stderr
+
+
+# 输出目录（供 FFmpeg 结果保存）
+_FF_OUTPUT_DIR = Path(__file__).parent.parent.parent / "uploads" / "ai_videos"
+_FF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/creation/video-compose")
+def video_compose(
+    video: UploadFile = File(...),
+    audio: UploadFile = File(None),
+    tts_text: str = Form(""),
+    speaker: str = Form("zh_female_qingxin"),
+    current_user: User = Depends(get_current_user),
+):
+    """FFmpeg 合成 — 上传视频 + 音频文件或 TTS 文本 → 合成 MP4"""
+    import base64 as _b64, tempfile as _tmp, subprocess as _sp, os as _os
+
+    # 保存上传视频
+    vid_suffix = "." + (video.filename.rsplit(".", 1)[-1] if "." in (video.filename or "") else "mp4")
+    vid_path = _tmp.mktemp(suffix=vid_suffix)
+    with open(vid_path, "wb") as f:
+        f.write(video.file.read())
+
+    audio_path = None
+    cleanup_paths = [vid_path]
+
+    try:
+        if audio and audio.filename:
+            # 用户上传了音频文件
+            aud_suffix = "." + (audio.filename.rsplit(".", 1)[-1] if "." in (audio.filename or "") else "mp3")
+            audio_path = _tmp.mktemp(suffix=aud_suffix)
+            with open(audio_path, "wb") as f:
+                f.write(audio.file.read())
+            cleanup_paths.append(audio_path)
+        elif tts_text.strip():
+            # TTS 生成配音
+            try:
+                p4_path = Path(__file__).parent.parent.parent / "p4_agent"
+                if str(p4_path) not in sys.path:
+                    sys.path.insert(0, str(p4_path))
+                from multimodal.doubao_tts import generate_tts as _tts
+                tts_result = _tts(text=tts_text.strip(), speaker=speaker, audio_format="mp3")
+                if not tts_result.get("success"):
+                    raise RuntimeError(tts_result.get("error", "TTS failed"))
+                tts_b64 = tts_result["audio_base64"]
+            except Exception as e:
+                raise HTTPException(status_code=500, detail={"error": "tts_failed", "detail": str(e)})
+            audio_path = _tmp.mktemp(suffix=".mp3")
+            with open(audio_path, "wb") as f:
+                f.write(_b64.b64decode(tts_b64))
+            cleanup_paths.append(audio_path)
+        else:
+            raise HTTPException(status_code=400, detail={"error": "no_audio", "detail": "请上传音频文件或输入配音文本"})
+
+        # 输出到 uploads 目录
+        out_name = f"composed_{uuid.uuid4().hex[:8]}.mp4"
+        out_path = _FF_OUTPUT_DIR / out_name
+        ff = _find_ffmpeg()
+
+        _sp.run([
+            ff, "-y", "-i", vid_path, "-i", audio_path,
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+            "-map", "0:v:0", "-map", "1:a:0", "-shortest", str(out_path),
+        ], check=True, capture_output=True, timeout=180)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail={"error": "no_ffmpeg", "detail": "FFmpeg 未安装，请安装 FFmpeg 后重试"})
+    except _sp.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
+    finally:
+        for p in cleanup_paths:
+            try: _os.unlink(p)
+            except Exception: pass
+
+    return {
+        "ok": True,
+        "operation": "compose",
+        "url": f"/uploads/ai_videos/{out_name}",
+        "download_url": f"/download/ai_videos/{out_name}",
+        "filename": out_name,
+    }
+
+
 @router.post("/creation/video-tool")
 def video_tool(
     operation: str = Form(...),
@@ -1500,22 +1628,24 @@ def render_video(
     audio_path = tempfile.mktemp(suffix=".mp3")
     with open(audio_path, "wb") as f:
         f.write(_b64.b64decode(audio_b64))
-    output_path = tempfile.mktemp(suffix=".mp4")
 
     import subprocess
+    out_name = f"scheme_{scheme_id}.mp4"
+    out_path = _FF_OUTPUT_DIR / out_name
+
     ffmpeg_cmd = [
-        "ffmpeg", "-y",
+        _find_ffmpeg(), "-y",
         "-loop", "1", "-i", img_path,
         "-i", audio_path,
         "-c:v", "libx264", "-tune", "stillimage",
         "-c:a", "aac", "-b:a", "128k",
         "-pix_fmt", "yuv420p",
-        "-shortest", output_path,
+        "-shortest", str(out_path),
     ]
     try:
         subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=60)
     except FileNotFoundError:
-        # FFmpeg 未安装 → 返回独立音频 + 图片
+        # FFmpeg 未安装 → 返回 JSON 让前端显示仅配音
         _os.unlink(img_path)
         _os.unlink(audio_path)
         return {
@@ -1525,22 +1655,22 @@ def render_video(
             "audio_base64": audio_b64,
         }
     except subprocess.CalledProcessError as e:
+        _os.unlink(img_path)
+        _os.unlink(audio_path)
+        try: _os.unlink(str(out_path))
+        except Exception: pass
         raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
 
-    # 读取输出
-    with open(output_path, "rb") as f:
-        video_bytes = f.read()
-
     # 清理临时文件
-    for p in [img_path, audio_path, output_path]:
+    for p in [img_path, audio_path]:
         try: _os.unlink(p)
         except Exception: pass
 
-    return StreamingResponse(
-        io.BytesIO(video_bytes),
-        media_type="video/mp4",
-        headers={"Content-Disposition": f"attachment; filename=scheme_{scheme_id}.mp4"},
-    )
+    # 返回 StreamingResponse 保持前端兼容（同时已存盘到 uploads/ai_videos/）
+    with open(str(out_path), "rb") as f:
+        video_bytes = f.read()
+    return StreamingResponse(io.BytesIO(video_bytes), media_type="video/mp4",
+                             headers={"Content-Disposition": f"attachment; filename=scheme_{scheme_id}.mp4"})
 
 
 # ====================== TTS 语音合成 ======================

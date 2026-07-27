@@ -70,7 +70,7 @@ def _get_api_key():
             return _cfg_key.strip()
     except ImportError:
         pass
-    return "ark-342cf4b2-f72b-4267-a670-310451f37236-6372d"
+    return ""  # 未配置时返回空，由调用方给出明确错误提示
 API_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 MODEL = "doubao-seed-2-0-pro-260215"
 
