@@ -1073,10 +1073,11 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         });
         html += '</tbody></table></div>';
       }
-      // 显示 raw_markdown 预览
+      // 显示 raw_markdown 预览（仅当前版本）
       if (item.raw_markdown) {
-        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📝 完整AI生成内容 ▴\':\'📝 完整AI生成内容 ▾\';">📝 完整AI生成内容 ▾</div>';
-        html += '<div class="detail-content"><pre style="white-space:pre-wrap;font-size:0.85rem;line-height:1.7;color:#3d2c1b;max-height:400px;overflow-y:auto;">' + escapeHtml(item.raw_markdown.substring(0, 3000)) + '</pre></div>';
+        var versionMD = extractVersionMD(item.raw_markdown, item.version);
+        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📝 AI生成原文('+item.version+'版) ▴\':\'📝 AI生成原文('+item.version+'版) ▾\';">📝 AI生成原文('+item.version+'版) ▾</div>';
+        html += '<div class="detail-content"><pre style="white-space:pre-wrap;font-size:0.85rem;line-height:1.7;color:#3d2c1b;max-height:400px;overflow-y:auto;">' + escapeHtml(versionMD.substring(0, 3000)) + '</pre></div>';
       }
       html += '<div class="scheme-actions-row">';
       html += '<button onclick="generateTTS('+i+')">🔊 配音</button>';
@@ -1087,6 +1088,19 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     html += '</div>';
     container.innerHTML = html;
     actions.style.display = 'flex';
+  }
+
+  function extractVersionMD(fullMD, version) {
+    if (!fullMD || !version) return fullMD;
+    // 尝试匹配 "## 版本 X" 开头的内容块
+    var pattern = new RegExp('##\\s*版本\\s*' + version + '\\b[\\s\\S]*?(?=\\n##\\s*(?:版本\\s*[A-Ca-c]|推荐\\b)|$)', 'i');
+    var m = fullMD.match(pattern);
+    if (m) return m[0].trim();
+    // 回退: 按 ## 标题拆分
+    var parts = fullMD.split(/\n(?=##\s*版本\s*)/);
+    var idx = version.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2
+    if (idx >= 0 && idx < parts.length) return parts[idx].trim();
+    return fullMD;
   }
 
   function escapeHtml(str) {
