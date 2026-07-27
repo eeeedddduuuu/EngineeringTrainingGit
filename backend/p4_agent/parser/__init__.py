@@ -140,9 +140,6 @@ def _parse_version_block(block: str, version: str) -> dict[str, Any]:
         "scenes": scenes,
         "hashtags": hashtags,
         "cover_text": cover_text,
-        "total_score": 0.0,
-        "rank": 0,
-        "recommendation_reason": "",
     }
 
 

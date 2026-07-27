@@ -1133,11 +1133,12 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         });
         html += '</tbody></table></div>';
       }
-      // 显示 raw_markdown 预览（仅当前版本）
+      // 显示 raw_markdown 预览（仅当前版本，Markdown渲染）
       if (item.raw_markdown) {
         var versionMD = extractVersionMD(item.raw_markdown, item.version);
+        var renderedMD = renderMarkdown(versionMD.substring(0, 3000));
         html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📝 AI生成原文('+item.version+'版) ▴\':\'📝 AI生成原文('+item.version+'版) ▾\';">📝 AI生成原文('+item.version+'版) ▾</div>';
-        html += '<div class="detail-content"><pre style="white-space:pre-wrap;font-size:0.85rem;line-height:1.7;color:#3d2c1b;max-height:400px;overflow-y:auto;">' + escapeHtml(versionMD.substring(0, 3000)) + '</pre></div>';
+        html += '<div class="detail-content" style="max-height:500px;overflow-y:auto;font-size:0.9rem;line-height:1.8;">' + renderedMD + '</div>';
       }
       html += '<div class="scheme-actions-row">';
       html += '<button onclick="generateTTS('+i+')">🔊 配音</button>';
@@ -1148,6 +1149,39 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     html += '</div>';
     container.innerHTML = html;
     actions.style.display = 'flex';
+  }
+
+  function renderMarkdown(md) {
+    if (!md) return '';
+    var html = md
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // 标题
+      .replace(/^### (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;font-size:1rem;">$1</h4>')
+      .replace(/^## (.+)$/gm, '<h3 style="color:#3d2c1b;margin:1.2rem 0 0.5rem;">$1</h3>')
+      .replace(/^# (.+)$/gm, '<h2 style="color:#3d2c1b;margin:1.4rem 0 0.6rem;">$1</h2>')
+      // 粗体/斜体
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#2c2c2c;">$1</strong>')
+      // 分隔线
+      .replace(/^---+/gm, '<hr style="border:none;border-top:1px solid #f0e8de;margin:0.8rem 0;">')
+      // 表格: 匹配 | ... | ... | 行
+      .replace(/^(\|.+\|)$/gm, function(line) {
+        return '<tr>' + line.slice(1, -1).split('|').map(function(c) {
+          return '<td style="padding:0.4rem 0.8rem;border-bottom:1px solid #f0e8de;">' + c.trim() + '</td>';
+        }).join('') + '</tr>';
+      })
+      // 列表项
+      .replace(/^- (.+)$/gm, '<li style="color:#3d2c1b;margin:0.2rem 0 0.2rem 1.5rem;">$1</li>')
+      .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #d48c5c;padding:0.4rem 1rem;margin:0.5rem 0;color:#5f4a34;background:#fdfaf7;">$1</blockquote>')
+      // 段落
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+    // 包装连续的 <tr> 为 <table>
+    html = html.replace(/((?:<tr>[\s\S]*?<\/tr>\s*)+)/g, '<table style="width:100%;border-collapse:collapse;margin:0.8rem 0;">$1</table>');
+    // 首行 <tr> 转为 <thead>
+    html = html.replace(/<table([^>]*)>(\s*<tr>)/, '<table$1><thead>$2').replace(/<\/tr>(\s*)(?!<tr>)/, function(m, s) { return '</tr></thead><tbody>' + s; });
+    // 关闭 tbody
+    html = html.replace(/<\/table>/g, '</tbody></table>');
+    return html;
   }
 
   function extractVersionMD(fullMD, version) {
@@ -1764,17 +1798,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function renderAnalysisResult(data) {
     var ar = data.analysis_result || {};
     var content = ar.content || (typeof ar === 'string' ? ar : '');
-    // 简单 Markdown 渲染
-    var html = content
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/^### (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
-      .replace(/^## (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
-      .replace(/^# (.+)$/gm, '<h3 style="color:#3d2c1b;margin:1.2rem 0 0.5rem;">$1</h3>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^---+/gm, '<hr style="border:none;border-top:1px solid #f0e8de;margin:0.8rem 0;">')
-      .replace(/^- (.+)$/gm, '<li style="color:#3d2c1b;margin:0.2rem 0 0.2rem 1.2rem;">$1</li>')
-      .replace(/\n\n/g, '<br><br>')
-      .replace(/\n/g, '<br>');
+    var html = renderMarkdown(content);
     var r = '<div class="card" style="background:#f0fdf4;border-color:#c8e6cc;">';
     r += '<div class="card-title" style="color:#16a34a;">✅ 分析完成</div>';
     r += '<p style="color:#3a7040;margin-bottom:0.5rem;"><strong>' + escapeHtml(data.filename||'') + '</strong> (' + (data.file_type||'') + ')';
