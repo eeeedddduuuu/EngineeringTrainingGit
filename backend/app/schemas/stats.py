@@ -31,3 +31,12 @@ class DashboardSummary(BaseModel):
     completed_this_week: int     # 本周完成
     total_schemes: int           # 方案总数
     total_users: int             # 用户总数
+
+
+class WordCloudItem(BaseModel):
+    label: str                   # 词云标题，如 "标题关键词云"
+    base64: str                  # PNG base64 编码
+
+
+class WordCloudResponse(BaseModel):
+    wordclouds: list[WordCloudItem]

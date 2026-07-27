@@ -85,10 +85,31 @@ def create_content(
             multimodal_result = {"success": False, "error": str(exc)}
     # ▸ 多模态预处理结束
 
+    # ▸ 知识库检索：将相关样例注入 Prompt 作为参考
+    kb_context = ""
     try:
-        # 执行完整流水线
+        import sys as _sys
+        _backend = Path(__file__).resolve().parent.parent
+        if str(_backend) not in _sys.path:
+            _sys.path.insert(0, str(_backend))
+        from app.services.knowledge_base import kb_service
+        kb_results = kb_service.search(topic, top_k=3)
+        if kb_results:
+            kb_lines = ["\n\n【知识库参考样例】\n以下为平台内同主题高热度内容，请参考其风格和切入点，但不要直接复制：\n"]
+            for j, kr in enumerate(kb_results, 1):
+                kb_lines.append(f"{j}. [{kr.platform}] {kr.title}")
+                kb_lines.append(f"   摘要: {kr.content_snippet[:150]}")
+                if kr.tags:
+                    kb_lines.append(f"   标签: {' '.join(kr.tags[:5])}")
+            kb_context = "\n".join(kb_lines)
+    except Exception:
+        pass  # 知识库不可用时静默跳过
+    # ▸ 知识库检索结束
+
+    try:
+        # 执行完整流水线（注入知识库上下文）
         pipeline_result = run_agent_pipeline(
-            user_input,
+            user_input + kb_context,
             provider=provider,
             enable_trend=enable_trend,
             enable_review=enable_review,

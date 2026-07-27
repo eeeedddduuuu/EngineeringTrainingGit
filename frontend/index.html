@@ -273,6 +273,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 .kpi-card .kpi-value small { font-size: 1rem; font-weight: 400; color: #a09080; margin-left: 4px; }
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.8rem; }
 .chart-box { background: #fcf9f5; border-radius: 24px; padding: 1.5rem; border: 1px solid #f0e8de; }
+.chart-box-full { background: #fcf9f5; border-radius: 24px; padding: 1.5rem; border: 1px solid #f0e8de; margin-bottom: 1.8rem; }
 .empty-state { text-align: center; padding: 4rem 2rem; color: #a09080; }
 .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
 .empty-state .empty-text { font-size: 1.1rem; }
@@ -396,13 +397,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         <span class="urole">创作者 · 已登录</span>
       </div>
     </div>
-    <div class="sidebar-engine" id="sidebar-engine-btn">
-      <span class="engine-label">AI引擎</span>
-      <span class="engine-name" id="engine-platform-name">扣子平台</span>
-    </div>
-    <div class="sidebar-engine" id="sidebar-provider-btn" style="margin-top:-1px;">
-      <span class="engine-label">生成模式</span>
-      <span class="engine-name" id="provider-mode-name">快速模板</span>
+    <div class="sidebar-engine" id="sidebar-provider-btn">
+      <span class="engine-label">AI 生成引擎</span>
+      <span class="engine-name" id="provider-mode-name">DeepSeek AI</span>
     </div>
     <div class="nav-group">
       <button class="nav-item active" data-page="workbench"><span class="nav-icon">📊</span>工作台</button>
@@ -483,15 +480,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
             <li>B站适合长剧情、深度科普类内容</li>
             <li>每次自动生成 3 套差异化方案，附带量化评分推荐</li>
           </ul>
-          <div style="margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid #f0e8de;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight:500;">今日剩余</span>
-              <span style="font-weight:600; color:#d48c5c;">3 次生成</span>
-            </div>
-            <div style="width:100%; height:6px; background:#ede5db; border-radius:10px; margin-top:0.5rem;">
-              <div style="width:60%; height:100%; background:#d48c5c; border-radius:10px;"></div>
-            </div>
-          </div>
         </div>
       </div>
       <div class="card" id="schemes-section">
@@ -501,7 +489,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         </div>
         <div class="action-row" id="scheme-actions" style="display:none;">
           <button class="btn btn-primary btn-sm" id="btn-export">📥 导出全部方案 Markdown</button>
-          <button class="btn btn-ghost btn-sm" id="btn-compare">🔍 A / B 方案对比分析</button>
         </div>
       </div>
     </div>
@@ -513,14 +500,30 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     <div class="page" id="page-dashboard">
       <div class="page-header"><h2>创作数据统计看板</h2><p>创作趋势、平台分布与主题分析</p></div>
       <div class="kpi-grid" id="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">总项目</div><div class="kpi-value" id="kpi-total">-- <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">进行中</div><div class="kpi-value" id="kpi-active">-- <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">待审核</div><div class="kpi-value" id="kpi-review">-- <small>个</small></div></div>
-        <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">-- <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">总项目</div><div class="kpi-value" id="kpi-total">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">进行中</div><div class="kpi-value" id="kpi-active">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">待审核</div><div class="kpi-value" id="kpi-review">0 <small>个</small></div></div>
+        <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">0 <small>个</small></div></div>
       </div>
       <div class="charts-grid">
-        <div class="chart-box"><div id="chart-platform" style="width:100%; height:380px;"></div></div>
-        <div class="chart-box"><div id="chart-theme" style="width:100%; height:380px;"></div></div>
+        <div class="chart-box"><div id="chart-donut" style="width:100%; height:380px;"></div></div>
+        <div class="chart-box"><div id="chart-bar" style="width:100%; height:380px;"></div></div>
+      </div>
+      <div class="chart-box-full"><div id="chart-area" style="width:100%; height:360px;"></div></div>
+      <div class="charts-grid">
+        <div class="chart-box"><div id="chart-hbar" style="width:100%; height:380px;"></div></div>
+        <div class="chart-box"><div id="chart-pie" style="width:100%; height:380px;"></div></div>
+      </div>
+      <div class="chart-box-full"><div id="chart-treemap" style="width:100%; height:420px;"></div></div>
+      <div class="charts-grid">
+        <div class="chart-box" style="text-align:center;">
+          <div style="font-size:15px;font-weight:700;color:#5f4a34;margin-bottom:12px;">🏷️ 标题关键词云</div>
+          <img id="img-wc-titles" style="width:100%;max-height:380px;object-fit:contain;" alt="标题关键词云" src="">
+        </div>
+        <div class="chart-box" style="text-align:center;">
+          <div style="font-size:15px;font-weight:700;color:#5f4a34;margin-bottom:12px;">📝 内容摘要词云</div>
+          <img id="img-wc-summaries" style="width:100%;max-height:380px;object-fit:contain;" alt="内容摘要词云" src="">
+        </div>
       </div>
     </div>
     <div class="page" id="page-scheme-browse">
@@ -684,16 +687,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   </div>
 </div>
 
-<!-- AI引擎绑定弹窗 -->
-<div class="modal-overlay hidden" id="modal-engine">
-  <div class="modal-box">
-    <h3>🔗 AI引擎绑定 — 扣子平台</h3>
-    <div class="form-group"><label class="field-label">API Key / Token</label><input class="input" type="text" id="engine-api-key" placeholder="请输入扣子平台 API Key"></div>
-    <div class="modal-msg" id="engine-modal-msg"></div>
-    <div class="modal-actions"><button class="btn btn-ghost btn-sm" id="btn-engine-unbind" style="display:none;color:#b8452a;">解绑</button><button class="btn btn-ghost btn-sm" id="btn-engine-cancel">取消</button><button class="btn btn-primary btn-sm" id="btn-engine-bind">绑定</button></div>
-  </div>
-</div>
-
 <div class="toast-container" id="toast-container"></div>
 
 <script>
@@ -705,7 +698,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var currentPage = 'workbench';
   var schemesList = [];
   var selectedFiles = [];
-  var currentProvider = 'mock';
+  var currentProvider = 'deepseek';
+  var lastPlatform = '抖音';
+  var recommendationData = null;  // { best_version, reason, estimated_data }
 
   var $body = document.body;
   var $loginPage = document.getElementById('login-page');
@@ -724,10 +719,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var $fileDropArea = document.getElementById('file-drop-area');
   var $fileList = document.getElementById('file-list');
   var $toastContainer = document.getElementById('toast-container');
-  var $modalEngine = document.getElementById('modal-engine');
-  var $engineApiKey = document.getElementById('engine-api-key');
-  var $engineModalMsg = document.getElementById('engine-modal-msg');
-  var $enginePlatformName = document.getElementById('engine-platform-name');
 
   function showToast(msg, type) {
     type = type || 'info';
@@ -846,15 +837,16 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       $sidebarAvatar.textContent = user.username.charAt(0).toUpperCase();
     }
     navigateTo('workbench');
-    loadEngineStatus();
   }
 
   document.getElementById('btn-logout').addEventListener('click', function() {
     token = null; user = null;
     console.log('[logout] 清空 schemesList');
     schemesList = [];
+    recommendationData = null;
     localStorage.removeItem('ai_creator_token');
     localStorage.removeItem('ai_creator_user');
+    localStorage.removeItem('ai_creator_recommendation');
     $appPage.style.display = 'none';
     $loginPage.style.display = 'block';
     $body.classList.remove('app-view');
@@ -941,47 +933,127 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       btnSubmit.disabled = false;
       return;
     }
-    statusEl.textContent = '正在提交...';
+    statusEl.innerHTML = '<span style="color:#d48c5c;">⏳ 正在提交...</span>';
+    var platformCode = document.getElementById('input-platform').value;
+    var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
+    lastPlatform = platformMap[platformCode] || platformCode;
     var payload = {
       topic: topic,
       target_audience: document.getElementById('input-audience').value.trim(),
-      platform: document.getElementById('input-platform').value,
+      platform: platformCode,
       duration: document.getElementById('input-duration').value,
       style: document.getElementById('input-style').value,
       provider: currentProvider
     };
-    // 先生成本地方案（不依赖后端），确保卡片始终能渲染
-    var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
-    var platformName = platformMap[payload.platform] || payload.platform;
-    console.log('[submit] 设置 schemesList (3 条方案), 当前 schemesList 长度:', schemesList.length);
-    var now = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    var newSchemes = [
-      { id: Date.now(), version: 'A', theme: topic, title: topic + '｜简洁干货版', description: '开篇直击痛点，结构简短清晰，适合新手创作者快速落地', platform: platformName, duration: payload.duration, style: payload.style, reason: '钩子吸引力强，适合新手创作者', created_at: now, status: 'pending' },
-      { id: Date.now()+1, version: 'B', theme: topic, title: topic + '｜剧情种草版', description: '以生活化小故事切入，搭配情绪递进，自然引出主题价值', platform: platformName, duration: payload.duration, style: payload.style, reason: '综合评分最高，推荐首选', created_at: now, status: 'pending' },
-      { id: Date.now()+2, version: 'C', theme: topic, title: topic + '｜深度测评版', description: '多角度拆解主题细节，数据对比与成分分析，内容厚度扎实', platform: platformName, duration: payload.duration, style: payload.style, reason: '适合深度粉丝，留存率高', created_at: now, status: 'pending' }
-    ];
-    schemesList = newSchemes;
-    appendSchemesToStorage(newSchemes);
-    renderSchemes();
-    // 异步提交到后端（后端不可用时也不影响前端展示）
+    // 显示进度卡片
+    var schemesContainer = document.getElementById('schemes-container');
+    var progressHtml = '<div class="card" style="text-align:center;padding:2.5rem;" id="progress-card">';
+    progressHtml += '<div style="font-size:2rem;margin-bottom:0.8rem;" id="progress-icon">🧠</div>';
+    progressHtml += '<div style="font-size:1.1rem;font-weight:600;color:#5f4a34;margin-bottom:0.5rem;" id="progress-title">AI 创作进行中</div>';
+    progressHtml += '<div style="color:#8a7a6a;font-size:0.9rem;margin-bottom:1rem;" id="progress-text">正在连接 DeepSeek v4-pro...</div>';
+    progressHtml += '<div style="width:100%;height:8px;background:#ede5db;border-radius:10px;overflow:hidden;margin-bottom:0.5rem;">';
+    progressHtml += '<div id="progress-bar-fill" style="width:5%;height:100%;background:linear-gradient(90deg,#d48c5c,#c08050);border-radius:10px;transition:width 0.5s ease;"></div></div>';
+    progressHtml += '<div style="font-size:0.8rem;color:#a09080;" id="progress-time">准备中...</div></div>';
+    schemesContainer.innerHTML = progressHtml;
+    document.getElementById('scheme-actions').style.display = 'none';
+
+    // 动画图标轮换
+    var icons = ['🧠','📊','✍️','🔍','✨'];
+    var iconIdx = 0;
+    var iconTimer = setInterval(function() {
+      iconIdx = (iconIdx + 1) % icons.length;
+      var el = document.getElementById('progress-icon');
+      if (el) el.textContent = icons[iconIdx];
+    }, 800);
+
+    // 提交任务
     apiRequest('/creation/start', 'POST', payload).then(function(res) {
-      statusEl.textContent = '';
-      btnSubmit.disabled = false;
-      if (res.ok) {
-        showToast('任务已提交，任务ID：' + (res.data.task_id || '未知'), 'success');
-        // 如果后端返回了方案数据，替换本地方案
-        if (res.data.schemes && Array.isArray(res.data.schemes)) {
-          console.log('[API回调] 用后端数据替换 schemesList, 条数:', res.data.schemes.length);
-          schemesList = res.data.schemes;
-          renderSchemes();
-        }
-      } else {
-        console.warn('后端提交失败（前端已渲染本地方案）：', res.status, extractError(res.data));
+      if (!res.ok || !res.data || !res.data.task_id) {
+        clearInterval(iconTimer);
+        btnSubmit.disabled = false;
+        schemesContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-text">任务提交失败</div></div>';
+        return;
       }
+      var taskId = res.data.task_id;
+      document.getElementById('progress-text').textContent = '任务已提交，DeepSeek 创作中...';
+      document.getElementById('progress-time').textContent = '任务ID: ' + taskId.substring(0, 8) + '...';
+      // 轮询进度
+      var pollCount = 0;
+      var pollTimer = setInterval(function() {
+        pollCount++;
+        apiRequest('/task/' + taskId + '/status', 'GET').then(function(statusRes) {
+          if (!statusRes.ok || !statusRes.data) return;
+          var d = statusRes.data;
+          var pct = Math.min(95, 5 + pollCount * 5);
+          var fill = document.getElementById('progress-bar-fill');
+          var text = document.getElementById('progress-text');
+          var time = document.getElementById('progress-time');
+          if (fill) fill.style.width = pct + '%';
+          if (text && d.progress) text.textContent = d.progress;
+          if (time) time.textContent = '轮询 #' + pollCount + ' | ' + (d.status || '');
+
+          if (d.status === 'completed' && d.result && d.result.schemes) {
+            clearInterval(pollTimer);
+            clearInterval(iconTimer);
+            if (fill) fill.style.width = '100%';
+            document.getElementById('progress-icon').textContent = '✅';
+            document.getElementById('progress-title').textContent = '创作完成！';
+            document.getElementById('progress-text').textContent = 'DeepSeek v4-pro 生成了 ' + d.result.schemes.length + ' 个方案';
+            document.getElementById('progress-time').textContent = '';
+            btnSubmit.disabled = false;
+            // 替换为真实方案
+            schemesList = d.result.schemes;
+            saveSchemesToStorage();
+            // 推荐数据: 优先用API返回的recommendation，其次从raw_markdown解析
+            var apiRec = d.result.recommendation || {};
+            var rawMD = d.result.raw_markdown || '';
+            var recSection = rawMD.match(/##\s*推荐[\s\S]*/);
+            var bestV = apiRec.best_version || '';
+            var bestReason = apiRec.reason || '';
+            if ((!bestV || !bestReason || bestReason.indexOf('综合得分最高') === 0) && recSection) {
+              var recText = recSection[0];
+              var bm = recText.match(/\*\*推荐方案\*\*[:：]\s*(.+)/);
+              var rm = recText.match(/\*\*理由\*\*[:：]\s*([\s\S]*?)(?=\n\*\*|$)/);
+              var dm = recText.match(/\*\*预估数据\*\*[:：]\s*(.+)/);
+              if (bm) bestV = bm[1].replace(/版本\s*/g, '').trim();
+              if (rm) bestReason = rm[1].trim();
+              recommendationData = {
+                best_version: bestV,
+                reason: bestReason,
+                estimated_data: dm ? dm[1].trim() : ''
+              };
+            } else if (bestV) {
+              recommendationData = {
+                best_version: bestV.replace(/版本\s*/g, '').trim(),
+                reason: bestReason,
+                estimated_data: apiRec.estimated_data || ''
+              };
+            } else {
+              recommendationData = null;
+            }
+            saveSchemesToStorage();
+            setTimeout(function() { renderSchemes(); }, 500);
+            showToast('DeepSeek 创作完成！', 'success');
+          } else if (d.status === 'failed') {
+            clearInterval(pollTimer);
+            clearInterval(iconTimer);
+            document.getElementById('progress-icon').textContent = '❌';
+            document.getElementById('progress-title').textContent = '创作失败';
+            btnSubmit.disabled = false;
+          }
+        });
+        // 最多轮询 60 次（3分钟）
+        if (pollCount >= 60) {
+          clearInterval(pollTimer);
+          clearInterval(iconTimer);
+          document.getElementById('progress-time').textContent = '超时，后台仍在处理，可在历史记录查看';
+          btnSubmit.disabled = false;
+        }
+      }, 3000);
     }).catch(function(err) {
-      statusEl.textContent = '';
+      clearInterval(iconTimer);
       btnSubmit.disabled = false;
-      console.error('提交异常（前端已渲染本地方案）：', err);
+      schemesContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-text">提交失败: ' + err.message + '</div></div>';
     });
   });
 
@@ -989,33 +1061,77 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     if (!schemesList.length) return;
     var container = document.getElementById('schemes-container');
     var actions = document.getElementById('scheme-actions');
+    var html = '';
+
+    // 推荐方案独立卡片
+    if (recommendationData && recommendationData.best_version) {
+      var bestVer = recommendationData.best_version.toUpperCase();
+      var bestScheme = null;
+      for (var i = 0; i < schemesList.length; i++) {
+        if (schemesList[i].version.toUpperCase() === bestVer) { bestScheme = schemesList[i]; break; }
+      }
+      if (bestScheme) {
+        html += '<div class="card" style="background:linear-gradient(135deg,#fdf8f3,#fcf0e5);border:2px solid #d48c5c;padding:1.8rem 2rem;margin-bottom:1.8rem;border-radius:20px;">';
+        html += '<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;">';
+        html += '<span style="background:#d48c5c;color:#fff;padding:0.3rem 1rem;border-radius:20px;font-weight:700;font-size:0.9rem;">🏆 系统推荐</span>';
+        html += '<span style="font-size:1.3rem;font-weight:700;color:#3d2c1b;">方案 ' + escapeHtml(bestScheme.version) + '</span>';
+        html += '<span style="color:#8a7a6a;">—</span>';
+        html += '<span style="font-weight:600;color:#5f4a34;">' + escapeHtml(bestScheme.title) + '</span>';
+        html += '</div>';
+        html += '<div style="background:#fff;border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1rem;">';
+        html += '<p style="font-size:1.05rem;line-height:1.8;color:#3d2c1b;margin:0;">' + escapeHtml(recommendationData.reason) + '</p>';
+        html += '</div>';
+        if (recommendationData.estimated_data) {
+          html += '<div style="display:flex;gap:1rem;flex-wrap:wrap;">';
+          var parts = recommendationData.estimated_data.split('/');
+          parts.forEach(function(p) {
+            html += '<span style="background:#fff;padding:0.4rem 1rem;border-radius:12px;font-size:0.85rem;color:#5f4a34;border:1px solid #f0e8de;">📊 ' + escapeHtml(p.trim()) + '</span>';
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+    }
+
     var colors = ['#d48c5c', '#c08050', '#b87040'];
     var medals = {1:'🥇',2:'🥈',3:'🥉'};
-    var html = '<div class="schemes-grid">';
+    html += '<div class="schemes-grid">';
     schemesList.forEach(function(item, i) {
       var rank = item.rank || (i + 1);
       var scenes = item.scenes || [];
       var hashtags = item.hashtags || [];
       var score = item.score || item.total_score || 0;
+      var desc = item.hook || item.description || item.title || '';
+      var reason = item.recommendation_reason || item.reason || '';
+      var coverText = item.cover_text || '';
       html += '<div class="scheme-card" style="border-left-color:' + colors[i] + ';">';
-      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + ' ' + (medals[rank]||'') + ' ⭐' + score + '</div>';
+      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + ' ' + (medals[rank]||'') + ' ⭐' + score.toFixed(1) + '</div>';
       html += '<div class="scheme-title">' + escapeHtml(item.title) + '</div>';
-      html += '<div class="scheme-desc">' + escapeHtml(item.hook || item.description || '') + '</div>';
+      if (coverText) html += '<div style="font-size:0.85rem;color:#8a7a6a;margin-bottom:0.5rem;">🎬 ' + escapeHtml(coverText) + '</div>';
+      html += '<div class="scheme-desc">' + escapeHtml(desc) + '</div>';
       html += '<div style="margin-bottom:0.5rem;">';
-      (hashtags.length ? hashtags : [escapeHtml(item.platform||'')]).forEach(function(t) {
+      (hashtags.length ? hashtags : []).forEach(function(t) {
         html += '<span class="scheme-tag">' + escapeHtml(t) + '</span>';
       });
+      if (!hashtags.length) html += '<span class="scheme-tag">' + escapeHtml(lastPlatform) + '</span>';
       html += '</div>';
-      if (item.reason || item.recommendation_reason) {
-        html += '<div class="scheme-reason"><span class="reason-label">推荐理由</span><br>' + escapeHtml(item.recommendation_reason || item.reason) + '</div>';
+      if (reason) {
+        html += '<div class="scheme-reason"><span class="reason-label">推荐理由</span><br>' + escapeHtml(reason) + '</div>';
       }
       if (scenes.length > 0) {
-        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📋 完整分镜脚本 ▴\':\'📋 完整分镜脚本 ▾\';">📋 完整分镜脚本 ▾</div>';
+        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📋 完整分镜脚本 ▴\':\'📋 完整分镜脚本 ▾\';">📋 完整分镜脚本 ▾ (' + scenes.length + '个场景)</div>';
         html += '<div class="detail-content"><table class="scene-table"><thead><tr><th>#</th><th>类型</th><th>时长</th><th>描述</th><th>配音</th></tr></thead><tbody>';
         scenes.forEach(function(sc) {
           html += '<tr><td>'+(sc.seq||'')+'</td><td>'+escapeHtml(sc.type||'')+'</td><td>'+escapeHtml(sc.duration||'')+'</td><td>'+escapeHtml(sc.description||'')+'</td><td style="font-size:0.8rem;color:#8a7a6a;">'+escapeHtml((sc.voiceover||'').substring(0,80))+'</td></tr>';
         });
         html += '</tbody></table></div>';
+      }
+      // 显示 raw_markdown 预览（仅当前版本，Markdown渲染）
+      if (item.raw_markdown) {
+        var versionMD = extractVersionMD(item.raw_markdown, item.version);
+        var renderedMD = renderMarkdown(versionMD.substring(0, 3000));
+        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📝 AI生成原文('+item.version+'版) ▴\':\'📝 AI生成原文('+item.version+'版) ▾\';">📝 AI生成原文('+item.version+'版) ▾</div>';
+        html += '<div class="detail-content" style="max-height:500px;overflow-y:auto;font-size:0.9rem;line-height:1.8;">' + renderedMD + '</div>';
       }
       html += '<div class="scheme-actions-row">';
       html += '<button onclick="generateTTS('+i+')">🔊 配音</button>';
@@ -1024,8 +1140,111 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       html += '</div><div id="media-preview-'+i+'"></div></div>';
     });
     html += '</div>';
+
+    // 三方案对比表格
+    if (schemesList.length >= 2) {
+      html += '<div class="card" style="margin-top:1.5rem;"><div class="card-title">📊 三方案横向对比</div>';
+      html += '<div style="overflow-x:auto;"><table class="history-table" style="min-width:700px;">';
+      html += '<thead><tr><th>维度</th>';
+      schemesList.forEach(function(s) { html += '<th>方案 ' + escapeHtml(s.version) + '</th>'; });
+      html += '</tr></thead><tbody>';
+
+      // 标题
+      html += '<tr><td><strong>标题</strong></td>';
+      schemesList.forEach(function(s) { html += '<td>' + escapeHtml(s.title || '-') + '</td>'; });
+      html += '</tr>';
+
+      // 钩子
+      html += '<tr><td><strong>开头钩子</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.9rem;">' + escapeHtml((s.hook || '-').substring(0, 80)) + '</td>'; });
+      html += '</tr>';
+
+      // 场景数
+      html += '<tr><td><strong>场景数</strong></td>';
+      schemesList.forEach(function(s) { html += '<td>' + (s.scenes ? s.scenes.length : 0) + ' 个</td>'; });
+      html += '</tr>';
+
+      // 标签
+      html += '<tr><td><strong>标签</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.85rem;">' + escapeHtml((s.hashtags || []).join(' ')) + '</td>'; });
+      html += '</tr>';
+
+      // 评分
+      html += '<tr><td><strong>评分</strong></td>';
+      schemesList.forEach(function(s) { html += '<td>⭐' + (s.score || 0).toFixed(1) + '</td>'; });
+      html += '</tr>';
+
+      // 推荐理由
+      html += '<tr><td><strong>推荐理由</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.85rem;">' + escapeHtml((s.recommendation_reason || s.reason || '-').substring(0, 100)) + '</td>'; });
+      html += '</tr>';
+
+      // 封面文案
+      html += '<tr><td><strong>封面文案</strong></td>';
+      schemesList.forEach(function(s) { html += '<td style="font-size:0.85rem;">' + escapeHtml((s.cover_text || '-').substring(0, 80)) + '</td>'; });
+      html += '</tr>';
+
+      html += '</tbody></table></div></div>';
+    }
+
     container.innerHTML = html;
     actions.style.display = 'flex';
+  }
+
+  function renderMarkdown(md) {
+    if (!md) return '';
+    var html = md
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // 标题
+      .replace(/^### (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;font-size:1rem;">$1</h4>')
+      .replace(/^## (.+)$/gm, '<h3 style="color:#3d2c1b;margin:1.2rem 0 0.5rem;">$1</h3>')
+      .replace(/^# (.+)$/gm, '<h2 style="color:#3d2c1b;margin:1.4rem 0 0.6rem;">$1</h2>')
+      // 粗体/斜体
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#2c2c2c;">$1</strong>')
+      // 分隔线
+      .replace(/^---+/gm, '<hr style="border:none;border-top:1px solid #f0e8de;margin:0.8rem 0;">')
+      // 表格: 匹配 | ... | ... | 行
+      .replace(/^(\|.+\|)$/gm, function(line) {
+        return '<tr>' + line.slice(1, -1).split('|').map(function(c) {
+          return '<td style="padding:0.4rem 0.8rem;border-bottom:1px solid #f0e8de;">' + c.trim() + '</td>';
+        }).join('') + '</tr>';
+      })
+      // 列表项
+      .replace(/^- (.+)$/gm, '<li style="color:#3d2c1b;margin:0.2rem 0 0.2rem 1.5rem;">$1</li>')
+      .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #d48c5c;padding:0.4rem 1rem;margin:0.5rem 0;color:#5f4a34;background:#fdfaf7;">$1</blockquote>')
+      // 段落
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+    // 包装连续的 <tr> 为 <table>
+    html = html.replace(/((?:<tr>[\s\S]*?<\/tr>\s*)+)/g, '<table style="width:100%;border-collapse:collapse;margin:0.8rem 0;">$1</table>');
+    // 首行 <tr> 转为 <thead>
+    html = html.replace(/<table([^>]*)>(\s*<tr>)/, '<table$1><thead>$2').replace(/<\/tr>(\s*)(?!<tr>)/, function(m, s) { return '</tr></thead><tbody>' + s; });
+    // 关闭 tbody
+    html = html.replace(/<\/table>/g, '</tbody></table>');
+    return html;
+  }
+
+  function extractVersionMD(fullMD, version) {
+    if (!fullMD || !version) return fullMD;
+    // 匹配 "## 版本 X" 到下一个 "## 版本 X" 或 "## 推荐" 或文本末尾
+    var pattern = new RegExp('##\\s*版本\\s*' + version + '[\\s\\S]*?(?=\\n##\\s*(?:版本\\s*[A-Ca-c]|推荐)|$)', 'i');
+    var m = fullMD.match(pattern);
+    if (m) {
+      var content = m[0];
+      // 第二次检查: 手动截断到 ## 推荐 之前（防止正则 \b 对中文不生效）
+      var recIdx = content.search(/\n##\s*推荐/);
+      if (recIdx > 0) content = content.substring(0, recIdx);
+      return content.trim();
+    }
+    var parts = fullMD.split(/\n(?=##\s*版本\s*)/);
+    var idx = version.toUpperCase().charCodeAt(0) - 65;
+    if (idx >= 0 && idx < parts.length) {
+      var part = parts[idx];
+      var ri = part.search(/\n##\s*推荐/);
+      if (ri > 0) part = part.substring(0, ri);
+      return part.trim();
+    }
+    return fullMD;
   }
 
   function escapeHtml(str) {
@@ -1092,12 +1311,18 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function exportSchemeMD(idx) {
     var s = schemesList[idx]; if (!s) return;
     var md = '# 方案 ' + s.version + '：' + (s.title || '') + '\n\n';
-    md += '- **钩子**：' + (s.hook || '') + '\n';
-    md += '- **评分**：' + (s.score || 0) + '\n';
-    md += '- **推荐理由**：' + (s.recommendation_reason || s.reason || '') + '\n\n';
+    md += '**钩子**: ' + (s.hook || '') + '\n\n';
+    md += '**封面文案**: ' + (s.cover_text || '') + '\n\n';
+    md += '**评分**: ⭐' + (s.score || 0) + ' | **排名**: ' + (s.rank || idx+1) + '\n\n';
+    md += '**标签**: ' + ((s.hashtags || []).join(' ') || '') + '\n\n';
+    md += '**推荐理由**: ' + (s.recommendation_reason || s.reason || '') + '\n\n';
     if (s.scenes && s.scenes.length) {
       md += '## 分镜脚本\n\n| # | 类型 | 时长 | 描述 | 配音 |\n|---|---|---|---|---|\n';
       s.scenes.forEach(function(sc) { md += '| '+(sc.seq||'')+' | '+(sc.type||'')+' | '+(sc.duration||'')+' | '+(sc.description||'')+' | '+(sc.voiceover||'')+' |\n'; });
+      md += '\n';
+    }
+    if (s.raw_markdown) {
+      md += '## AI 完整生成内容\n\n' + s.raw_markdown + '\n';
     }
     downloadFile(md, '方案'+s.version+'.md', 'text/markdown');
     showToast('方案已导出', 'success');
@@ -1139,28 +1364,35 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   window.switchProvider = switchProvider;
 
   (function() {
-    var sp = localStorage.getItem('ai_creator_provider');
-    if (sp && ['mock','deepseek','coze'].indexOf(sp) !== -1) currentProvider = sp;
+    // 始终默认 DeepSeek，忽略旧缓存
+    currentProvider = 'deepseek';
+    localStorage.setItem('ai_creator_provider', 'deepseek');
     var names = { mock: '快速模板', deepseek: 'DeepSeek AI', coze: '扣子平台' };
-    document.getElementById('provider-mode-name').textContent = names[currentProvider] || '快速模板';
+    document.getElementById('provider-mode-name').textContent = names[currentProvider] || 'DeepSeek AI';
   })();
 
   document.getElementById('btn-export').addEventListener('click', function() {
     if (!schemesList.length) return;
-    var md = '# 创作方案导出\n\n';
+    var md = '# 创作方案导出\n\n**平台**: ' + lastPlatform + '\n\n---\n\n';
     schemesList.forEach(function(s) {
-      md += '## 方案 ' + s.version + '：' + s.title + '\n\n';
-      md += '- **平台**：' + s.platform + '\n';
-      md += '- **描述**：' + s.description + '\n';
-      md += '- **推荐理由**：' + s.reason + '\n\n';
+      md += '## 方案 ' + s.version + '：' + (s.title || '') + '\n\n';
+      md += '**钩子**: ' + (s.hook || '') + '\n\n';
+      md += '**封面文案**: ' + (s.cover_text || '') + '\n\n';
+      md += '**评分**: ⭐' + (s.score || 0) + ' | **排名**: ' + (s.rank || '') + '\n\n';
+      md += '**标签**: ' + ((s.hashtags || []).join(' ') || '') + '\n\n';
+      md += '**推荐理由**: ' + (s.recommendation_reason || s.reason || '') + '\n\n';
+      if (s.scenes && s.scenes.length) {
+        md += '### 分镜脚本\n\n| # | 类型 | 时长 | 描述 | 配音 |\n|---|---|---|---|---|\n';
+        s.scenes.forEach(function(sc) { md += '| '+(sc.seq||'')+' | '+(sc.type||'')+' | '+(sc.duration||'')+' | '+(sc.description||'')+' | '+(sc.voiceover||'')+' |\n'; });
+        md += '\n';
+      }
+      if (s.raw_markdown) {
+        md += '### AI 完整生成内容\n\n' + s.raw_markdown + '\n\n';
+      }
+      md += '---\n\n';
     });
     downloadFile(md, '创作方案.md', 'text/markdown');
     showToast('方案已导出为 Markdown 文件', 'success');
-  });
-
-  document.getElementById('btn-compare').addEventListener('click', function() {
-    if (schemesList.length < 2) { showToast('至少需要 2 套方案才能对比', 'error'); return; }
-    showToast('正在调用对比分析模块...', 'info');
   });
 
   function downloadFile(content, filename, mime) {
@@ -1177,16 +1409,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     var actions = document.getElementById('history-actions');
     apiRequest('/history', 'GET').then(function(res) {
       var records = [];
-      // 接口返回 { items: [...], total, page, size }
-      if (res.data && Array.isArray(res.data.items)) {
-        records = res.data.items;
-      } else if (res.ok && Array.isArray(res.data)) {
-        records = res.data;
-      }
-      if (!records.length) {
-        records = getAllSchemesFromStorage().map(function(s) {
-          return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason || s.recommendation_reason };
-        });
+      if (res.ok && Array.isArray(res.data)) { records = res.data; }
+      if (!records.length && schemesList.length) {
+        records = schemesList.map(function(s) { return { version: s.version, title: s.title, description: s.description, platform: s.platform, reason: s.reason }; });
       }
       if (!records.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无历史创作记录，前往工作台生成第一条内容</div></div>';
@@ -1195,7 +1420,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       }
       var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案版本</th><th>标题</th><th>描述</th><th>平台</th><th>推荐理由</th></tr></thead><tbody>';
       records.forEach(function(r) {
-        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || r.topic || '') + '</td><td>' + escapeHtml(r.description || r.hook || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || r.recommendation_reason || '') + '</td></tr>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(r.version || '') + '</span></td><td>' + escapeHtml(r.title || '') + '</td><td>' + escapeHtml(r.description || '') + '</td><td>' + escapeHtml(r.platform || '') + '</td><td>' + escapeHtml(r.reason || '') + '</td></tr>';
       });
       html += '</tbody></table></div>';
       container.innerHTML = html;
@@ -1211,18 +1436,23 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     showToast('历史记录已导出为 CSV 文件', 'success');
   });
 
-  var sampleStats = [
-    { platform: '抖音', theme: '护肤', count: 28 },
-    { platform: '小红书', theme: '美食', count: 36 },
-    { platform: 'B站', theme: '数码', count: 22 },
-    { platform: '抖音', theme: '旅行', count: 18 },
-    { platform: '小红书', theme: '测评', count: 24 },
-    { platform: 'B站', theme: '剧情', count: 16 },
-    { platform: '抖音', theme: '好物', count: 30 }
-  ];
-
   function renderDashboardCharts() {
-    // KPI 默认占位（API 返回前显示）
+    // ---- 暖色调调色板（与网站整体 warm earth-tone 一致） ----
+    var C = ['#d48c5c', '#e8a87c', '#c08050', '#a0724a', '#8a6a4a', '#c9976b', '#b8784a'];
+
+    // ---- 共享布局工厂 ----
+    function makeLayout(title, height) {
+      height = height || 380;
+      return {
+        title: { text: title, font: { size: 16, color: '#3d2c1b' }, x: 0 },
+        height: height,
+        margin: { t: 44, b: 20, l: 20, r: 20 },
+        paper_bgcolor: '#fcf9f5', plot_bgcolor: '#fcf9f5',
+        font: { color: '#8a7a6a', size: 13 }
+      };
+    }
+
+    // ---- KPI（修复字段名：total_sessions / completed_this_week） ----
     var kpiTotal = document.getElementById('kpi-total');
     var kpiActive = document.getElementById('kpi-active');
     var kpiReview = document.getElementById('kpi-review');
@@ -1232,160 +1462,139 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     kpiReview.innerHTML = '-- <small>个</small>';
     kpiDone.innerHTML = '-- <small>个</small>';
 
-    // 异步获取真实统计数据
     apiRequest('/statistics/summary', 'GET').then(function(res) {
       console.log('看板API原始返回:', res);
-      // res.data = { total_sessions, in_progress, pending_review, completed_this_week, total_schemes, total_users }
-      if (res.data) {
-        var stats = res.data;
-        kpiTotal.innerHTML = (stats.total_sessions != null ? stats.total_sessions : '--') + ' <small>个</small>';
-        kpiActive.innerHTML = (stats.in_progress != null ? stats.in_progress : '--') + ' <small>个</small>';
-        kpiReview.innerHTML = (stats.pending_review != null ? stats.pending_review : '--') + ' <small>个</small>';
-        kpiDone.innerHTML = (stats.completed_this_week != null ? stats.completed_this_week : '--') + ' <small>个</small>';
+      if (res.ok && res.data) {
+        var s = res.data.data || res.data;
+        console.log('看板数据:', s);
+        kpiTotal.innerHTML = (s.total_sessions != null ? s.total_sessions : '--') + ' <small>个</small>';
+        kpiActive.innerHTML = (s.in_progress != null ? s.in_progress : '--') + ' <small>个</small>';
+        kpiReview.innerHTML = (s.pending_review != null ? s.pending_review : '--') + ' <small>个</small>';
+        kpiDone.innerHTML = (s.completed_this_week != null ? s.completed_this_week : '--') + ' <small>个</small>';
       }
     }).catch(function(err) {
-      console.warn('统计数据获取失败，保留默认占位:', err);
+      console.warn('KPI获取失败:', err);
     });
 
-    // 图表使用 sampleStats 样例数据
-    var platformAgg = {};
-    sampleStats.forEach(function(d) { platformAgg[d.platform] = (platformAgg[d.platform] || 0) + d.count; });
-    var platData = [{ x: Object.keys(platformAgg), y: Object.values(platformAgg), type: 'bar', marker: { color: ['#FF8A80','#FFAB91','#FFCC80'] } }];
-    var platLayout = {
-      title: { text: '各平台样例素材数量分布', font: { size: 17, color: '#5D4037' } },
-      plot_bgcolor: '#fcf9f5', paper_bgcolor: '#fcf9f5',
-      font: { color: '#5D4037', size: 14 },
-      margin: { t: 48, b: 40, l: 50, r: 20 },
-      xaxis: { gridcolor: '#f0e8de' }, yaxis: { gridcolor: '#f0e8de' }
-    };
-    Plotly.newPlot('chart-platform', platData, platLayout, { responsive: true, displayModeBar: false });
+    // ---- 图表（从 /stats/samples 获取 Excel 样本数据） ----
+    apiRequest('/stats/samples', 'GET').then(function(res) {
+      if (!res.ok || !res.data) { console.warn('样本数据获取失败'); return; }
+      var d = res.data.data || res.data;
+      var topics = d.topic_distribution || [];
+      var platforms = d.platform_distribution || [];
+      var trends = d.monthly_trends || [];
 
-    var themeAgg = {};
-    sampleStats.forEach(function(d) { themeAgg[d.theme] = (themeAgg[d.theme] || 0) + d.count; });
-    var themeData = [{ labels: Object.keys(themeAgg), values: Object.values(themeAgg), type: 'pie', marker: { colors: ['#FF8A80','#FFAB91','#FFCC80','#A5D6A7','#90CAF9'] } }];
-    var themeLayout = {
-      title: { text: '创作主题分类占比', font: { size: 17, color: '#5D4037' } },
-      paper_bgcolor: '#fcf9f5', font: { color: '#5D4037', size: 14 },
-      margin: { t: 48, b: 20, l: 20, r: 20 }
-    };
-    Plotly.newPlot('chart-theme', themeData, themeLayout, { responsive: true, displayModeBar: false });
+      // 主题按 count 降序
+      topics.sort(function(a, b) { return b.count - a.count; });
+
+      var pc = C.slice(0, Math.max(topics.length, 2));
+      var platPc = C.slice(0, Math.max(platforms.length, 2));
+
+      // ① 环形图 — 主题分布
+      Plotly.newPlot('chart-donut', [{
+        labels: topics.map(function(t) { return t.name; }),
+        values: topics.map(function(t) { return t.count; }),
+        type: 'pie', hole: 0.55,
+        textinfo: 'percent', textposition: 'inside',
+        textfont: { size: 14, color: 'white' },
+        marker: { colors: pc, line: { color: 'white', width: 2 } }
+      }], makeLayout('① 主题分布 · 环形图'), { responsive: true, displayModeBar: false });
+
+      // ② 柱状图 — 平台分布
+      Plotly.newPlot('chart-bar', [{
+        x: platforms.map(function(p) { return p.platform; }),
+        y: platforms.map(function(p) { return p.count; }),
+        type: 'bar',
+        text: platforms.map(function(p) { return p.count; }),
+        textposition: 'outside',
+        textfont: { size: 15, color: '#8a7a6a' },
+        marker: { color: platPc, line: { width: 0 } }
+      }], makeLayout('② 平台分布 · 柱状图'), { responsive: true, displayModeBar: false });
+
+      // ③ 面积图 — 月度趋势（全宽）
+      Plotly.newPlot('chart-area', [{
+        x: trends.map(function(t) { return t.month; }),
+        y: trends.map(function(t) { return t.count; }),
+        type: 'scatter', fill: 'tozeroy', mode: 'lines+markers',
+        line: { color: '#d48c5c', width: 2 },
+        fillcolor: 'rgba(212,140,92,0.12)',
+        marker: { size: 4, color: '#d48c5c', line: { width: 2, color: 'white' } }
+      }], makeLayout('③ 月度趋势 · 面积图', 360), { responsive: true, displayModeBar: false });
+
+      // ④ 横向柱状 — 类别对比（升序）
+      var sorted = topics.slice().sort(function(a, b) { return a.count - b.count; });
+      Plotly.newPlot('chart-hbar', [{
+        y: sorted.map(function(t) { return t.name; }),
+        x: sorted.map(function(t) { return t.count; }),
+        type: 'bar', orientation: 'h',
+        text: sorted.map(function(t) { return t.count; }),
+        textposition: 'outside',
+        textfont: { size: 15, color: '#8a7a6a' },
+        marker: { color: C.slice(0, sorted.length), line: { width: 0 } }
+      }], makeLayout('④ 类别对比 · 横向柱状图'), { responsive: true, displayModeBar: false });
+
+      // ⑤ 饼图 — 平台占比
+      Plotly.newPlot('chart-pie', [{
+        labels: platforms.map(function(p) { return p.platform; }),
+        values: platforms.map(function(p) { return p.count; }),
+        type: 'pie',
+        textinfo: 'percent+label', textposition: 'inside',
+        textfont: { size: 14, color: 'white' },
+        marker: { colors: platPc, line: { color: 'white', width: 2 } }
+      }], makeLayout('⑤ 平台占比 · 饼图'), { responsive: true, displayModeBar: false });
+
+      // ⑥ 树图 — 主题分布
+      Plotly.newPlot('chart-treemap', [{
+        type: 'treemap', labels: topics.map(function(t) { return t.name; }),
+        parents: topics.map(function() { return ''; }),
+        values: topics.map(function(t) { return t.count; }),
+        textinfo: 'label+value',
+        textfont: { size: 16, color: 'white' },
+        marker: { colors: topics.map(function(t, i) {
+          var ratio = i / Math.max(topics.length - 1, 1);
+          return 'rgb(' + Math.round(212 + ratio * (232 - 212)) + ',' +
+                 Math.round(140 + ratio * (168 - 140)) + ',' +
+                 Math.round(92 + ratio * (124 - 92)) + ')';
+        })}
+      }], makeLayout('⑥ 主题分布 · 树图', 420), { responsive: true, displayModeBar: false });
+
+    }).catch(function(err) {
+      console.warn('样本数据获取失败:', err);
+    });
+
+    // ---- 词云（后端生成 PNG → base64） ----
+    apiRequest('/stats/wordclouds', 'GET').then(function(res) {
+      if (!res.ok || !res.data || !res.data.wordclouds) {
+        console.warn('词云数据获取失败');
+        return;
+      }
+      var wcs = res.data.wordclouds;
+      wcs.forEach(function(item) {
+        if (item.label.indexOf('标题') !== -1) {
+          var imgEl = document.getElementById('img-wc-titles');
+          if (imgEl) { imgEl.src = 'data:image/png;base64,' + item.base64; }
+        } else if (item.label.indexOf('摘要') !== -1) {
+          var imgEl2 = document.getElementById('img-wc-summaries');
+          if (imgEl2) { imgEl2.src = 'data:image/png;base64,' + item.base64; }
+        }
+      });
+    }).catch(function(err) {
+      console.warn('词云请求失败:', err);
+    });
   }
 
   /* ===== localStorage 方案持久化 ===== */
   function saveSchemesToStorage() {
-    try { localStorage.setItem('ai_creator_schemes', JSON.stringify(schemesList)); } catch(e) { console.warn('方案保存失败:', e); }
-  }
-  function appendSchemesToStorage(newSchemes) {
-    // 追加新方案到 localStorage（按 id 去重，不覆盖已有数据）
     try {
-      var existing = JSON.parse(localStorage.getItem('ai_creator_schemes') || '[]');
-      var ids = new Set(existing.map(function(s) { return s.id; }));
-      newSchemes.forEach(function(s) {
-        if (!ids.has(s.id)) { existing.push(s); ids.add(s.id); }
-      });
-      localStorage.setItem('ai_creator_schemes', JSON.stringify(existing));
-    } catch(e) { console.warn('方案追加保存失败:', e); }
+      localStorage.setItem('ai_creator_schemes', JSON.stringify(schemesList));
+      if (recommendationData) localStorage.setItem('ai_creator_recommendation', JSON.stringify(recommendationData));
+    } catch(e) { console.warn('方案保存失败:', e); }
   }
   function loadSchemesFromStorage() {
     try { var raw = localStorage.getItem('ai_creator_schemes'); if (raw) { schemesList = JSON.parse(raw); } } catch(e) { schemesList = []; }
-  }
-  function getAllSchemesFromStorage() {
-    // 合并 localStorage + 内存中的 schemesList（去重，按时间倒序）
-    try {
-      var stored = JSON.parse(localStorage.getItem('ai_creator_schemes') || '[]');
-    } catch(e) { stored = []; }
-    var merged = schemesList.slice();
-    var ids = new Set(merged.map(function(s) { return s.id; }));
-    stored.forEach(function(s) {
-      if (!ids.has(s.id)) { merged.push(s); ids.add(s.id); }
-    });
-    merged.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-    return merged;
+    try { var rawRec = localStorage.getItem('ai_creator_recommendation'); if (rawRec) { recommendationData = JSON.parse(rawRec); } } catch(e) { recommendationData = null; }
   }
   loadSchemesFromStorage();
-
-  /* ===== AI引擎绑定 (Coze API) ===== */
-  function loadEngineStatus() {
-    apiRequest('/coze/status', 'GET').then(function(res) {
-      if (res.ok && res.data) {
-        if (res.data.bound) {
-          $enginePlatformName.textContent = '扣子平台（已绑定）';
-          $engineApiKey.placeholder = res.data.api_key_preview || '已绑定';
-        } else {
-          $enginePlatformName.textContent = '扣子平台';
-        }
-      }
-    }).catch(function(err) {
-      console.warn('引擎状态查询失败:', err);
-    });
-  }
-  document.getElementById('sidebar-engine-btn').addEventListener('click', function() {
-    $engineApiKey.value = '';
-    $engineModalMsg.textContent = '';
-    $engineModalMsg.className = 'modal-msg';
-    $engineApiKey.placeholder = '请输入扣子平台 API Key';
-    // 先查状态决定是否显示解绑
-    apiRequest('/coze/status', 'GET').then(function(res) {
-      var isBound = res.ok && res.data && res.data.bound;
-      document.getElementById('btn-engine-bind').textContent = isBound ? '重新绑定' : '绑定';
-      document.getElementById('btn-engine-unbind').style.display = isBound ? '' : 'none';
-      $modalEngine.classList.remove('hidden');
-    }).catch(function() {
-      $modalEngine.classList.remove('hidden');
-    });
-  });
-  document.getElementById('btn-engine-cancel').addEventListener('click', function() {
-    $modalEngine.classList.add('hidden');
-  });
-  document.getElementById('btn-engine-bind').addEventListener('click', function() {
-    var apiKey = $engineApiKey.value.trim();
-    if (!apiKey) { $engineModalMsg.textContent = '请输入 API Key'; $engineModalMsg.className = 'modal-msg error'; return; }
-    $engineModalMsg.textContent = '正在绑定...';
-    $engineModalMsg.className = 'modal-msg';
-    apiRequest('/coze/bind', 'POST', { api_key: apiKey }).then(function(res) {
-      if (res.ok) {
-        $enginePlatformName.textContent = '扣子平台（已绑定）';
-        $engineModalMsg.textContent = '绑定成功：扣子平台';
-        $engineModalMsg.className = 'modal-msg success';
-        showToast('AI引擎绑定成功', 'success');
-        setTimeout(function() { $modalEngine.classList.add('hidden'); }, 1000);
-      } else {
-        $engineModalMsg.textContent = extractError(res.data) || '绑定失败';
-        $engineModalMsg.className = 'modal-msg error';
-        showToast('绑定失败：' + (extractError(res.data) || '未知错误'), 'error');
-      }
-    }).catch(function(err) {
-      $engineModalMsg.textContent = '网络请求失败';
-      $engineModalMsg.className = 'modal-msg error';
-      showToast('绑定请求失败：' + err.message, 'error');
-    });
-  });
-  document.getElementById('btn-engine-unbind').addEventListener('click', function() {
-    if (!confirm('确定要解绑扣子平台吗？')) return;
-    $engineModalMsg.textContent = '正在解绑...';
-    $engineModalMsg.className = 'modal-msg';
-    apiRequest('/coze/unbind', 'DELETE').then(function(res) {
-      if (res.ok) {
-        $enginePlatformName.textContent = '扣子平台';
-        $engineApiKey.value = '';
-        $engineApiKey.placeholder = '请输入扣子平台 API Key';
-        document.getElementById('btn-engine-bind').textContent = '绑定';
-        document.getElementById('btn-engine-unbind').style.display = 'none';
-        $engineModalMsg.textContent = '已解绑';
-        $engineModalMsg.className = 'modal-msg success';
-        showToast('已解绑扣子平台', 'info');
-        setTimeout(function() { $modalEngine.classList.add('hidden'); }, 1000);
-      } else {
-        $engineModalMsg.textContent = extractError(res.data) || '解绑失败';
-        $engineModalMsg.className = 'modal-msg error';
-        showToast('解绑失败', 'error');
-      }
-    }).catch(function(err) {
-      $engineModalMsg.textContent = '网络请求失败';
-      $engineModalMsg.className = 'modal-msg error';
-      showToast('解绑请求失败：' + err.message, 'error');
-    });
-  });
 
   /* ===== 方案浏览 (API) ===== */
   function renderSchemeBrowse() {
@@ -1393,43 +1602,43 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
     apiRequest('/schemes', 'GET').then(function(res) {
       var schemes = [];
-      // 新接口返回 { schemes: [...], total: N }
-      if (res.data && Array.isArray(res.data.schemes)) {
-        schemes = res.data.schemes;
-      } else if (res.ok && Array.isArray(res.data)) {
-        schemes = res.data;  // 兼容旧格式
-      }
+      if (res.ok && Array.isArray(res.data)) { schemes = res.data; }
       if (!schemes.length) {
-        schemes = getAllSchemesFromStorage();
+        schemes = mergeAllSchemes();
       }
       if (!schemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
       schemes.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
-      renderSchemeTable(schemes, container);
+      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+      schemes.forEach(function(s) {
+        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
     }).catch(function(err) {
       // API 失败时回退到本地缓存
-      var allSchemes = getAllSchemesFromStorage();
+      var allSchemes = mergeAllSchemes();
       if (!allSchemes.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
         return;
       }
-      renderSchemeTable(allSchemes, container);
+      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+      allSchemes.forEach(function(s) {
+        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
       showToast('后端连接失败，显示本地缓存数据', 'error');
     });
   }
-  function renderSchemeTable(schemes, container) {
-    var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
-    schemes.forEach(function(s) {
-      var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
-      html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
-    });
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-  }
   function mergeAllSchemes() {
-    return getAllSchemesFromStorage();
+    var all = schemesList.slice();
+    all.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
+    return all;
   }
 
   /* ===== 素材分析 (API + localStorage回退) ===== */
@@ -1544,9 +1753,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     if (e.key === 'Enter') { document.getElementById('btn-knowledge-search').click(); }
   });
 
-  /* ===== 点击遮罩关闭弹窗 ===== */
-  $modalEngine.addEventListener('click', function(e) { if (e.target === $modalEngine) { $modalEngine.classList.add('hidden'); } });
-
   var savedToken = localStorage.getItem('ai_creator_token');
   var savedUser = localStorage.getItem('ai_creator_user');
   if (savedToken && savedUser) {
@@ -1631,17 +1837,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function renderAnalysisResult(data) {
     var ar = data.analysis_result || {};
     var content = ar.content || (typeof ar === 'string' ? ar : '');
-    // 简单 Markdown 渲染
-    var html = content
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/^### (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
-      .replace(/^## (.+)$/gm, '<h4 style="color:#5f4a34;margin:1rem 0 0.4rem;">$1</h4>')
-      .replace(/^# (.+)$/gm, '<h3 style="color:#3d2c1b;margin:1.2rem 0 0.5rem;">$1</h3>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^---+/gm, '<hr style="border:none;border-top:1px solid #f0e8de;margin:0.8rem 0;">')
-      .replace(/^- (.+)$/gm, '<li style="color:#3d2c1b;margin:0.2rem 0 0.2rem 1.2rem;">$1</li>')
-      .replace(/\n\n/g, '<br><br>')
-      .replace(/\n/g, '<br>');
+    var html = renderMarkdown(content);
     var r = '<div class="card" style="background:#f0fdf4;border-color:#c8e6cc;">';
     r += '<div class="card-title" style="color:#16a34a;">✅ 分析完成</div>';
     r += '<p style="color:#3a7040;margin-bottom:0.5rem;"><strong>' + escapeHtml(data.filename||'') + '</strong> (' + (data.file_type||'') + ')';
@@ -1721,30 +1917,16 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   // ========== 审核看板 ==========
   var reviewPage = 1, reviewStatusFilter = '';
-
-  // 直接监听审核看板导航按钮，确保一定触发 loadReviews
-  var reviewNavBtn = document.querySelector('.nav-item[data-page="review"]');
-  if (reviewNavBtn) {
-    reviewNavBtn.addEventListener('click', function() {
-      setTimeout(function() { loadReviews(); }, 50);
-    });
-  }
-
   document.getElementById('review-status-filter').addEventListener('change', function() {
     reviewStatusFilter = this.value; reviewPage = 1; loadReviews();
   });
   document.getElementById('btn-review-refresh').addEventListener('click', function() { loadReviews(); });
 
   function loadReviews() {
-    console.log('[审核看板] loadReviews 触发, API_BASE:', API_BASE);
     var container = document.getElementById('review-container');
-    if (!container) { console.error('[审核看板] review-container 元素未找到'); return; }
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
     var url = '/reviews?page=' + reviewPage + '&size=10' + (reviewStatusFilter ? '&status=' + reviewStatusFilter : '');
-    console.log('[审核看板] 请求URL:', API_BASE + url);
     apiRequest(url, 'GET').then(function(res) {
-      console.log('[审核看板] API返回:', res);
-      if (!res.data || !res.data.items || !res.data.items.length) {
+      if (!res.ok || !res.data || !res.data.items || !res.data.items.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无审核记录</div></div>';
         document.getElementById('review-pagination').innerHTML = ''; return;
       }
@@ -1761,9 +1943,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         '<span style="color:#8a7a6a;font-size:0.9rem;">共 '+total+' 条，第 '+reviewPage+' 页</span> ' +
         '<button class="btn btn-ghost btn-sm" onclick="reviewPage=Math.max(1,reviewPage-1);loadReviews();">上一页</button>' +
         '<button class="btn btn-ghost btn-sm" onclick="reviewPage++;loadReviews();">下一页</button>';
-    }).catch(function(err) {
-      console.error('[审核看板] API请求失败:', err);
-      container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">加载失败，请检查后端是否启动</div></div>';
     });
   }
 

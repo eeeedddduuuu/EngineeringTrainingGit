@@ -3,17 +3,27 @@
 来源：P5 feature/data-kb-v2（50条样本，25个月数据）
 集成：P3 添加 JWT 认证依赖 + 合并到 feature/backend
 """
+import base64
+import random
+import time
 from datetime import datetime, timedelta
+from io import BytesIO
 from pathlib import Path
+
+import jieba
 import pandas as pd
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from wordcloud import WordCloud
+
 from app.database import get_db
 from app.models.user import User
 from app.models.business import CreationSession, Scheme, Review
-from app.schemas.stats import StatsResponse, TopicDist, PlatformDist, MonthlyTrend, DashboardSummary
+from app.schemas.stats import StatsResponse, TopicDist, PlatformDist, MonthlyTrend, DashboardSummary, WordCloudResponse, WordCloudItem
 from app.utils.deps import get_current_user
+
+jieba.setLogLevel(20)
 
 router = APIRouter(prefix="/api", tags=["统计"])
 
@@ -138,3 +148,95 @@ def get_dashboard_summary(
         total_schemes=total_schemes,
         total_users=total_users,
     )
+
+
+# ── 中文停用词表 ──
+_STOPWORDS = {
+    "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一", "一个",
+    "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好",
+    "自己", "这", "他", "她", "它", "们", "那", "及", "与", "或", "等", "为", "以",
+    "将", "对", "把", "被", "从", "让", "但", "而", "且", "所", "如", "之", "其",
+    "可以", "这个", "那个", "已经", "还是", "这些", "那些", "因为", "所以", "如果",
+    "虽然", "然而", "然后", "之后", "之前", "能够", "需要", "应该",
+    "通过", "进行", "使用", "一种", "每个", "一些", "许多", "其他",
+    "中", "更", "较", "最", "非常", "十分", "特别", "真正", "完全", "更加",
+    "还", "再", "又", "才", "只", "便", "即", "却", "仍", "亦", "尚", "未", "无", "非",
+}
+
+# ── 中文字体路径探测 ──
+def _detect_cjk_font():  # -> Optional[str]
+    """探测系统中可用的中文字体"""
+    candidates = [
+        "C:/Windows/Fonts/msyh.ttc",      # Microsoft YaHei
+        "C:/Windows/Fonts/simhei.ttf",     # SimHei
+        "C:/Windows/Fonts/simsun.ttc",     # SimSun
+        "C:/Windows/Fonts/STKAITI.TTF",    # KaiTi
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    ]
+    for p in candidates:
+        if Path(p).exists():
+            return p
+    return None
+
+
+@router.get("/stats/wordclouds", response_model=WordCloudResponse)
+def get_wordclouds(current_user: User = Depends(get_current_user)):
+    """
+    词云接口 — 基于 samples.xlsx 的中文分词生成两张词云 PNG。
+
+    返回 base64 编码的 PNG 图片列表：
+    - 🏷️ 标题关键词云
+    - 📝 内容摘要词云
+    """
+    df = _load_samples()
+
+    if df.empty:
+        return WordCloudResponse(wordclouds=[])
+
+    font_path = _detect_cjk_font()
+    # 暖色调调色板（与前端 warm earth-tone 一致）
+    WC_COLORS = ["#d48c5c", "#c08050", "#b87040", "#a0724a", "#8a6a4a", "#c9976b"]
+
+    result: list[WordCloudItem] = []
+
+    for wc_label, col_name in [
+        ("🏷️ 标题关键词云", "标题"),
+        ("📝 内容摘要词云", "内容摘要"),
+    ]:
+        if col_name not in df.columns:
+            continue
+
+        text = " ".join(df[col_name].dropna().astype(str).tolist())
+        if not text.strip():
+            continue
+
+        words = [
+            w.strip() for w in jieba.cut(text)
+            if len(w.strip()) >= 2 and w.strip() not in _STOPWORDS
+        ]
+        if not words:
+            continue
+
+        wc = WordCloud(
+            width=600,
+            height=380,
+            background_color="#fcf9f5",
+            font_path=font_path,
+            max_words=80,
+            collocations=False,
+            margin=10,
+            prefer_horizontal=0.75,
+            color_func=lambda *a, **kw: random.choice(WC_COLORS),
+        )
+        wc.generate(" ".join(words))
+
+        buf = BytesIO()
+        wc.to_image().save(buf, format="PNG")
+        result.append(WordCloudItem(
+            label=wc_label,
+            base64=base64.b64encode(buf.getvalue()).decode(),
+        ))
+
+    return WordCloudResponse(wordclouds=result)

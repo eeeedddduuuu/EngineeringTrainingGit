@@ -17,3 +17,7 @@ uploads/
 Thumbs.db
 docs/P4-*.md
 backend/data/
+backend/p4_agent/config/providers.json
+backend/p4_agent/multimodal/.multimodal_budget.json
+backend/p4_agent/multimodal/.multimodal_history.json
+*.local.json
