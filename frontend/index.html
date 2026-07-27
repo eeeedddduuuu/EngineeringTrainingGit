@@ -2283,8 +2283,11 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     xhr.onload = function() {
       st.textContent = '';
       if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.ok) {
-        var url = xhr.response.url;          // /uploads/ai_videos/xxx.mp4
-        var dl = xhr.response.download_url;  // /download/ai_videos/xxx.mp4
+        var relUrl = xhr.response.url;          // /uploads/ai_videos/xxx.mp4
+        var relDl = xhr.response.download_url;  // /download/ai_videos/xxx.mp4
+        var backendOrigin = 'http://127.0.0.1:8000';  // 后端端口，与 API_BASE 对齐
+        var url = relUrl.startsWith('/') ? backendOrigin + relUrl : relUrl;
+        var dl = relDl.startsWith('/') ? backendOrigin + relDl : relDl;
         pipeline.ffResultUrl = url;
         pipeline.ffDownloadUrl = dl;
         document.getElementById('ff-empty').style.display = 'none';
