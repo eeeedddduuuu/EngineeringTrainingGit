@@ -1290,9 +1290,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   window.switchProvider = switchProvider;
 
   (function() {
-    var sp = localStorage.getItem('ai_creator_provider');
-    if (sp && ['mock','deepseek','coze'].indexOf(sp) !== -1) currentProvider = sp;
-    if (!sp) { currentProvider = 'deepseek'; localStorage.setItem('ai_creator_provider', 'deepseek'); }
+    // 始终默认 DeepSeek，忽略旧缓存
+    currentProvider = 'deepseek';
+    localStorage.setItem('ai_creator_provider', 'deepseek');
     var names = { mock: '快速模板', deepseek: 'DeepSeek AI', coze: '扣子平台' };
     document.getElementById('provider-mode-name').textContent = names[currentProvider] || 'DeepSeek AI';
   })();
