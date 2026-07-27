@@ -709,7 +709,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var schemesList = [];
   var selectedFiles = [];
   var currentProvider = 'deepseek';
-  var lastPlatform = '抖音';  // 记录最近一次创作的平台
+  var lastPlatform = '抖音';
+  var recommendationData = null;  // { best_version, reason, estimated_data }
 
   var $body = document.body;
   var $loginPage = document.getElementById('login-page');
@@ -1010,6 +1011,22 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
             btnSubmit.disabled = false;
             // 替换为真实方案
             schemesList = d.result.schemes;
+            recommendationData = d.result.recommendation || null;
+            // 从 raw_markdown 提取推荐预估数据
+            if (!recommendationData || !recommendationData.reason) {
+              var recMD = d.result.raw_markdown || '';
+              var recMatch = recMD.match(/##\s*推荐[\s\S]*/);
+              if (recMatch) {
+                var bestM = recMatch[0].match(/\*\*推荐方案\*\*[:：]\s*(.+)/);
+                var reasonM = recMatch[0].match(/\*\*理由\*\*[:：]\s*([\s\S]*?)(?=\n\*\*|$)/);
+                var dataM = recMatch[0].match(/\*\*预估数据\*\*[:：]\s*(.+)/);
+                recommendationData = {
+                  best_version: bestM ? bestM[1].replace('版本','').trim() : '',
+                  reason: reasonM ? reasonM[1].trim() : '',
+                  estimated_data: dataM ? dataM[1].trim() : ''
+                };
+              }
+            }
             saveSchemesToStorage();
             setTimeout(function() { renderSchemes(); }, 500);
             showToast('DeepSeek 创作完成！', 'success');
@@ -1040,9 +1057,41 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     if (!schemesList.length) return;
     var container = document.getElementById('schemes-container');
     var actions = document.getElementById('scheme-actions');
+    var html = '';
+
+    // 推荐方案独立卡片
+    if (recommendationData && recommendationData.best_version) {
+      var bestVer = recommendationData.best_version.toUpperCase();
+      var bestScheme = null;
+      for (var i = 0; i < schemesList.length; i++) {
+        if (schemesList[i].version.toUpperCase() === bestVer) { bestScheme = schemesList[i]; break; }
+      }
+      if (bestScheme) {
+        html += '<div class="card" style="background:linear-gradient(135deg,#fdf8f3,#fcf0e5);border:2px solid #d48c5c;padding:1.8rem 2rem;margin-bottom:1.8rem;border-radius:20px;">';
+        html += '<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;">';
+        html += '<span style="background:#d48c5c;color:#fff;padding:0.3rem 1rem;border-radius:20px;font-weight:700;font-size:0.9rem;">🏆 系统推荐</span>';
+        html += '<span style="font-size:1.3rem;font-weight:700;color:#3d2c1b;">方案 ' + escapeHtml(bestScheme.version) + '</span>';
+        html += '<span style="color:#8a7a6a;">—</span>';
+        html += '<span style="font-weight:600;color:#5f4a34;">' + escapeHtml(bestScheme.title) + '</span>';
+        html += '</div>';
+        html += '<div style="background:#fff;border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1rem;">';
+        html += '<p style="font-size:1.05rem;line-height:1.8;color:#3d2c1b;margin:0;">' + escapeHtml(recommendationData.reason) + '</p>';
+        html += '</div>';
+        if (recommendationData.estimated_data) {
+          html += '<div style="display:flex;gap:1rem;flex-wrap:wrap;">';
+          var parts = recommendationData.estimated_data.split('/');
+          parts.forEach(function(p) {
+            html += '<span style="background:#fff;padding:0.4rem 1rem;border-radius:12px;font-size:0.85rem;color:#5f4a34;border:1px solid #f0e8de;">📊 ' + escapeHtml(p.trim()) + '</span>';
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+    }
+
     var colors = ['#d48c5c', '#c08050', '#b87040'];
     var medals = {1:'🥇',2:'🥈',3:'🥉'};
-    var html = '<div class="schemes-grid">';
+    html += '<div class="schemes-grid">';
     schemesList.forEach(function(item, i) {
       var rank = item.rank || (i + 1);
       var scenes = item.scenes || [];
