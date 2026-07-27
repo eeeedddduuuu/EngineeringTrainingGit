@@ -1011,21 +1011,32 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
             btnSubmit.disabled = false;
             // 替换为真实方案
             schemesList = d.result.schemes;
-            recommendationData = d.result.recommendation || null;
-            // 从 raw_markdown 提取推荐预估数据
-            if (!recommendationData || !recommendationData.reason) {
-              var recMD = d.result.raw_markdown || '';
-              var recMatch = recMD.match(/##\s*推荐[\s\S]*/);
-              if (recMatch) {
-                var bestM = recMatch[0].match(/\*\*推荐方案\*\*[:：]\s*(.+)/);
-                var reasonM = recMatch[0].match(/\*\*理由\*\*[:：]\s*([\s\S]*?)(?=\n\*\*|$)/);
-                var dataM = recMatch[0].match(/\*\*预估数据\*\*[:：]\s*(.+)/);
-                recommendationData = {
-                  best_version: bestM ? bestM[1].replace('版本','').trim() : '',
-                  reason: reasonM ? reasonM[1].trim() : '',
-                  estimated_data: dataM ? dataM[1].trim() : ''
-                };
-              }
+            // 推荐数据: 优先用API返回的recommendation，其次从raw_markdown解析
+            var apiRec = d.result.recommendation || {};
+            var rawMD = d.result.raw_markdown || '';
+            var recSection = rawMD.match(/##\s*推荐[\s\S]*/);
+            var bestV = apiRec.best_version || '';
+            var bestReason = apiRec.reason || '';
+            if ((!bestV || !bestReason || bestReason.indexOf('综合得分最高') === 0) && recSection) {
+              var recText = recSection[0];
+              var bm = recText.match(/\*\*推荐方案\*\*[:：]\s*(.+)/);
+              var rm = recText.match(/\*\*理由\*\*[:：]\s*([\s\S]*?)(?=\n\*\*|$)/);
+              var dm = recText.match(/\*\*预估数据\*\*[:：]\s*(.+)/);
+              if (bm) bestV = bm[1].replace(/版本\s*/g, '').trim();
+              if (rm) bestReason = rm[1].trim();
+              recommendationData = {
+                best_version: bestV,
+                reason: bestReason,
+                estimated_data: dm ? dm[1].trim() : ''
+              };
+            } else if (bestV) {
+              recommendationData = {
+                best_version: bestV.replace(/版本\s*/g, '').trim(),
+                reason: bestReason,
+                estimated_data: apiRec.estimated_data || ''
+              };
+            } else {
+              recommendationData = null;
             }
             saveSchemesToStorage();
             setTimeout(function() { renderSchemes(); }, 500);
@@ -1141,14 +1152,24 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   function extractVersionMD(fullMD, version) {
     if (!fullMD || !version) return fullMD;
-    // 尝试匹配 "## 版本 X" 开头的内容块
-    var pattern = new RegExp('##\\s*版本\\s*' + version + '\\b[\\s\\S]*?(?=\\n##\\s*(?:版本\\s*[A-Ca-c]|推荐\\b)|$)', 'i');
+    // 匹配 "## 版本 X" 到下一个 "## 版本 X" 或 "## 推荐" 或文本末尾
+    var pattern = new RegExp('##\\s*版本\\s*' + version + '[\\s\\S]*?(?=\\n##\\s*(?:版本\\s*[A-Ca-c]|推荐)|$)', 'i');
     var m = fullMD.match(pattern);
-    if (m) return m[0].trim();
-    // 回退: 按 ## 标题拆分
+    if (m) {
+      var content = m[0];
+      // 第二次检查: 手动截断到 ## 推荐 之前（防止正则 \b 对中文不生效）
+      var recIdx = content.search(/\n##\s*推荐/);
+      if (recIdx > 0) content = content.substring(0, recIdx);
+      return content.trim();
+    }
     var parts = fullMD.split(/\n(?=##\s*版本\s*)/);
-    var idx = version.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2
-    if (idx >= 0 && idx < parts.length) return parts[idx].trim();
+    var idx = version.toUpperCase().charCodeAt(0) - 65;
+    if (idx >= 0 && idx < parts.length) {
+      var part = parts[idx];
+      var ri = part.search(/\n##\s*推荐/);
+      if (ri > 0) part = part.substring(0, ri);
+      return part.trim();
+    }
     return fullMD;
   }
 
