@@ -692,6 +692,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var schemesList = [];
   var selectedFiles = [];
   var currentProvider = 'deepseek';
+  var lastPlatform = '抖音';  // 记录最近一次创作的平台
 
   var $body = document.body;
   var $loginPage = document.getElementById('login-page');
@@ -923,10 +924,13 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       return;
     }
     statusEl.innerHTML = '<span style="color:#d48c5c;">⏳ 正在提交...</span>';
+    var platformCode = document.getElementById('input-platform').value;
+    var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
+    lastPlatform = platformMap[platformCode] || platformCode;
     var payload = {
       topic: topic,
       target_audience: document.getElementById('input-audience').value.trim(),
-      platform: document.getElementById('input-platform').value,
+      platform: platformCode,
       duration: document.getElementById('input-duration').value,
       style: document.getElementById('input-style').value,
       provider: currentProvider
@@ -1027,25 +1031,35 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       var scenes = item.scenes || [];
       var hashtags = item.hashtags || [];
       var score = item.score || item.total_score || 0;
+      var desc = item.hook || item.description || item.title || '';
+      var reason = item.recommendation_reason || item.reason || '';
+      var coverText = item.cover_text || '';
       html += '<div class="scheme-card" style="border-left-color:' + colors[i] + ';">';
-      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + ' ' + (medals[rank]||'') + ' ⭐' + score + '</div>';
+      html += '<div class="scheme-ver">方案 ' + escapeHtml(item.version) + ' ' + (medals[rank]||'') + ' ⭐' + score.toFixed(1) + '</div>';
       html += '<div class="scheme-title">' + escapeHtml(item.title) + '</div>';
-      html += '<div class="scheme-desc">' + escapeHtml(item.hook || item.description || '') + '</div>';
+      if (coverText) html += '<div style="font-size:0.85rem;color:#8a7a6a;margin-bottom:0.5rem;">🎬 ' + escapeHtml(coverText) + '</div>';
+      html += '<div class="scheme-desc">' + escapeHtml(desc) + '</div>';
       html += '<div style="margin-bottom:0.5rem;">';
-      (hashtags.length ? hashtags : [escapeHtml(item.platform||'')]).forEach(function(t) {
+      (hashtags.length ? hashtags : []).forEach(function(t) {
         html += '<span class="scheme-tag">' + escapeHtml(t) + '</span>';
       });
+      if (!hashtags.length) html += '<span class="scheme-tag">' + escapeHtml(lastPlatform) + '</span>';
       html += '</div>';
-      if (item.reason || item.recommendation_reason) {
-        html += '<div class="scheme-reason"><span class="reason-label">推荐理由</span><br>' + escapeHtml(item.recommendation_reason || item.reason) + '</div>';
+      if (reason) {
+        html += '<div class="scheme-reason"><span class="reason-label">推荐理由</span><br>' + escapeHtml(reason) + '</div>';
       }
       if (scenes.length > 0) {
-        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📋 完整分镜脚本 ▴\':\'📋 完整分镜脚本 ▾\';">📋 完整分镜脚本 ▾</div>';
+        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📋 完整分镜脚本 ▴\':\'📋 完整分镜脚本 ▾\';">📋 完整分镜脚本 ▾ (' + scenes.length + '个场景)</div>';
         html += '<div class="detail-content"><table class="scene-table"><thead><tr><th>#</th><th>类型</th><th>时长</th><th>描述</th><th>配音</th></tr></thead><tbody>';
         scenes.forEach(function(sc) {
           html += '<tr><td>'+(sc.seq||'')+'</td><td>'+escapeHtml(sc.type||'')+'</td><td>'+escapeHtml(sc.duration||'')+'</td><td>'+escapeHtml(sc.description||'')+'</td><td style="font-size:0.8rem;color:#8a7a6a;">'+escapeHtml((sc.voiceover||'').substring(0,80))+'</td></tr>';
         });
         html += '</tbody></table></div>';
+      }
+      // 显示 raw_markdown 预览
+      if (item.raw_markdown) {
+        html += '<div class="detail-expander" onclick="this.nextElementSibling.classList.toggle(\'open\');this.textContent=this.nextElementSibling.classList.contains(\'open\')?\'📝 完整AI生成内容 ▴\':\'📝 完整AI生成内容 ▾\';">📝 完整AI生成内容 ▾</div>';
+        html += '<div class="detail-content"><pre style="white-space:pre-wrap;font-size:0.85rem;line-height:1.7;color:#3d2c1b;max-height:400px;overflow-y:auto;">' + escapeHtml(item.raw_markdown.substring(0, 3000)) + '</pre></div>';
       }
       html += '<div class="scheme-actions-row">';
       html += '<button onclick="generateTTS('+i+')">🔊 配音</button>';
@@ -1122,12 +1136,18 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function exportSchemeMD(idx) {
     var s = schemesList[idx]; if (!s) return;
     var md = '# 方案 ' + s.version + '：' + (s.title || '') + '\n\n';
-    md += '- **钩子**：' + (s.hook || '') + '\n';
-    md += '- **评分**：' + (s.score || 0) + '\n';
-    md += '- **推荐理由**：' + (s.recommendation_reason || s.reason || '') + '\n\n';
+    md += '**钩子**: ' + (s.hook || '') + '\n\n';
+    md += '**封面文案**: ' + (s.cover_text || '') + '\n\n';
+    md += '**评分**: ⭐' + (s.score || 0) + ' | **排名**: ' + (s.rank || idx+1) + '\n\n';
+    md += '**标签**: ' + ((s.hashtags || []).join(' ') || '') + '\n\n';
+    md += '**推荐理由**: ' + (s.recommendation_reason || s.reason || '') + '\n\n';
     if (s.scenes && s.scenes.length) {
       md += '## 分镜脚本\n\n| # | 类型 | 时长 | 描述 | 配音 |\n|---|---|---|---|---|\n';
       s.scenes.forEach(function(sc) { md += '| '+(sc.seq||'')+' | '+(sc.type||'')+' | '+(sc.duration||'')+' | '+(sc.description||'')+' | '+(sc.voiceover||'')+' |\n'; });
+      md += '\n';
+    }
+    if (s.raw_markdown) {
+      md += '## AI 完整生成内容\n\n' + s.raw_markdown + '\n';
     }
     downloadFile(md, '方案'+s.version+'.md', 'text/markdown');
     showToast('方案已导出', 'success');
@@ -1178,12 +1198,23 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   document.getElementById('btn-export').addEventListener('click', function() {
     if (!schemesList.length) return;
-    var md = '# 创作方案导出\n\n';
+    var md = '# 创作方案导出\n\n**平台**: ' + lastPlatform + '\n\n---\n\n';
     schemesList.forEach(function(s) {
-      md += '## 方案 ' + s.version + '：' + s.title + '\n\n';
-      md += '- **平台**：' + s.platform + '\n';
-      md += '- **描述**：' + s.description + '\n';
-      md += '- **推荐理由**：' + s.reason + '\n\n';
+      md += '## 方案 ' + s.version + '：' + (s.title || '') + '\n\n';
+      md += '**钩子**: ' + (s.hook || '') + '\n\n';
+      md += '**封面文案**: ' + (s.cover_text || '') + '\n\n';
+      md += '**评分**: ⭐' + (s.score || 0) + ' | **排名**: ' + (s.rank || '') + '\n\n';
+      md += '**标签**: ' + ((s.hashtags || []).join(' ') || '') + '\n\n';
+      md += '**推荐理由**: ' + (s.recommendation_reason || s.reason || '') + '\n\n';
+      if (s.scenes && s.scenes.length) {
+        md += '### 分镜脚本\n\n| # | 类型 | 时长 | 描述 | 配音 |\n|---|---|---|---|---|\n';
+        s.scenes.forEach(function(sc) { md += '| '+(sc.seq||'')+' | '+(sc.type||'')+' | '+(sc.duration||'')+' | '+(sc.description||'')+' | '+(sc.voiceover||'')+' |\n'; });
+        md += '\n';
+      }
+      if (s.raw_markdown) {
+        md += '### AI 完整生成内容\n\n' + s.raw_markdown + '\n\n';
+      }
+      md += '---\n\n';
     });
     downloadFile(md, '创作方案.md', 'text/markdown');
     showToast('方案已导出为 Markdown 文件', 'success');
