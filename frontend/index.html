@@ -396,13 +396,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         <span class="urole">创作者 · 已登录</span>
       </div>
     </div>
-    <div class="sidebar-engine" id="sidebar-engine-btn">
-      <span class="engine-label">AI引擎</span>
-      <span class="engine-name" id="engine-platform-name">扣子平台</span>
-    </div>
-    <div class="sidebar-engine" id="sidebar-provider-btn" style="margin-top:-1px;">
-      <span class="engine-label">生成模式</span>
-      <span class="engine-name" id="provider-mode-name">快速模板</span>
+    <div class="sidebar-engine" id="sidebar-provider-btn">
+      <span class="engine-label">AI 生成引擎</span>
+      <span class="engine-name" id="provider-mode-name">DeepSeek AI</span>
     </div>
     <div class="nav-group">
       <button class="nav-item active" data-page="workbench"><span class="nav-icon">📊</span>工作台</button>
@@ -684,16 +680,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   </div>
 </div>
 
-<!-- AI引擎绑定弹窗 -->
-<div class="modal-overlay hidden" id="modal-engine">
-  <div class="modal-box">
-    <h3>🔗 AI引擎绑定 — 扣子平台</h3>
-    <div class="form-group"><label class="field-label">API Key / Token</label><input class="input" type="text" id="engine-api-key" placeholder="请输入扣子平台 API Key"></div>
-    <div class="modal-msg" id="engine-modal-msg"></div>
-    <div class="modal-actions"><button class="btn btn-ghost btn-sm" id="btn-engine-unbind" style="display:none;color:#b8452a;">解绑</button><button class="btn btn-ghost btn-sm" id="btn-engine-cancel">取消</button><button class="btn btn-primary btn-sm" id="btn-engine-bind">绑定</button></div>
-  </div>
-</div>
-
 <div class="toast-container" id="toast-container"></div>
 
 <script>
@@ -705,7 +691,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var currentPage = 'workbench';
   var schemesList = [];
   var selectedFiles = [];
-  var currentProvider = 'mock';
+  var currentProvider = 'deepseek';
 
   var $body = document.body;
   var $loginPage = document.getElementById('login-page');
@@ -724,10 +710,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var $fileDropArea = document.getElementById('file-drop-area');
   var $fileList = document.getElementById('file-list');
   var $toastContainer = document.getElementById('toast-container');
-  var $modalEngine = document.getElementById('modal-engine');
-  var $engineApiKey = document.getElementById('engine-api-key');
-  var $engineModalMsg = document.getElementById('engine-modal-msg');
-  var $enginePlatformName = document.getElementById('engine-platform-name');
 
   function showToast(msg, type) {
     type = type || 'info';
@@ -846,7 +828,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       $sidebarAvatar.textContent = user.username.charAt(0).toUpperCase();
     }
     navigateTo('workbench');
-    loadEngineStatus();
   }
 
   document.getElementById('btn-logout').addEventListener('click', function() {
@@ -1140,8 +1121,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   (function() {
     var sp = localStorage.getItem('ai_creator_provider');
     if (sp && ['mock','deepseek','coze'].indexOf(sp) !== -1) currentProvider = sp;
+    if (!sp) { currentProvider = 'deepseek'; localStorage.setItem('ai_creator_provider', 'deepseek'); }
     var names = { mock: '快速模板', deepseek: 'DeepSeek AI', coze: '扣子平台' };
-    document.getElementById('provider-mode-name').textContent = names[currentProvider] || '快速模板';
+    document.getElementById('provider-mode-name').textContent = names[currentProvider] || 'DeepSeek AI';
   })();
 
   document.getElementById('btn-export').addEventListener('click', function() {
@@ -1272,89 +1254,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     try { var raw = localStorage.getItem('ai_creator_schemes'); if (raw) { schemesList = JSON.parse(raw); } } catch(e) { schemesList = []; }
   }
   loadSchemesFromStorage();
-
-  /* ===== AI引擎绑定 (Coze API) ===== */
-  function loadEngineStatus() {
-    apiRequest('/coze/status', 'GET').then(function(res) {
-      if (res.ok && res.data) {
-        if (res.data.bound) {
-          $enginePlatformName.textContent = '扣子平台（已绑定）';
-          $engineApiKey.placeholder = res.data.api_key_preview || '已绑定';
-        } else {
-          $enginePlatformName.textContent = '扣子平台';
-        }
-      }
-    }).catch(function(err) {
-      console.warn('引擎状态查询失败:', err);
-    });
-  }
-  document.getElementById('sidebar-engine-btn').addEventListener('click', function() {
-    $engineApiKey.value = '';
-    $engineModalMsg.textContent = '';
-    $engineModalMsg.className = 'modal-msg';
-    $engineApiKey.placeholder = '请输入扣子平台 API Key';
-    // 先查状态决定是否显示解绑
-    apiRequest('/coze/status', 'GET').then(function(res) {
-      var isBound = res.ok && res.data && res.data.bound;
-      document.getElementById('btn-engine-bind').textContent = isBound ? '重新绑定' : '绑定';
-      document.getElementById('btn-engine-unbind').style.display = isBound ? '' : 'none';
-      $modalEngine.classList.remove('hidden');
-    }).catch(function() {
-      $modalEngine.classList.remove('hidden');
-    });
-  });
-  document.getElementById('btn-engine-cancel').addEventListener('click', function() {
-    $modalEngine.classList.add('hidden');
-  });
-  document.getElementById('btn-engine-bind').addEventListener('click', function() {
-    var apiKey = $engineApiKey.value.trim();
-    if (!apiKey) { $engineModalMsg.textContent = '请输入 API Key'; $engineModalMsg.className = 'modal-msg error'; return; }
-    $engineModalMsg.textContent = '正在绑定...';
-    $engineModalMsg.className = 'modal-msg';
-    apiRequest('/coze/bind', 'POST', { api_key: apiKey }).then(function(res) {
-      if (res.ok) {
-        $enginePlatformName.textContent = '扣子平台（已绑定）';
-        $engineModalMsg.textContent = '绑定成功：扣子平台';
-        $engineModalMsg.className = 'modal-msg success';
-        showToast('AI引擎绑定成功', 'success');
-        setTimeout(function() { $modalEngine.classList.add('hidden'); }, 1000);
-      } else {
-        $engineModalMsg.textContent = extractError(res.data) || '绑定失败';
-        $engineModalMsg.className = 'modal-msg error';
-        showToast('绑定失败：' + (extractError(res.data) || '未知错误'), 'error');
-      }
-    }).catch(function(err) {
-      $engineModalMsg.textContent = '网络请求失败';
-      $engineModalMsg.className = 'modal-msg error';
-      showToast('绑定请求失败：' + err.message, 'error');
-    });
-  });
-  document.getElementById('btn-engine-unbind').addEventListener('click', function() {
-    if (!confirm('确定要解绑扣子平台吗？')) return;
-    $engineModalMsg.textContent = '正在解绑...';
-    $engineModalMsg.className = 'modal-msg';
-    apiRequest('/coze/unbind', 'DELETE').then(function(res) {
-      if (res.ok) {
-        $enginePlatformName.textContent = '扣子平台';
-        $engineApiKey.value = '';
-        $engineApiKey.placeholder = '请输入扣子平台 API Key';
-        document.getElementById('btn-engine-bind').textContent = '绑定';
-        document.getElementById('btn-engine-unbind').style.display = 'none';
-        $engineModalMsg.textContent = '已解绑';
-        $engineModalMsg.className = 'modal-msg success';
-        showToast('已解绑扣子平台', 'info');
-        setTimeout(function() { $modalEngine.classList.add('hidden'); }, 1000);
-      } else {
-        $engineModalMsg.textContent = extractError(res.data) || '解绑失败';
-        $engineModalMsg.className = 'modal-msg error';
-        showToast('解绑失败', 'error');
-      }
-    }).catch(function(err) {
-      $engineModalMsg.textContent = '网络请求失败';
-      $engineModalMsg.className = 'modal-msg error';
-      showToast('解绑请求失败：' + err.message, 'error');
-    });
-  });
 
   /* ===== 方案浏览 (API) ===== */
   function renderSchemeBrowse() {
@@ -1512,9 +1411,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   document.getElementById('knowledge-search-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { document.getElementById('btn-knowledge-search').click(); }
   });
-
-  /* ===== 点击遮罩关闭弹窗 ===== */
-  $modalEngine.addEventListener('click', function(e) { if (e.target === $modalEngine) { $modalEngine.classList.add('hidden'); } });
 
   var savedToken = localStorage.getItem('ai_creator_token');
   var savedUser = localStorage.getItem('ai_creator_user');
