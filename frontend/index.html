@@ -1745,7 +1745,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     }
     resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">搜索中...</div></div>';
     apiRequest('/knowledge/search?q=' + encodeURIComponent(keyword) + '&top_k=5', 'GET').then(function(res) {
-      console.log('[知识库] API响应:', JSON.stringify({ ok: res.ok, status: res.status, hasData: !!res.data, resultsType: res.data && typeof res.data.results, resultsLen: res.data && res.data.results && res.data.results.length }));
       var results = [];
       if (res.ok && res.data) {
         // API 返回 { query, results: [...] }
@@ -1786,7 +1785,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     var html = '<p style="color:#8a7a6a; margin-bottom:1rem;">找到 <strong>' + results.length + '</strong> 条相关结果</p>';
     results.forEach(function(r) {
       var title = escapeHtml(r.theme || r.title || r.filename || '');
-      var snippet = escapeHtml(r.snippet || r.description || r.content || '');
+      var snippet = escapeHtml(r.snippet || r.description || r.content || r.content_snippet || '');
       snippet = snippet.replace(regex, '<em>$1</em>');
       title = title.replace(regex, '<em>$1</em>');
       html += '<div class="search-result-item"><div class="match-title">' + title + '</div><div class="match-snippet">' + snippet + '</div><div class="match-time">' + escapeHtml(r.created_at || r.platform || '') + '</div></div>';
@@ -2068,26 +2067,46 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   });
 
   // ---- Step 2: Seedance 生视频 ----
+  var _sdRetries=0,_sdMaxRetries=60;  // 最多轮询 60 次（5分钟）
   function pollSeedance(taskId){
     var st=document.getElementById('s2-status'),dots=0;
     if(sdPollTimer) clearInterval(sdPollTimer);
+    _sdRetries=0;
     sdPollTimer=setInterval(function(){
-      dots=(dots+1)%4;st.textContent='⏳ AI 生成中'+'.'.repeat(dots);
+      dots=(dots+1)%4;
       var sx=new XMLHttpRequest();
       sx.open('GET',API_BASE+'/creation/seedance-status/'+taskId);
       sx.setRequestHeader('Authorization','Bearer '+token);sx.timeout=15000;
       sx.onload=function(){
-        if(sx.status!==200)return;
+        if(sx.status!==200){
+          _sdRetries++;
+          if(_sdRetries>=3){clearInterval(sdPollTimer);st.textContent='❌ 状态查询失败 (HTTP '+sx.status+')';document.getElementById('btn-s2').disabled=false;showToast('视频状态查询失败，请重试','error');}
+          return;
+        }
+        _sdRetries=0;
         var sd=JSON.parse(sx.responseText);
-        if(sd.status==='succeeded'&&sd.data&&sd.data.video_url){
+        var rawStatus=sd.status||sd.state||'unknown';
+        // 尝试多种路径提取 video_url
+        var videoUrl=sd.data&&sd.data.video_url;
+        if(!videoUrl&&sd.data&&sd.data.output){videoUrl=sd.data.output.video_url;}
+        if(!videoUrl&&sd._raw_content){try{(Array.isArray(sd._raw_content)?sd._raw_content:[sd._raw_content]).forEach(function(c){if(!videoUrl&&c.video_url){videoUrl=c.video_url;}});}catch(e){}}
+        if(rawStatus==='succeeded'&&videoUrl){
           clearInterval(sdPollTimer);st.textContent='';
           document.getElementById('btn-s2').disabled=false;
-          pipeline.s2={videoUrl:sd.data.video_url};
-          document.getElementById('s2-result').innerHTML='<video controls src="'+sd.data.video_url+'" style="max-width:100%;max-height:400px;border-radius:12px;"></video><div style="margin-top:0.6rem;display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary btn-sm" onclick="downloadURL(\''+sd.data.video_url+'\',\'ai_video.mp4\')">📥 下载</button></div>';
-          addToLib('video',sd.data.video_url,document.getElementById('s2-prompt').value.trim(),{});
+          pipeline.s2={videoUrl:videoUrl};
+          document.getElementById('s2-result').innerHTML='<video controls src="'+videoUrl+'" style="max-width:100%;max-height:400px;border-radius:12px;"></video><div style="margin-top:0.6rem;display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary btn-sm" onclick="downloadURL(\''+videoUrl+'\',\'ai_video.mp4\')">📥 下载</button></div>';
+          addToLib('video',videoUrl,document.getElementById('s2-prompt').value.trim(),{});
           showToast('✅ 视频生成成功！','success');
-        }else if(sd.status==='failed'){clearInterval(sdPollTimer);st.textContent='❌ 失败';document.getElementById('btn-s2').disabled=false;}
+        }else if(rawStatus==='failed'){
+          clearInterval(sdPollTimer);st.textContent='❌ 生成失败';document.getElementById('btn-s2').disabled=false;
+          showToast('视频生成失败，请检查提示词后重试','error');
+        }else{
+          st.textContent='⏳ '+rawStatus+' '+'.'.repeat(dots)+' ('+Math.floor(_sdRetries/12+1)+'min)';
+          _sdRetries++;
+          if(_sdRetries>=_sdMaxRetries){clearInterval(sdPollTimer);st.textContent='⏰ 超时（>5分钟）';document.getElementById('btn-s2').disabled=false;showToast('视频生成超时，请重试','error');}
+        }
       };
+      sx.onerror=function(){_sdRetries++;if(_sdRetries>=3){clearInterval(sdPollTimer);st.textContent='❌ 网络错误';document.getElementById('btn-s2').disabled=false;}};
       sx.send();
     },5000);
   }

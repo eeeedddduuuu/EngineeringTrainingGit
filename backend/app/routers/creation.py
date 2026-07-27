@@ -6,6 +6,7 @@
 """
 import os
 import uuid
+import hashlib
 import sys
 import shutil
 import threading
@@ -29,11 +30,95 @@ router = APIRouter(prefix="/api", tags=["创作"])
 UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+_SERVER_BASE = "http://127.0.0.1:8000"
+
+# ── TOS 上传配置 ─────────────────────────────────────────
+_TOS_AK = os.environ.get("VOLC_ACCESS_KEY", "")
+_TOS_SK = os.environ.get("VOLC_SECRET_KEY", "")
+_TOS_REGION = os.environ.get("VOLC_TOS_REGION", "cn-beijing")
+_TOS_BUCKET = os.environ.get("VOLC_TOS_BUCKET", "xiaoluo233")
+_TOS_ENDPOINT = f"https://tos-{_TOS_REGION}.volces.com"
+_HAS_TOS = False
+try:
+    import tos
+    _HAS_TOS = True
+except ImportError:
+    pass
+
 # 已上传文件暂存（session 级别，供 Agent 上下文注入）
 _uploaded_files: dict[int, list[dict]] = {}  # user_id → [{path, filename, type, size, uploaded_at}]
 
 # 简易内存任务存储
 _task_store: dict[str, dict] = {}
+
+
+@router.post("/creation/tos-upload")
+async def tos_upload(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """上传图片到火山 TOS（或本地兜底），返回 URL（供 Seedream/Seedance 参考图使用）"""
+    try:
+        content = await file.read()
+        h = hashlib.md5(content).hexdigest()[:8]
+        month = datetime.now().strftime("%Y%m")
+        ext = Path(file.filename or "image.png").suffix or ".png"
+        safe_name = f"{h}_{Path(file.filename or 'img').stem}{ext}"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "read_failed", "detail": str(e)})
+
+    # 优先使用 TOS
+    if _HAS_TOS and _TOS_AK and _TOS_SK:
+        try:
+            object_key = f"uploads/{month}/{safe_name}"
+            client = tos.TosClient(
+                auth=tos.Auth(_TOS_AK, _TOS_SK, _TOS_REGION),
+                endpoint=_TOS_ENDPOINT,
+            )
+            try:
+                client.head_bucket(Bucket=_TOS_BUCKET)
+            except Exception:
+                client.create_bucket(Bucket=_TOS_BUCKET, ACL="public-read")
+            from io import BytesIO
+            client.put_object(Bucket=_TOS_BUCKET, Key=object_key, Body=BytesIO(content), ACL="public-read")
+            public_url = f"https://{_TOS_BUCKET}.tos-{_TOS_REGION}.volces.com/{object_key}"
+            return {"ok": True, "url": public_url, "key": object_key}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail={"error": "tos_upload_failed", "detail": str(e)})
+
+    # 本地兜底：保存到 uploads/refs/ 目录
+    ref_dir = UPLOAD_DIR / "refs" / month
+    ref_dir.mkdir(parents=True, exist_ok=True)
+    dest = ref_dir / safe_name
+    with open(dest, "wb") as f:
+        f.write(content)
+    local_url = f"/api/uploads/refs/{month}/{safe_name}"
+    return {"ok": True, "url": local_url, "key": str(dest), "source": "local"}
+
+
+@router.get("/uploads/refs/{month}/{filename}")
+def serve_local_ref(month: str, filename: str):
+    """提供本地参考图文件访问"""
+    file_path = UPLOAD_DIR / "refs" / month / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return FileResponse(str(file_path))
+
+
+@router.get("/creation/download")
+def download_proxy(url: str, filename: str = "download"):
+    """下载代理 — 强制 attachment 头，让浏览器触发下载而非内联预览"""
+    import urllib.request as _ur
+    import mimetypes
+    try:
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=60) as resp:
+            data = resp.read()
+        content_type = resp.headers.get("Content-Type", mimetypes.guess_type(filename)[0] or "application/octet-stream")
+        return StreamingResponse(io.BytesIO(data), media_type=content_type,
+                                 headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "download_failed", "detail": str(e)})
 
 
 def _analyze_image(image_url: str) -> str:
@@ -907,6 +992,89 @@ def download_material_file(
 
 # ====================== 短视频样片生成（进阶#1：图像+TTS+FFmpeg） ======================
 
+@router.post("/creation/generate-image")
+def generate_image(
+    image_prompt: str = Form(..., min_length=1, max_length=2000),
+    model: str = Form("pro"),
+    size: str = Form("2K"),
+    aspect_ratio: str = Form("1:1"),
+    output_format: str = Form("jpeg"),
+    watermark: bool = Form(True),
+    optimize_mode: str = Form(""),
+    reference_image_url: str = Form(""),
+    current_user: User = Depends(get_current_user),
+):
+    """Step 1: AI 生图 — Seedream 全参数支持"""
+    import json as _json, urllib.request as _ur
+
+    # 模型名映射（直接用模型名，不用端点 ID — 端点可能过期）
+    MODEL_NAMES = {
+        "pro": "doubao-seedream-4-0-250828",
+        "lite": "doubao-seedream-4-0-250828",
+        "4.5": "doubao-seedream-4-0-250828",
+        "4.0": "doubao-seedream-4-0-250828",
+    }
+    model_name = MODEL_NAMES.get(model, "doubao-seedream-4-0-250828")
+    model_sizes = {"pro": ["1K","2K"], "lite": ["2K","3K","4K"], "4.5": ["2K","4K"], "4.0": ["1K","2K","4K"]}
+    if size not in model_sizes.get(model, ["2K"]):
+        size = model_sizes.get(model, ["2K"])[0]
+
+    ASPECT_PIXELS = {
+        "1:1":"2048x2048","16:9":"2816x1584","9:16":"1584x2816",
+        "4:3":"2368x1776","3:4":"1776x2368","3:2":"2496x1664","2:3":"1664x2496","21:9":"3136x1344",
+    }
+    final_size = ASPECT_PIXELS.get(aspect_ratio, size) if model == "pro" and size == "2K" else size
+
+    try:
+        ark_key = os.environ.get("ARK_API_KEY", "")
+        if not ark_key:
+            raise RuntimeError("ARK_API_KEY 未设置")
+        img_dir = Path(__file__).parent.parent.parent / "uploads" / "ai_images"
+        img_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "model": model_name,
+            "prompt": image_prompt.strip(),
+            "response_format": "url",
+            "size": final_size,
+            "watermark": watermark,
+        }
+        if output_format and model in ("pro", "lite"):
+            payload["output_format"] = output_format
+        if optimize_mode and model == "pro":
+            payload["optimize_prompt_options"] = {"mode": optimize_mode}
+        if reference_image_url.strip():
+            ref_url = reference_image_url.strip()
+            # 本地 refs 路径 → 转 base64 data URI（Seedream 无法访问内网 URL）
+            if ref_url.startswith("/api/uploads/refs/"):
+                ref_path = UPLOAD_DIR / "refs" / ref_url.split("/api/uploads/refs/")[1]
+                if ref_path.exists():
+                    import base64 as _b64
+                    ref_bytes = ref_path.read_bytes()
+                    ext = ref_path.suffix.lower()
+                    mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif"}.get(ext.lstrip("."), "image/png")
+                    ref_url = f"data:{mime};base64,{_b64.b64encode(ref_bytes).decode('utf-8')}"
+            payload["image"] = ref_url
+
+        payload_bytes = _json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = _ur.Request("https://ark.cn-beijing.volces.com/api/v3/images/generations",
+                          data=payload_bytes,
+                          headers={"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer " + ark_key})
+        with _ur.urlopen(req, timeout=180) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        img_url = data.get("data", [{}])[0].get("url", "")
+        if not img_url:
+            raise RuntimeError("Seedream 无图片 URL: " + str(data))
+        suffix = ".png" if output_format == "png" else ".jpg"
+        img_filename = f"ai_cover_{uuid.uuid4().hex[:8]}{suffix}"
+        img_path = str(img_dir / img_filename)
+        _ur.urlretrieve(img_url, img_path)
+        relative_url = f"/uploads/ai_images/{img_filename}"
+        full_url = _SERVER_BASE + relative_url
+        return {"ok": True, "image_url": relative_url, "full_url": full_url, "local_path": img_path, "model": model, "size": final_size}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "image_gen_failed", "detail": str(e)})
+
+
 @router.post("/creation/generate-video")
 def generate_video(
     image_prompt: str = Form(..., min_length=1, max_length=500),
@@ -914,46 +1082,44 @@ def generate_video(
     speaker: str = Form("zh_female_qingxin"),
     current_user: User = Depends(get_current_user),
 ):
-    """进阶#1：串联 Seedream 生图 + 豆包 TTS + FFmpeg → 自动生成短视频 MP4"""
+    """一键模式：串联 Seedream 生图 + 豆包 TTS + FFmpeg → 自动生成短视频 MP4"""
     import base64 as _b64, tempfile, os as _os, subprocess
-    import requests as _requests
+    import json as _json, urllib.request as _ur
 
     # Step 1: 生成封面图（优先 Seedream，失败回退 PIL）
+    SEEDREAM_MODEL_NAME = "doubao-seedream-4-0-250828"
     try:
-        from app.config import ARK_API_KEY, SEEDREAM_MODEL
-        ark_key = ARK_API_KEY
+        ark_key = os.environ.get("ARK_API_KEY", "")
+        if not ark_key:
+            raise RuntimeError("ARK_API_KEY 环境变量未设置")
 
         img_dir = Path(__file__).parent.parent.parent / "uploads" / "ai_images"
         img_dir.mkdir(parents=True, exist_ok=True)
         img_path = str(img_dir / f"ai_cover_{uuid.uuid4().hex[:8]}.png")
 
         seedream_ok = False
-        if ark_key and ark_key.startswith("ark-"):
+        if ark_key.startswith("ark-"):
             try:
-                resp = _requests.post(
+                payload = _json.dumps({
+                    "model": SEEDREAM_MODEL_NAME,
+                    "prompt": image_prompt.strip(),
+                    "response_format": "url",
+                    "size": "2K",
+                    "watermark": True,
+                }, ensure_ascii=False).encode("utf-8")
+                req = _ur.Request(
                     "https://ark.cn-beijing.volces.com/api/v3/images/generations",
-                    json={
-                        "model": SEEDREAM_MODEL,
-                        "prompt": image_prompt.strip(),
-                        "response_format": "url",
-                        "size": "2K",
-                        "watermark": True,
-                    },
-                    headers={
-                        "Content-Type": "application/json; charset=utf-8",
-                        "Authorization": "Bearer " + ark_key,
-                    },
-                    timeout=120,
+                    data=payload,
+                    headers={"Content-Type": "application/json; charset=utf-8",
+                             "Authorization": "Bearer " + ark_key},
                 )
-                resp.encoding = "utf-8"
-                data = resp.json()
+                with _ur.urlopen(req, timeout=180) as resp:
+                    data = _json.loads(resp.read().decode("utf-8"))
 
                 if "error" not in data:
                     img_url = data.get("data", [{}])[0].get("url", "")
                     if img_url:
-                        r = _requests.get(img_url, timeout=60)
-                        with open(img_path, "wb") as f:
-                            f.write(r.content)
+                        _ur.urlretrieve(img_url, img_path)
                         seedream_ok = True
                 else:
                     err = data["error"]
@@ -1056,23 +1222,53 @@ def seedance_create(
     prompt: str = Form(..., min_length=1, max_length=500),
     resolution: str = Form("1080p"),
     duration: int = Form(5),
-    aspect_ratio: str = Form("16:9"),
+    aspect_ratio: str = Form("智能比例"),
     count: int = Form(1),
+    image_url: str = Form(""),
+    camera_fixed: bool = Form(False),
+    watermark: bool = Form(True),
+    seed_value: int = Form(-1),
     current_user: User = Depends(get_current_user),
 ):
-    """Seedance 1.0 文生视频 — 创建异步生成任务"""
+    """Seedance 1.0 文生视频 / 图生视频 — 全参数异步生成"""
     import requests as _r
-    from app.config import ARK_VIDEO_KEY, SEEDANCE_MODEL
-    ark_key = ARK_VIDEO_KEY
+    ark_key = os.environ.get("ARK_VIDEO_KEY", "")
     if not ark_key:
         raise HTTPException(status_code=500, detail={"error": "no_api_key", "detail": "ARK_VIDEO_KEY 未设置"})
+    # 直接用模型名（端点 ID 可能过期或属于其他账号）
+    SEEDANCE_MODEL_NAME = "doubao-seedance-1-0-pro-250528"
     try:
+        full_prompt = prompt.strip()
+        # 拼接参数标记到 prompt
+        params = []
+        if resolution: params.append(f"--resolution {resolution}")
+        if duration: params.append(f"--duration {duration}")
+        if aspect_ratio and aspect_ratio != "智能比例": params.append(f"--aspect {aspect_ratio}")
+        if count > 1: params.append(f"--count {count}")
+        if seed_value >= 0: params.append(f"--seed {seed_value}")
+        params.append(f"--camerafixed {str(camera_fixed).lower()}")
+        params.append(f"--watermark {str(watermark).lower()}")
+        if params:
+            full_prompt = f"{prompt.strip()}  {' '.join(params)}"
+
+        content = [{"type": "text", "text": full_prompt}]
+        if image_url.strip():
+            ref_url = image_url.strip()
+            # 本地 refs 路径 → 转 base64 data URI
+            if ref_url.startswith("/api/uploads/refs/"):
+                ref_path = UPLOAD_DIR / "refs" / ref_url.split("/api/uploads/refs/")[1]
+                if ref_path.exists():
+                    import base64 as _b64
+                    ref_bytes = ref_path.read_bytes()
+                    ext = ref_path.suffix.lower()
+                    mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}.get(ext.lstrip("."), "image/png")
+                    ref_url = f"data:{mime};base64,{_b64.b64encode(ref_bytes).decode('utf-8')}"
+            content.append({"type": "image_url", "image_url": {"url": ref_url}})
         resp = _r.post(
             "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
             json={
-                "model": SEEDANCE_MODEL,
-                "content": [{"type": "text", "text": prompt.strip()}],
-                "parameters": {"resolution": resolution, "duration": duration, "aspect_ratio": aspect_ratio, "count": count},
+                "model": SEEDANCE_MODEL_NAME,
+                "content": content,
             },
             headers={"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer " + ark_key},
             timeout=30,
@@ -1091,26 +1287,77 @@ def seedance_create(
 def seedance_status(task_id: str, current_user: User = Depends(get_current_user)):
     """查询 Seedance 任务状态"""
     import requests as _r
-    from app.config import ARK_VIDEO_KEY
-    ark_key = ARK_VIDEO_KEY
+    ark_key = os.environ.get("ARK_VIDEO_KEY", "")
     if not ark_key:
-        raise HTTPException(status_code=500, detail={"error": "no_api_key", "detail": "ARK_VIDEO_KEY 未设置"})
+        return {"status": "error", "data": {}, "error": "ARK_VIDEO_KEY 未设置"}
     try:
-        resp = _r.get(f"https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{task_id}",
-                      headers={"Authorization": "Bearer " + ark_key}, timeout=15)
-        resp.encoding = "utf-8"
-        data = resp.json()
-        status = data.get("status", "unknown")
+        resp = _r.get(
+            f"https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{task_id}",
+            headers={"Authorization": "Bearer " + ark_key},
+            timeout=30,  # 增加超时
+        )
+        # 即使非 200 也尝试解析 body
+        try:
+            data = resp.json() if resp.text else {}
+        except Exception:
+            print(f"[Seedance] 非 JSON 响应 (HTTP {resp.status_code}): {resp.text[:300]}")
+            return {"status": "error", "data": {}, "error": f"API 返回非 JSON (HTTP {resp.status_code})"}
+
+        if resp.status_code != 200:
+            err = data.get("error", {})
+            print(f"[Seedance] HTTP {resp.status_code}: {err}")
+            return {"status": "error", "data": {}, "error": str(err.get('message', '未知错误'))}
+
+        status = data.get("status", data.get("state", "unknown"))
+        print(f"[Seedance] 任务 {task_id[:12]}... → {status}")
+
         result = {}
-        if status == "succeeded":
+        if status in ("succeeded", "done", "completed"):
+            # 打日志看完整结构
+            print(f"[Seedance] 完整响应 keys: {list(data.keys())}")
+            if "content" in data:
+                print(f"[Seedance] content 类型: {type(data['content'])}, 长度: {len(data['content']) if isinstance(data['content'], list) else 'N/A'}")
+            # 尝试多种路径提取 video_url
             content_list = data.get("content", [])
-            for c in content_list:
-                if c.get("type") == "video" and c.get("video_url"):
-                    result["video_url"] = c["video_url"]
-                    break
-        return {"status": status, "data": result}
+            if isinstance(content_list, list):
+                for i, c in enumerate(content_list):
+                    if isinstance(c, dict):
+                        print(f"[Seedance] content[{i}] keys: {list(c.keys())}")
+                        if c.get("type") == "video" and c.get("video_url"):
+                            result["video_url"] = c["video_url"]
+                            break
+                        # 有些版本 video_url 在嵌套的 output 里
+                        if c.get("video_url"):
+                            result["video_url"] = c["video_url"]
+                            break
+            # 顶层直接有 video_url
+            if not result.get("video_url"):
+                for key in ("video_url", "output_url", "url", "result_url"):
+                    if data.get(key):
+                        result["video_url"] = data[key]
+                        break
+            # output 对象里
+            if not result.get("video_url") and isinstance(data.get("output"), dict):
+                result["video_url"] = data["output"].get("video_url", "")
+            print(f"[Seedance] ✅ video_url: {bool(result.get('video_url'))}")
+        elif status in ("failed", "error"):
+            print(f"[Seedance] ❌ 失败: {data.get('error', '无详细信息')}")
+
+        # 把原始 content 和 data 透传，前端备用
+        if not result.get("video_url") and isinstance(data.get("content"), list):
+            for c in data["content"]:
+                if isinstance(c, dict):
+                    # 递归找任意 video_url / url 字段
+                    for k, v in c.items():
+                        if isinstance(v, str) and ("video" in k or "url" in k) and v.startswith("http"):
+                            result["video_url"] = v
+                            break
+                    if result.get("video_url"):
+                        break
+        return {"status": status, "data": result, "_raw_content": data.get("content")}
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": "seedance_query_failed", "detail": str(e)})
+        print(f"[Seedance] 异常: {e}")
+        return {"status": "error", "data": {}, "error": str(e)}
 
 
 @router.get("/creation/seedance-download/{task_id}")
