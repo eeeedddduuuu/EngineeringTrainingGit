@@ -140,6 +140,9 @@ def _parse_version_block(block: str, version: str) -> dict[str, Any]:
         "scenes": scenes,
         "hashtags": hashtags,
         "cover_text": cover_text,
+        "total_score": 0.0,
+        "rank": 0,
+        "recommendation_reason": "",
     }
 
 
@@ -181,8 +184,8 @@ def parse_script_output(markdown_text: str) -> dict[str, Any]:
     """
     text = markdown_text.strip()
 
-    # 按版本标题分段（支持在文本开头或换行后出现）
-    version_blocks = re.split(r"(?:^|\n)(?=##\s*版本\s*[A-Ca-c])", text)
+    # 按版本标题 + 推荐标题分段
+    version_blocks = re.split(r"(?:^|\n)(?=##\s*(?:版本\s*[A-Ca-c]|推荐\b))", text)
 
     schemes: list[dict[str, Any]] = []
     recommendation: dict[str, str] = {}
@@ -204,13 +207,19 @@ def parse_script_output(markdown_text: str) -> dict[str, Any]:
                 s["recommendation_reason"] = recommendation.get("reason", "")
 
     # 设置默认 rank（按推荐排序，推荐的第一）
+    for i, s in enumerate(schemes):
+        s.setdefault("score", 5.0)
+        s.setdefault("rank", i + 1)
     if recommendation.get("best_version"):
         best_ver = recommendation["best_version"].strip().upper()
+        # 去掉可能的 "版本 " 前缀
+        best_ver = best_ver.replace("版本", "").replace(" ", "").strip()
         for s in schemes:
-            if s["version"] == best_ver:
+            if s["version"].upper() == best_ver:
                 s["rank"] = 1
-            else:
-                s["rank"] = 2 if s["rank"] == 0 else s["rank"]
+                s["recommendation_reason"] = recommendation.get("reason", "")
+            elif s.get("rank") == 1:
+                s["rank"] = 2
 
     return {
         "schemes": schemes,
