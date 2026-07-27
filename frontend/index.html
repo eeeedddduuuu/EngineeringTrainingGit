@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 数字媒体创作助手</title>
+<title>灵犀创作助手</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -154,10 +154,10 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   padding: 1.8rem 1.8rem; display: flex; flex-direction: column;
   z-index: 100;
 }
-.sidebar-logo { font-weight: 700; font-size: 28px; color: #3d2c1b; padding: 0 12px 20px 12px; border-bottom: 1px solid #f0e8de; margin-bottom: 0; }
+.sidebar-logo { font-weight: 700; font-size: 28px; color: #3d2c1b; padding: 0 12px 12px 12px; border-bottom: 1px solid #f0e8de; margin-bottom: 0; }
 .sidebar-logo span { color: #d48c5c; }
 .sidebar-user {
-  display: flex; align-items: center; gap: 12px; padding: 16px 12px 20px 12px;
+  display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 12px;
   margin-bottom: 0; border-bottom: 1px solid #f0e8de;
 }
 .sidebar-user .avatar {
@@ -167,17 +167,21 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 }
 .sidebar-user .uname { font-weight: 600; color: #3d2c1b; font-size: 20px; }
 .sidebar-user .urole { font-size: 15px; color: #8a7a6a; display: block; }
-.nav-group { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 24px 0; }
+.sidebar-engine { padding: 10px 12px 12px 12px; border-bottom: 1px solid #f0e8de; cursor: pointer; transition: background 0.15s ease; }
+.sidebar-engine:hover { background: #fcf9f5; }
+.sidebar-engine .engine-label { font-size: 13px; color: #a09080; font-weight: 500; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+.sidebar-engine .engine-name { font-size: 17px; color: #3d2c1b; font-weight: 500; }
+.nav-group { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 16px 0; }
 .nav-item {
   display: flex; align-items: center; gap: 12px;
   padding: 14px 14px; border-radius: 10px;
-  font-weight: 500; font-size: 20px; color: #8a7a6a;
+  font-weight: 500; font-size: 17px; color: #8a7a6a;
   cursor: pointer; transition: all 0.15s ease; border: none; background: none;
   font-family: inherit; width: 100%; text-align: left;
 }
 .nav-item:hover { background: #fcf0e5; color: #d48c5c; }
 .nav-item.active { background: #fcf0e5; color: #d48c5c; font-weight: 700; }
-.nav-item .nav-icon { font-size: 22px; width: 24px; text-align: center; flex-shrink: 0; }
+.nav-item .nav-icon { font-size: 19px; width: 22px; text-align: center; flex-shrink: 0; }
 .nav-item.logout { color: #b8452a; font-weight: 500; }
 .nav-item.logout:hover { background: #fef2f2; color: #991b1b; }
 .sidebar-footer { border-top: 1px solid #f0e8de; padding-top: 12px; margin-top: auto; }
@@ -273,6 +277,24 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
 .empty-state .empty-text { font-size: 1.1rem; }
 .action-row { display: flex; gap: 1rem; margin-top: 1.4rem; flex-wrap: wrap; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9997; display: flex; align-items: center; justify-content: center; }
+.modal-overlay.hidden { display: none; }
+.modal-box { background: #fff; border-radius: 24px; padding: 2rem; width: 440px; max-width: 90vw; box-shadow: 0 16px 48px rgba(0,0,0,0.15); }
+.modal-box h3 { font-size: 1.3rem; color: #3d2c1b; margin-bottom: 1.2rem; }
+.modal-box .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
+.modal-box .modal-msg { font-size: 0.9rem; margin-top: 0.6rem; min-height: 1.2em; }
+.modal-box .modal-msg.error { color: #dc2626; }
+.modal-box .modal-msg.success { color: #16a34a; }
+.badge-pending { background: #fff3cd; color: #856404; }
+.badge-approved { background: #d4edda; color: #155724; }
+.badge-rejected { background: #f8d7da; color: #721c24; }
+.search-box { display: flex; gap: 0.8rem; margin-bottom: 1.5rem; }
+.search-box .input { flex: 1; }
+.search-result-item { background: #fcf9f5; border-radius: 16px; padding: 1.2rem; margin-bottom: 0.8rem; border: 1px solid #f0e8de; }
+.search-result-item .match-title { font-weight: 700; color: #3d2c1b; }
+.search-result-item .match-snippet { color: #8a7a6a; font-size: 0.95rem; margin-top: 0.3rem; }
+.search-result-item .match-snippet em { background: #fff3cd; font-style: normal; padding: 0 2px; border-radius: 2px; }
+.search-result-item .match-time { color: #a09080; font-size: 0.85rem; margin-top: 0.4rem; }
 .toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.6rem; }
 .toast {
   padding: 1rem 1.5rem; border-radius: 16px; font-weight: 500; font-size: 0.95rem;
@@ -303,8 +325,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 <div id="login-page">
   <div class="login-wrapper">
     <div class="login-card">
-      <div class="logo"><h1><span>AI</span> 数字媒体创作助手</h1></div>
-      <div class="subtitle">MULTIMEDIA AI CREATOR  ·  数字媒体AI创作平台</div>
+      <div class="logo"><h1><span>灵犀</span>创作助手</h1></div>
+      <div class="subtitle">LINGXI CREATOR  ·  灵犀AI创作平台</div>
       <div class="tags">
         <span>游戏策划</span><span>短视频创作</span><span>社交媒体运营</span><span>品牌宣发</span>
       </div>
@@ -337,7 +359,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
 <div id="app-page">
   <nav class="sidebar">
-    <div class="sidebar-logo"><span>AI</span> 创作助手</div>
+    <div class="sidebar-logo"><span>灵犀</span>创作助手</div>
     <div class="sidebar-user">
       <div class="avatar" id="sidebar-avatar">U</div>
       <div class="user-info">
@@ -345,10 +367,17 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         <span class="urole">创作者 · 已登录</span>
       </div>
     </div>
+    <div class="sidebar-engine" id="sidebar-engine-btn">
+      <span class="engine-label">AI引擎</span>
+      <span class="engine-name" id="engine-platform-name">扣子平台</span>
+    </div>
     <div class="nav-group">
       <button class="nav-item active" data-page="workbench"><span class="nav-icon">📊</span>工作台</button>
+      <button class="nav-item" data-page="scheme-browse"><span class="nav-icon">📄</span>方案浏览</button>
       <button class="nav-item" data-page="history"><span class="nav-icon">📋</span>历史记录</button>
+      <button class="nav-item" data-page="material-analysis"><span class="nav-icon">📁</span>素材分析</button>
       <button class="nav-item" data-page="dashboard"><span class="nav-icon">📈</span>数据看板</button>
+      <button class="nav-item" data-page="knowledge"><span class="nav-icon">📚</span>知识库搜索</button>
     </div>
     <div class="sidebar-footer">
       <button class="nav-item logout" id="btn-logout"><span class="nav-icon">🚪</span>退出登录</button>
@@ -458,6 +487,31 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         <div class="chart-box"><div id="chart-theme" style="width:100%; height:380px;"></div></div>
       </div>
     </div>
+    <div class="page" id="page-scheme-browse">
+      <div class="page-header"><h2>方案浏览</h2><p>查看所有已生成的历史创作方案</p></div>
+      <div class="card"><div id="scheme-browse-container"><div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div></div></div>
+    </div>
+    <div class="page" id="page-material-analysis">
+      <div class="page-header"><h2>素材分析</h2><p>查看已上传的参考素材及其分析状态</p></div>
+      <div class="card"><div id="material-container"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">暂无上传素材，前往工作台上传文件</div></div></div></div>
+    </div>
+    <div class="page" id="page-knowledge">
+      <div class="page-header"><h2>知识库搜索</h2><p>在历史方案中搜索相关内容</p></div>
+      <div class="card">
+        <div class="search-box"><input class="input" type="text" id="knowledge-search-input" placeholder="输入关键词搜索历史方案..."><button class="btn btn-primary btn-sm" id="btn-knowledge-search">🔍 搜索</button></div>
+        <div id="knowledge-results-container"><div class="empty-state"><div class="empty-icon">📚</div><div class="empty-text">输入关键词开始搜索</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI引擎绑定弹窗 -->
+<div class="modal-overlay hidden" id="modal-engine">
+  <div class="modal-box">
+    <h3>🔗 AI引擎绑定 — 扣子平台</h3>
+    <div class="form-group"><label class="field-label">API Key / Token</label><input class="input" type="text" id="engine-api-key" placeholder="请输入扣子平台 API Key"></div>
+    <div class="modal-msg" id="engine-modal-msg"></div>
+    <div class="modal-actions"><button class="btn btn-ghost btn-sm" id="btn-engine-unbind" style="display:none;color:#b8452a;">解绑</button><button class="btn btn-ghost btn-sm" id="btn-engine-cancel">取消</button><button class="btn btn-primary btn-sm" id="btn-engine-bind">绑定</button></div>
   </div>
 </div>
 
@@ -490,6 +544,10 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var $fileDropArea = document.getElementById('file-drop-area');
   var $fileList = document.getElementById('file-list');
   var $toastContainer = document.getElementById('toast-container');
+  var $modalEngine = document.getElementById('modal-engine');
+  var $engineApiKey = document.getElementById('engine-api-key');
+  var $engineModalMsg = document.getElementById('engine-modal-msg');
+  var $enginePlatformName = document.getElementById('engine-platform-name');
 
   function showToast(msg, type) {
     type = type || 'info';
@@ -514,12 +572,13 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   function apiRequest(path, method, jsonData) {
     method = method || 'GET';
-    var headers = {};
-    if (token) { headers['Authorization'] = 'Bearer ' + token; }
+    var headers = { 'Content-Type': 'application/json' };
+    var authToken = token || localStorage.getItem('ai_creator_token');
+    if (authToken) { headers['Authorization'] = 'Bearer ' + authToken; }
     var url = API_BASE + path;
+    console.log('[API]', method, url);
     var opts = { method: method, headers: headers };
     if (jsonData && method !== 'GET') {
-      headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(jsonData);
     }
     return fetch(url, opts).then(function(r) {
@@ -530,6 +589,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         return r.text().then(function(text) { return { status: r.status, ok: r.ok, data: text }; });
       }
     }).catch(function(err) {
+      console.error('[API] 请求失败:', method, url, err);
       return { status: 0, ok: false, data: '网络请求失败：' + err.message + '，请检查后端服务是否启动' };
     });
   }
@@ -606,6 +666,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       $sidebarAvatar.textContent = user.username.charAt(0).toUpperCase();
     }
     navigateTo('workbench');
+    loadEngineStatus();
   }
 
   document.getElementById('btn-logout').addEventListener('click', function() {
@@ -636,6 +697,9 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     if (page === 'dashboard') { renderDashboardCharts(); }
     if (page === 'history') { loadHistory(); }
     if (page === 'workbench') { console.log('[navigateTo] 触发 renderSchemes, schemesList长度:', schemesList.length); renderSchemes(); }
+    if (page === 'scheme-browse') { renderSchemeBrowse(); }
+    if (page === 'material-analysis') { renderMaterialAnalysis(); }
+    if (page === 'knowledge') { renderKnowledgeSearch(); }
   }
 
   document.querySelectorAll('.nav-item').forEach(function(btn) {
@@ -707,11 +771,13 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     var platformMap = { douyin: '抖音', xiaohongshu: '小红书', bilibili: 'B站' };
     var platformName = platformMap[payload.platform] || payload.platform;
     console.log('[submit] 设置 schemesList (3 条方案), 当前 schemesList 长度:', schemesList.length);
+    var now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     schemesList = [
-      { version: 'A', title: topic + '｜简洁干货版', description: '开篇直击痛点，结构简短清晰，适合新手创作者快速落地', platform: platformName, reason: '钩子吸引力强，适合新手创作者' },
-      { version: 'B', title: topic + '｜剧情种草版', description: '以生活化小故事切入，搭配情绪递进，自然引出主题价值', platform: platformName, reason: '综合评分最高，推荐首选' },
-      { version: 'C', title: topic + '｜深度测评版', description: '多角度拆解主题细节，数据对比与成分分析，内容厚度扎实', platform: platformName, reason: '适合深度粉丝，留存率高' }
+      { id: Date.now(), version: 'A', theme: topic, title: topic + '｜简洁干货版', description: '开篇直击痛点，结构简短清晰，适合新手创作者快速落地', platform: platformName, duration: payload.duration, style: payload.style, reason: '钩子吸引力强，适合新手创作者', created_at: now, status: 'pending' },
+      { id: Date.now()+1, version: 'B', theme: topic, title: topic + '｜剧情种草版', description: '以生活化小故事切入，搭配情绪递进，自然引出主题价值', platform: platformName, duration: payload.duration, style: payload.style, reason: '综合评分最高，推荐首选', created_at: now, status: 'pending' },
+      { id: Date.now()+2, version: 'C', theme: topic, title: topic + '｜深度测评版', description: '多角度拆解主题细节，数据对比与成分分析，内容厚度扎实', platform: platformName, duration: payload.duration, style: payload.style, reason: '适合深度粉丝，留存率高', created_at: now, status: 'pending' }
     ];
+    saveSchemesToStorage();
     renderSchemes();
     // 异步提交到后端（后端不可用时也不影响前端展示）
     apiRequest('/creation/start', 'POST', payload).then(function(res) {
@@ -886,6 +952,257 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     };
     Plotly.newPlot('chart-theme', themeData, themeLayout, { responsive: true, displayModeBar: false });
   }
+
+  /* ===== localStorage 方案持久化 ===== */
+  function saveSchemesToStorage() {
+    try { localStorage.setItem('ai_creator_schemes', JSON.stringify(schemesList)); } catch(e) { console.warn('方案保存失败:', e); }
+  }
+  function loadSchemesFromStorage() {
+    try { var raw = localStorage.getItem('ai_creator_schemes'); if (raw) { schemesList = JSON.parse(raw); } } catch(e) { schemesList = []; }
+  }
+  loadSchemesFromStorage();
+
+  /* ===== AI引擎绑定 (Coze API) ===== */
+  function loadEngineStatus() {
+    apiRequest('/coze/status', 'GET').then(function(res) {
+      if (res.ok && res.data) {
+        if (res.data.bound) {
+          $enginePlatformName.textContent = '扣子平台（已绑定）';
+          $engineApiKey.placeholder = res.data.api_key_preview || '已绑定';
+        } else {
+          $enginePlatformName.textContent = '扣子平台';
+        }
+      }
+    }).catch(function(err) {
+      console.warn('引擎状态查询失败:', err);
+    });
+  }
+  document.getElementById('sidebar-engine-btn').addEventListener('click', function() {
+    $engineApiKey.value = '';
+    $engineModalMsg.textContent = '';
+    $engineModalMsg.className = 'modal-msg';
+    $engineApiKey.placeholder = '请输入扣子平台 API Key';
+    // 先查状态决定是否显示解绑
+    apiRequest('/coze/status', 'GET').then(function(res) {
+      var isBound = res.ok && res.data && res.data.bound;
+      document.getElementById('btn-engine-bind').textContent = isBound ? '重新绑定' : '绑定';
+      document.getElementById('btn-engine-unbind').style.display = isBound ? '' : 'none';
+      $modalEngine.classList.remove('hidden');
+    }).catch(function() {
+      $modalEngine.classList.remove('hidden');
+    });
+  });
+  document.getElementById('btn-engine-cancel').addEventListener('click', function() {
+    $modalEngine.classList.add('hidden');
+  });
+  document.getElementById('btn-engine-bind').addEventListener('click', function() {
+    var apiKey = $engineApiKey.value.trim();
+    if (!apiKey) { $engineModalMsg.textContent = '请输入 API Key'; $engineModalMsg.className = 'modal-msg error'; return; }
+    $engineModalMsg.textContent = '正在绑定...';
+    $engineModalMsg.className = 'modal-msg';
+    apiRequest('/coze/bind', 'POST', { api_key: apiKey }).then(function(res) {
+      if (res.ok) {
+        $enginePlatformName.textContent = '扣子平台（已绑定）';
+        $engineModalMsg.textContent = '绑定成功：扣子平台';
+        $engineModalMsg.className = 'modal-msg success';
+        showToast('AI引擎绑定成功', 'success');
+        setTimeout(function() { $modalEngine.classList.add('hidden'); }, 1000);
+      } else {
+        $engineModalMsg.textContent = extractError(res.data) || '绑定失败';
+        $engineModalMsg.className = 'modal-msg error';
+        showToast('绑定失败：' + (extractError(res.data) || '未知错误'), 'error');
+      }
+    }).catch(function(err) {
+      $engineModalMsg.textContent = '网络请求失败';
+      $engineModalMsg.className = 'modal-msg error';
+      showToast('绑定请求失败：' + err.message, 'error');
+    });
+  });
+  document.getElementById('btn-engine-unbind').addEventListener('click', function() {
+    if (!confirm('确定要解绑扣子平台吗？')) return;
+    $engineModalMsg.textContent = '正在解绑...';
+    $engineModalMsg.className = 'modal-msg';
+    apiRequest('/coze/unbind', 'DELETE').then(function(res) {
+      if (res.ok) {
+        $enginePlatformName.textContent = '扣子平台';
+        $engineApiKey.value = '';
+        $engineApiKey.placeholder = '请输入扣子平台 API Key';
+        document.getElementById('btn-engine-bind').textContent = '绑定';
+        document.getElementById('btn-engine-unbind').style.display = 'none';
+        $engineModalMsg.textContent = '已解绑';
+        $engineModalMsg.className = 'modal-msg success';
+        showToast('已解绑扣子平台', 'info');
+        setTimeout(function() { $modalEngine.classList.add('hidden'); }, 1000);
+      } else {
+        $engineModalMsg.textContent = extractError(res.data) || '解绑失败';
+        $engineModalMsg.className = 'modal-msg error';
+        showToast('解绑失败', 'error');
+      }
+    }).catch(function(err) {
+      $engineModalMsg.textContent = '网络请求失败';
+      $engineModalMsg.className = 'modal-msg error';
+      showToast('解绑请求失败：' + err.message, 'error');
+    });
+  });
+
+  /* ===== 方案浏览 (API) ===== */
+  function renderSchemeBrowse() {
+    var container = document.getElementById('scheme-browse-container');
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
+    apiRequest('/schemes', 'GET').then(function(res) {
+      var schemes = [];
+      if (res.ok && Array.isArray(res.data)) { schemes = res.data; }
+      if (!schemes.length) {
+        schemes = mergeAllSchemes();
+      }
+      if (!schemes.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
+        return;
+      }
+      schemes.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
+      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+      schemes.forEach(function(s) {
+        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }).catch(function(err) {
+      // API 失败时回退到本地缓存
+      var allSchemes = mergeAllSchemes();
+      if (!allSchemes.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无历史方案，前往工作台生成第一条内容</div></div>';
+        return;
+      }
+      var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>方案</th><th>主题</th><th>平台</th><th>时长</th><th>生成时间</th><th>状态</th></tr></thead><tbody>';
+      allSchemes.forEach(function(s) {
+        var statusHtml = s.status === 'pending' ? '<span class="badge-cell badge-pending">待审核</span>' : s.status === 'approved' ? '<span class="badge-cell badge-approved">已通过</span>' : '<span class="badge-cell badge-rejected">已驳回</span>';
+        html += '<tr><td><span class="badge-cell">方案 ' + escapeHtml(s.version || '') + '</span></td><td>' + escapeHtml(s.theme || s.title || '') + '</td><td>' + escapeHtml(s.platform || '') + '</td><td>' + escapeHtml(s.duration || '') + '</td><td>' + escapeHtml(s.created_at || '') + '</td><td>' + statusHtml + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+      showToast('后端连接失败，显示本地缓存数据', 'error');
+    });
+  }
+  function mergeAllSchemes() {
+    var all = schemesList.slice();
+    all.sort(function(a, b) { return (b.id || 0) - (a.id || 0); });
+    return all;
+  }
+
+  /* ===== 素材分析 (API + localStorage回退) ===== */
+  function renderMaterialAnalysis() {
+    var container = document.getElementById('material-container');
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>';
+    apiRequest('/creation/uploads', 'GET').then(function(res) {
+      var materials = [];
+      if (res.ok && Array.isArray(res.data)) { materials = res.data; }
+      if (!materials.length) {
+        // API无数据 → 回退到当前选中的文件列表
+        materials = getLocalMaterials();
+      }
+      renderMaterialTable(materials, container);
+    }).catch(function(err) {
+      console.warn('素材API失败，回退到本地数据:', err);
+      var materials = getLocalMaterials();
+      renderMaterialTable(materials, container);
+      if (materials.length) { showToast('已从本地缓存加载素材', 'info'); }
+    });
+  }
+  function getLocalMaterials() {
+    // 1. 从当前已上传的文件构建列表
+    var list = selectedFiles.map(function(f, i) {
+      return { name: f.name, uploaded_at: new Date().toISOString().replace('T',' ').substring(0,16), status: 'pending' };
+    });
+    // 2. 如果也没有，尝试从 localStorage 读取
+    if (!list.length) {
+      try {
+        var raw = localStorage.getItem('ai_creator_materials');
+        if (raw) { list = JSON.parse(raw); }
+      } catch(e) {}
+    }
+    return list;
+  }
+  function renderMaterialTable(materials, container) {
+    if (!materials.length) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">暂无上传素材，前往工作台上传文件</div></div>';
+      return;
+    }
+    var html = '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>文件名</th><th>上传时间</th><th>分析状态</th></tr></thead><tbody>';
+    materials.forEach(function(m) {
+      var statusHtml = m.status === 'done' || m.analysis_status === 'done' ? '<span class="badge-cell badge-approved">已完成</span>' : '<span class="badge-cell badge-pending">待分析</span>';
+      html += '<tr><td>' + escapeHtml(m.name || m.filename || '') + '</td><td>' + escapeHtml(m.uploaded_at || m.created_at || '--') + '</td><td>' + statusHtml + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  /* ===== 知识库搜索 (API + localStorage回退) ===== */
+  function renderKnowledgeSearch() {
+    // 保留搜索框和结果区域
+  }
+  document.getElementById('btn-knowledge-search').addEventListener('click', function() {
+    var keyword = document.getElementById('knowledge-search-input').value.trim();
+    var resultsContainer = document.getElementById('knowledge-results-container');
+    if (!keyword) {
+      resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div><div class="empty-text">请输入关键词开始搜索</div></div>';
+      return;
+    }
+    resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">搜索中...</div></div>';
+    apiRequest('/knowledge/search?q=' + encodeURIComponent(keyword) + '&top_k=5', 'GET').then(function(res) {
+      var results = [];
+      if (res.ok && Array.isArray(res.data)) { results = res.data; }
+      if (!results.length) {
+        // API无结果 → 回退到 localStorage 搜索
+        searchLocalSchemes(keyword, resultsContainer);
+        return;
+      }
+      renderSearchResults(results, keyword, resultsContainer);
+    }).catch(function(err) {
+      // API失败 → 回退到 localStorage 搜索
+      console.warn('知识库API失败，回退到本地搜索:', err);
+      searchLocalSchemes(keyword, resultsContainer);
+    });
+  });
+  function searchLocalSchemes(keyword, resultsContainer) {
+    var kw = keyword.toLowerCase();
+    var allSchemes = mergeAllSchemes();
+    var results = [];
+    allSchemes.forEach(function(s) {
+      var theme = (s.theme || s.title || '').toLowerCase();
+      var desc = (s.description || '').toLowerCase();
+      if (theme.indexOf(kw) !== -1 || desc.indexOf(kw) !== -1) {
+        var matchText = theme.indexOf(kw) !== -1 ? (s.theme || s.title) : s.description;
+        var highlighted = escapeHtml(matchText).replace(new RegExp('(' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<em>$1</em>');
+        results.push({ theme: s.theme || s.title, snippet: highlighted, platform: s.platform, created_at: s.created_at });
+      }
+    });
+    if (!results.length) {
+      resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">未找到与「' + escapeHtml(keyword) + '」相关的内容</div></div>';
+      return;
+    }
+    renderSearchResults(results, keyword, resultsContainer);
+    showToast('已从本地缓存中找到 ' + results.length + ' 条结果', 'info');
+  }
+  function renderSearchResults(results, keyword, resultsContainer) {
+    var regex = new RegExp('(' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    var html = '<p style="color:#8a7a6a; margin-bottom:1rem;">找到 <strong>' + results.length + '</strong> 条相关结果</p>';
+    results.forEach(function(r) {
+      var title = escapeHtml(r.theme || r.title || r.filename || '');
+      var snippet = escapeHtml(r.snippet || r.description || r.content || '');
+      snippet = snippet.replace(regex, '<em>$1</em>');
+      title = title.replace(regex, '<em>$1</em>');
+      html += '<div class="search-result-item"><div class="match-title">' + title + '</div><div class="match-snippet">' + snippet + '</div><div class="match-time">' + escapeHtml(r.created_at || r.platform || '') + '</div></div>';
+    });
+    resultsContainer.innerHTML = html;
+  }
+  // 回车触发搜索
+  document.getElementById('knowledge-search-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { document.getElementById('btn-knowledge-search').click(); }
+  });
+
+  /* ===== 点击遮罩关闭弹窗 ===== */
+  $modalEngine.addEventListener('click', function(e) { if (e.target === $modalEngine) { $modalEngine.classList.add('hidden'); } });
 
   var savedToken = localStorage.getItem('ai_creator_token');
   var savedUser = localStorage.getItem('ai_creator_user');
