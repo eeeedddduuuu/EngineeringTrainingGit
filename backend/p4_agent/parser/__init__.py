@@ -99,13 +99,11 @@ def _parse_version_block(block: str, version: str) -> dict[str, Any]:
 
     scenes: list[dict[str, str]] = []
     if structure_start is not None:
-        # 从结构标记后取到下一个 ** 标记或段落结束
         rest = block[structure_start:]
-        # 找到表格开始的 | 行
+        # 先尝试 Markdown 表格
         table_match = re.search(r"\|.+\|", rest)
         if table_match:
             table_start = table_match.start()
-            # 从表格开始位置截取到表格结束（连续 | 行）
             table_lines: list[str] = []
             for line in rest[table_start:].split("\n"):
                 if line.strip().startswith("|"):
@@ -114,6 +112,26 @@ def _parse_version_block(block: str, version: str) -> dict[str, Any]:
                     break
             table_text = "\n".join(table_lines)
             scenes = _parse_markdown_table(table_text)
+        else:
+            # 回退：解析列表格式 "0-3s 描述内容" / "0-3s 类型 描述"
+            list_lines: list[str] = []
+            for line in rest.split("\n"):
+                stripped = line.strip()
+                if not stripped or stripped.startswith("**"):
+                    if list_lines: break
+                    continue
+                # 匹配 "0-3s ..." 或 "0-3s 类型 ..." 格式
+                if re.match(r"\d+[-~]\d+s\b", stripped) or re.match(r"\d+[-~]\d+min\b", stripped):
+                    list_lines.append(stripped)
+                elif list_lines:
+                    break
+            for idx, line in enumerate(list_lines):
+                # 解析 "0-3s 描述" 或 "0-3s 类型 描述"
+                m = re.match(r"(\d+[-~]\d+(?:s|min))\s*(.+)$", line)
+                if m:
+                    duration = m.group(1)
+                    rest_text = m.group(2).strip()
+                    scenes.append({"seq": idx + 1, "type": "", "duration": duration, "description": rest_text, "voiceover": ""})
 
     return {
         "version": version,
@@ -163,8 +181,8 @@ def parse_script_output(markdown_text: str) -> dict[str, Any]:
     """
     text = markdown_text.strip()
 
-    # 按版本标题分段
-    version_blocks = re.split(r"\n(?=##\s*版本\s*[A-Ca-c])", text)
+    # 按版本标题分段（支持在文本开头或换行后出现）
+    version_blocks = re.split(r"(?:^|\n)(?=##\s*版本\s*[A-Ca-c])", text)
 
     schemes: list[dict[str, Any]] = []
     recommendation: dict[str, str] = {}
