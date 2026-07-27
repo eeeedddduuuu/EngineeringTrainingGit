@@ -745,6 +745,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var currentProvider = 'deepseek';
   var lastPlatform = '抖音';
   var recommendationData = null;  // { best_version, reason, estimated_data }
+  var historyRecords = [];  // 历史记录页面加载的完整数据，供CSV导出使用
 
   var $body = document.body;
   var $loginPage = document.getElementById('login-page');
@@ -1469,6 +1470,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         records = getAllSchemesFromStorage();
       }
       console.log('[历史记录] 加载完成，共', records.length, '条');
+      historyRecords = records;  // 保存供CSV导出使用
       if (!records.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">—</div><div class="empty-text">暂无历史创作记录，前往工作台生成第一条内容</div></div>';
         actions.style.display = 'none';
@@ -1487,9 +1489,11 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
   document.getElementById('btn-export-csv').addEventListener('click', function() {
     var rows = [['方案版本','标题','描述','平台','推荐理由']];
-    schemesList.forEach(function(s) { rows.push([s.version, s.title, s.description, s.platform, s.reason]); });
-    var csv = rows.map(function(r) { return r.map(function(c) { return '"' + (c||'').replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
-    downloadFile(csv, '创作历史记录.csv', 'text/csv');
+    var data = historyRecords.length > 0 ? historyRecords : schemesList;
+    data.forEach(function(s) { rows.push([s.version, s.title || s.topic || '', s.description || s.hook || '', s.platform || '', s.reason || s.recommendation_reason || '']); });
+    var BOM = '﻿';
+    var csv = BOM + rows.map(function(r) { return r.map(function(c) { return '"' + (c||'').replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
+    downloadFile(csv, '创作历史记录.csv', 'text/csv;charset=utf-8');
     showToast('历史记录已导出为 CSV 文件', 'success');
   });
 
