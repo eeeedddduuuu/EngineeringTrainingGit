@@ -273,6 +273,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 .kpi-card .kpi-value small { font-size: 1rem; font-weight: 400; color: #a09080; margin-left: 4px; }
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.8rem; }
 .chart-box { background: #fcf9f5; border-radius: 24px; padding: 1.5rem; border: 1px solid #f0e8de; }
+.chart-box-full { background: #fcf9f5; border-radius: 24px; padding: 1.5rem; border: 1px solid #f0e8de; margin-bottom: 1.8rem; }
 .empty-state { text-align: center; padding: 4rem 2rem; color: #a09080; }
 .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
 .empty-state .empty-text { font-size: 1.1rem; }
@@ -515,8 +516,24 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         <div class="kpi-card"><div class="kpi-label">本周完成</div><div class="kpi-value" id="kpi-done">0 <small>个</small></div></div>
       </div>
       <div class="charts-grid">
-        <div class="chart-box"><div id="chart-platform" style="width:100%; height:380px;"></div></div>
-        <div class="chart-box"><div id="chart-theme" style="width:100%; height:380px;"></div></div>
+        <div class="chart-box"><div id="chart-donut" style="width:100%; height:380px;"></div></div>
+        <div class="chart-box"><div id="chart-bar" style="width:100%; height:380px;"></div></div>
+      </div>
+      <div class="chart-box-full"><div id="chart-area" style="width:100%; height:360px;"></div></div>
+      <div class="charts-grid">
+        <div class="chart-box"><div id="chart-hbar" style="width:100%; height:380px;"></div></div>
+        <div class="chart-box"><div id="chart-pie" style="width:100%; height:380px;"></div></div>
+      </div>
+      <div class="chart-box-full"><div id="chart-treemap" style="width:100%; height:420px;"></div></div>
+      <div class="charts-grid">
+        <div class="chart-box" style="text-align:center;">
+          <div style="font-size:15px;font-weight:700;color:#5f4a34;margin-bottom:12px;">🏷️ 标题关键词云</div>
+          <img id="img-wc-titles" style="width:100%;max-height:380px;object-fit:contain;" alt="标题关键词云" src="">
+        </div>
+        <div class="chart-box" style="text-align:center;">
+          <div style="font-size:15px;font-weight:700;color:#5f4a34;margin-bottom:12px;">📝 内容摘要词云</div>
+          <img id="img-wc-summaries" style="width:100%;max-height:380px;object-fit:contain;" alt="内容摘要词云" src="">
+        </div>
       </div>
     </div>
     <div class="page" id="page-scheme-browse">
@@ -1266,18 +1283,23 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     showToast('历史记录已导出为 CSV 文件', 'success');
   });
 
-  var sampleStats = [
-    { platform: '抖音', theme: '护肤', count: 28 },
-    { platform: '小红书', theme: '美食', count: 36 },
-    { platform: 'B站', theme: '数码', count: 22 },
-    { platform: '抖音', theme: '旅行', count: 18 },
-    { platform: '小红书', theme: '测评', count: 24 },
-    { platform: 'B站', theme: '剧情', count: 16 },
-    { platform: '抖音', theme: '好物', count: 30 }
-  ];
-
   function renderDashboardCharts() {
-    // KPI 默认占位（API 返回前显示）
+    // ---- 暖色调调色板（与网站整体 warm earth-tone 一致） ----
+    var C = ['#d48c5c', '#e8a87c', '#c08050', '#a0724a', '#8a6a4a', '#c9976b', '#b8784a'];
+
+    // ---- 共享布局工厂 ----
+    function makeLayout(title, height) {
+      height = height || 380;
+      return {
+        title: { text: title, font: { size: 16, color: '#3d2c1b' }, x: 0 },
+        height: height,
+        margin: { t: 44, b: 20, l: 20, r: 20 },
+        paper_bgcolor: '#fcf9f5', plot_bgcolor: '#fcf9f5',
+        font: { color: '#8a7a6a', size: 13 }
+      };
+    }
+
+    // ---- KPI（修复字段名：total_sessions / completed_this_week） ----
     var kpiTotal = document.getElementById('kpi-total');
     var kpiActive = document.getElementById('kpi-active');
     var kpiReview = document.getElementById('kpi-review');
@@ -1287,44 +1309,125 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     kpiReview.innerHTML = '-- <small>个</small>';
     kpiDone.innerHTML = '-- <small>个</small>';
 
-    // 异步获取真实统计数据
     apiRequest('/statistics/summary', 'GET').then(function(res) {
       console.log('看板API原始返回:', res);
       if (res.ok && res.data) {
-        // 兼容两种返回结构：扁平 { total: 10 } 和嵌套 { data: { total: 10 } }
-        var stats = res.data.data || res.data;
-        console.log('看板数据:', stats);
-        kpiTotal.innerHTML = (stats.total != null ? stats.total : '--') + ' <small>个</small>';
-        kpiActive.innerHTML = (stats.in_progress != null ? stats.in_progress : '--') + ' <small>个</small>';
-        kpiReview.innerHTML = (stats.pending_review != null ? stats.pending_review : '--') + ' <small>个</small>';
-        kpiDone.innerHTML = (stats.weekly_completed != null ? stats.weekly_completed : '--') + ' <small>个</small>';
+        var s = res.data.data || res.data;
+        console.log('看板数据:', s);
+        kpiTotal.innerHTML = (s.total_sessions != null ? s.total_sessions : '--') + ' <small>个</small>';
+        kpiActive.innerHTML = (s.in_progress != null ? s.in_progress : '--') + ' <small>个</small>';
+        kpiReview.innerHTML = (s.pending_review != null ? s.pending_review : '--') + ' <small>个</small>';
+        kpiDone.innerHTML = (s.completed_this_week != null ? s.completed_this_week : '--') + ' <small>个</small>';
       }
     }).catch(function(err) {
-      console.warn('统计数据获取失败，保留默认占位:', err);
+      console.warn('KPI获取失败:', err);
     });
 
-    // 图表使用 sampleStats 样例数据
-    var platformAgg = {};
-    sampleStats.forEach(function(d) { platformAgg[d.platform] = (platformAgg[d.platform] || 0) + d.count; });
-    var platData = [{ x: Object.keys(platformAgg), y: Object.values(platformAgg), type: 'bar', marker: { color: ['#FF8A80','#FFAB91','#FFCC80'] } }];
-    var platLayout = {
-      title: { text: '各平台样例素材数量分布', font: { size: 17, color: '#5D4037' } },
-      plot_bgcolor: '#fcf9f5', paper_bgcolor: '#fcf9f5',
-      font: { color: '#5D4037', size: 14 },
-      margin: { t: 48, b: 40, l: 50, r: 20 },
-      xaxis: { gridcolor: '#f0e8de' }, yaxis: { gridcolor: '#f0e8de' }
-    };
-    Plotly.newPlot('chart-platform', platData, platLayout, { responsive: true, displayModeBar: false });
+    // ---- 图表（从 /stats/samples 获取 Excel 样本数据） ----
+    apiRequest('/stats/samples', 'GET').then(function(res) {
+      if (!res.ok || !res.data) { console.warn('样本数据获取失败'); return; }
+      var d = res.data.data || res.data;
+      var topics = d.topic_distribution || [];
+      var platforms = d.platform_distribution || [];
+      var trends = d.monthly_trends || [];
 
-    var themeAgg = {};
-    sampleStats.forEach(function(d) { themeAgg[d.theme] = (themeAgg[d.theme] || 0) + d.count; });
-    var themeData = [{ labels: Object.keys(themeAgg), values: Object.values(themeAgg), type: 'pie', marker: { colors: ['#FF8A80','#FFAB91','#FFCC80','#A5D6A7','#90CAF9'] } }];
-    var themeLayout = {
-      title: { text: '创作主题分类占比', font: { size: 17, color: '#5D4037' } },
-      paper_bgcolor: '#fcf9f5', font: { color: '#5D4037', size: 14 },
-      margin: { t: 48, b: 20, l: 20, r: 20 }
-    };
-    Plotly.newPlot('chart-theme', themeData, themeLayout, { responsive: true, displayModeBar: false });
+      // 主题按 count 降序
+      topics.sort(function(a, b) { return b.count - a.count; });
+
+      var pc = C.slice(0, Math.max(topics.length, 2));
+      var platPc = C.slice(0, Math.max(platforms.length, 2));
+
+      // ① 环形图 — 主题分布
+      Plotly.newPlot('chart-donut', [{
+        labels: topics.map(function(t) { return t.name; }),
+        values: topics.map(function(t) { return t.count; }),
+        type: 'pie', hole: 0.55,
+        textinfo: 'percent', textposition: 'inside',
+        textfont: { size: 14, color: 'white' },
+        marker: { colors: pc, line: { color: 'white', width: 2 } }
+      }], makeLayout('① 主题分布 · 环形图'), { responsive: true, displayModeBar: false });
+
+      // ② 柱状图 — 平台分布
+      Plotly.newPlot('chart-bar', [{
+        x: platforms.map(function(p) { return p.platform; }),
+        y: platforms.map(function(p) { return p.count; }),
+        type: 'bar',
+        text: platforms.map(function(p) { return p.count; }),
+        textposition: 'outside',
+        textfont: { size: 15, color: '#8a7a6a' },
+        marker: { color: platPc, line: { width: 0 } }
+      }], makeLayout('② 平台分布 · 柱状图'), { responsive: true, displayModeBar: false });
+
+      // ③ 面积图 — 月度趋势（全宽）
+      Plotly.newPlot('chart-area', [{
+        x: trends.map(function(t) { return t.month; }),
+        y: trends.map(function(t) { return t.count; }),
+        type: 'scatter', fill: 'tozeroy', mode: 'lines+markers',
+        line: { color: '#d48c5c', width: 2 },
+        fillcolor: 'rgba(212,140,92,0.12)',
+        marker: { size: 4, color: '#d48c5c', line: { width: 2, color: 'white' } }
+      }], makeLayout('③ 月度趋势 · 面积图', 360), { responsive: true, displayModeBar: false });
+
+      // ④ 横向柱状 — 类别对比（升序）
+      var sorted = topics.slice().sort(function(a, b) { return a.count - b.count; });
+      Plotly.newPlot('chart-hbar', [{
+        y: sorted.map(function(t) { return t.name; }),
+        x: sorted.map(function(t) { return t.count; }),
+        type: 'bar', orientation: 'h',
+        text: sorted.map(function(t) { return t.count; }),
+        textposition: 'outside',
+        textfont: { size: 15, color: '#8a7a6a' },
+        marker: { color: C.slice(0, sorted.length), line: { width: 0 } }
+      }], makeLayout('④ 类别对比 · 横向柱状图'), { responsive: true, displayModeBar: false });
+
+      // ⑤ 饼图 — 平台占比
+      Plotly.newPlot('chart-pie', [{
+        labels: platforms.map(function(p) { return p.platform; }),
+        values: platforms.map(function(p) { return p.count; }),
+        type: 'pie',
+        textinfo: 'percent+label', textposition: 'inside',
+        textfont: { size: 14, color: 'white' },
+        marker: { colors: platPc, line: { color: 'white', width: 2 } }
+      }], makeLayout('⑤ 平台占比 · 饼图'), { responsive: true, displayModeBar: false });
+
+      // ⑥ 树图 — 主题分布
+      Plotly.newPlot('chart-treemap', [{
+        type: 'treemap', labels: topics.map(function(t) { return t.name; }),
+        parents: topics.map(function() { return ''; }),
+        values: topics.map(function(t) { return t.count; }),
+        textinfo: 'label+value',
+        textfont: { size: 16, color: 'white' },
+        marker: { colors: topics.map(function(t, i) {
+          var ratio = i / Math.max(topics.length - 1, 1);
+          return 'rgb(' + Math.round(212 + ratio * (232 - 212)) + ',' +
+                 Math.round(140 + ratio * (168 - 140)) + ',' +
+                 Math.round(92 + ratio * (124 - 92)) + ')';
+        })}
+      }], makeLayout('⑥ 主题分布 · 树图', 420), { responsive: true, displayModeBar: false });
+
+    }).catch(function(err) {
+      console.warn('样本数据获取失败:', err);
+    });
+
+    // ---- 词云（后端生成 PNG → base64） ----
+    apiRequest('/stats/wordclouds', 'GET').then(function(res) {
+      if (!res.ok || !res.data || !res.data.wordclouds) {
+        console.warn('词云数据获取失败');
+        return;
+      }
+      var wcs = res.data.wordclouds;
+      wcs.forEach(function(item) {
+        if (item.label.indexOf('标题') !== -1) {
+          var imgEl = document.getElementById('img-wc-titles');
+          if (imgEl) { imgEl.src = 'data:image/png;base64,' + item.base64; }
+        } else if (item.label.indexOf('摘要') !== -1) {
+          var imgEl2 = document.getElementById('img-wc-summaries');
+          if (imgEl2) { imgEl2.src = 'data:image/png;base64,' + item.base64; }
+        }
+      });
+    }).catch(function(err) {
+      console.warn('词云请求失败:', err);
+    });
   }
 
   /* ===== localStorage 方案持久化 ===== */
