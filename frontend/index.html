@@ -1038,12 +1038,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
 
           if (d.status === 'completed' && d.result && d.result.schemes) {
             clearInterval(pollTimer);
-            clearInterval(iconTimer);
-            if (fill) fill.style.width = '100%';
-            document.getElementById('progress-icon').textContent = '✅';
-            document.getElementById('progress-title').textContent = '创作完成！';
-            document.getElementById('progress-text').textContent = 'DeepSeek v4-pro 生成了 ' + d.result.schemes.length + ' 个方案';
-            document.getElementById('progress-time').textContent = '';
             btnSubmit.disabled = false;
             // 替换为真实方案
             schemesList = d.result.schemes;
@@ -1751,6 +1745,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     }
     resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">搜索中...</div></div>';
     apiRequest('/knowledge/search?q=' + encodeURIComponent(keyword) + '&top_k=5', 'GET').then(function(res) {
+      console.log('[知识库] API响应:', JSON.stringify({ ok: res.ok, status: res.status, hasData: !!res.data, resultsType: res.data && typeof res.data.results, resultsLen: res.data && res.data.results && res.data.results.length }));
       var results = [];
       if (res.ok && res.data) {
         // API 返回 { query, results: [...] }

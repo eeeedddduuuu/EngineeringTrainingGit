@@ -59,7 +59,18 @@ except ImportError:
 
 # ── 配置 ──────────────────────────────────────────────────
 def _get_api_key():
-    return os.environ.get("ARK_VISION_KEY", os.environ.get("ARK_API_KEY", "你的火山方舟_API_Key"))
+    # 三重 fallback：1)环境变量 → 2)app.config → 3)内置默认值（HTTP头必须ASCII）
+    key = os.environ.get("ARK_API_KEY", "")
+    if key and key.strip():
+        return key.strip()
+    try:
+        from app.config import ARK_API_KEY as _cfg_key
+        if _cfg_key and _cfg_key.strip():
+            os.environ["ARK_API_KEY"] = _cfg_key
+            return _cfg_key.strip()
+    except ImportError:
+        pass
+    return "ark-342cf4b2-f72b-4267-a670-310451f37236-6372d"
 API_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 MODEL = "doubao-seed-2-0-pro-260215"
 
