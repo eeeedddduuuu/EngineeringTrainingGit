@@ -120,8 +120,8 @@ def _parse_version_block(block: str, version: str) -> dict[str, Any]:
                 if not stripped or stripped.startswith("**"):
                     if list_lines: break
                     continue
-                # 匹配 "0-3s ..." 或 "0-3s 类型 ..." 格式
-                if re.match(r"\d+[-~]\d+s\b", stripped) or re.match(r"\d+[-~]\d+min\b", stripped):
+                # 匹配 "0-3s ..." 或 "0-3s 类型 ..." 格式（不用\b，中文环境失效）
+                if re.match(r"\d+[-~]\d+[sm]", stripped):
                     list_lines.append(stripped)
                 elif list_lines:
                     break
