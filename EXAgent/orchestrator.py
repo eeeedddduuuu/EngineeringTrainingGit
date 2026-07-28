@@ -8,6 +8,8 @@ import json
 import uuid
 import sys
 import os
+import shutil
+import time
 import urllib.request as _ur
 from pathlib import Path
 from typing import Any, Iterator, Generator
@@ -62,8 +64,8 @@ SYSTEM_PROMPT = """你是 AI 数字媒体创作助手，专精于短视频创作
 ## 你的能力
 - 📝 **创作短视频方案**: 根据主题/受众/平台/时长/风格，自动串联热点分析→脚本创作→合规审查→发布策略，生成3套差异化方案并评分排名
 - 🎨 **AI 生图**: Seedream 文生图，支持多种模型(pro/lite/4.5/4.0)、尺寸(1K-4K)、比例(1:1/16:9/9:16等)
-- 🎬 **AI 生视频**: Seedance 文生视频/图生视频，支持分辨率/时长/比例配置
-- 🔊 **AI 配音**: 豆包 TTS 文字转语音，4种女声音色可选
+- 🎬 **AI 生视频**: Seedance 文生视频/图生视频，支持分辨率/时长/比例配置。生成后等待30-60秒即可获得视频链接。如果只返回了 task_id，用 query_video_status 查询进度。
+- 🔊 **AI 配音**: 豆包 TTS 文字转语音，4种女声音色可选。生成后在回复中给出可直接点击的音频下载链接（audio_url 格式为 /uploads/tts/xxx.mp3，完整地址为 http://127.0.0.1:8000/uploads/tts/xxx.mp3）
 - 🔍 **素材分析**: 豆包多模态识别图片/视频/音频内容，提取风格特征和创作角度
 - 🌐 **网络搜索**: 搜索最新热点趋势、竞品分析数据
 - 📚 **知识库检索**: 查找平台创作规范、脚本模板、分镜格式
@@ -169,6 +171,20 @@ ORCHESTRATOR_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "query_video_status",
+            "description": "查询 Seedance 视频生成任务进度。传入之前返回的 task_id，完成后会返回视频链接。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "视频任务的 task_id（如 cgt-xxxxxxxxxxxx）"},
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "generate_tts",
             "description": "AI 文字转语音（豆包 TTS）。将脚本文案合成为配音音频 MP3。",
             "parameters": {
@@ -236,6 +252,29 @@ ORCHESTRATOR_TOOLS: list[dict] = [
                     "file_type": {"type": "string", "enum": ["image", "video", "audio"], "description": "素材类型"},
                 },
                 "required": ["file_path", "file_type"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "concat_video",
+            "description": "视频拼接/合并。将多个短视频按顺序拼接为一个完整视频，支持硬切(cut)或淡入淡出(fade)过渡效果。适用于将多段素材合并成最终成片。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "video_paths": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "要拼接的视频文件本地路径列表，按拼接顺序排列，至少 2 个",
+                    },
+                    "transition": {
+                        "type": "string",
+                        "enum": ["cut", "fade"],
+                        "description": "过渡方式: cut=硬切换(默认，适合快节奏), fade=交叉淡入淡出(适合叙事过渡)",
+                    },
+                },
+                "required": ["video_paths"],
             },
         },
     },
@@ -327,9 +366,26 @@ def _exec_generate_image(args: dict) -> dict:
 
 
 def _exec_generate_video(args: dict) -> dict:
-    """Seedance 文生视频/图生视频"""
+    """Seedance 文生视频/图生视频，提交后自动轮询等待完成（最长 60 秒）"""
     if not ARK_VIDEO_KEY:
         return {"ok": False, "error": "ARK_VIDEO_KEY 未设置，请先配置火山方舟视频 Key"}
+
+    def _extract_video_url(data: dict) -> str:
+        """从火山 Seedance API 返回中提取 video_url，兼容单对象和数组格式"""
+        content = data.get("content")
+        # 格式1: content 是单对象 {"video_url": "..."}
+        if isinstance(content, dict) and content.get("video_url"):
+            return content["video_url"]
+        # 格式2: content 是数组 [{"video_url": "..."}]
+        if isinstance(content, list):
+            for c in content:
+                if isinstance(c, dict) and c.get("video_url"):
+                    return c["video_url"]
+        # 格式3: 顶层直接有 video_url / output_url / url
+        for key in ("video_url", "output_url", "url"):
+            if data.get(key):
+                return data[key]
+        return ""
 
     prompt = args.get("prompt", "").strip()
     resolution = args.get("resolution", "1080p")
@@ -344,22 +400,93 @@ def _exec_generate_video(args: dict) -> dict:
     if image_url:
         content.append({"type": "image_url", "image_url": {"url": image_url}})
 
+    SEEDANCE_MODEL = "doubao-seedance-1-0-pro-250528"
     resp = requests.post(
         "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
-        json={"model": "ep-20260725142122-7m24m", "content": content},
+        json={"model": SEEDANCE_MODEL, "content": content},
         headers={"Content-Type": "application/json; charset=utf-8", "Authorization": f"Bearer {ARK_VIDEO_KEY}"},
         timeout=30,
     )
     resp.encoding = "utf-8"
     data = resp.json()
     task_id = data.get("id", "")
+    if not task_id:
+        return {"ok": False, "error": f"提交失败: {data}"}
 
+    # 自动轮询等待完成（最长 60 秒，480p 5s 通常在 30-60s 内完成）
+    max_polls = 12
+    for poll in range(max_polls):
+        time.sleep(5)
+        try:
+            sr = requests.get(
+                f"https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{task_id}",
+                headers={"Authorization": f"Bearer {ARK_VIDEO_KEY}"},
+                timeout=15,
+            )
+            sd = sr.json() if sr.text else {}
+            status = sd.get("status", sd.get("state", "unknown"))
+            if status in ("succeeded", "done", "completed"):
+                video_url = _extract_video_url(sd)
+                return {
+                    "ok": True,
+                    "task_id": task_id,
+                    "status": "succeeded",
+                    "video_url": video_url,
+                    "prompt": prompt,
+                    "resolution": resolution,
+                    "duration": duration,
+                    "message": "视频已生成完成",
+                }
+            elif status in ("failed", "error"):
+                return {
+                    "ok": False,
+                    "task_id": task_id,
+                    "status": "failed",
+                    "error": str(sd.get("error", "任务失败")),
+                }
+        except Exception:
+            pass
+
+    # 超时 — 返回 task_id 供后续查询
     return {
-        "ok": bool(task_id),
+        "ok": True,
         "task_id": task_id,
         "status": "pending",
-        "message": f"Seedance 视频任务已提交, task_id={task_id}, 可稍后查询状态" if task_id else "提交失败",
+        "prompt": prompt,
+        "resolution": resolution,
+        "duration": duration,
+        "message": f"视频任务 {task_id[:12]}... 仍在处理中。请稍后让我查询状态。",
     }
+
+
+def _exec_query_video_status(args: dict) -> dict:
+    """查询 Seedance 视频任务状态"""
+    if not ARK_VIDEO_KEY:
+        return {"ok": False, "error": "ARK_VIDEO_KEY 未设置"}
+    task_id = args.get("task_id", "").strip()
+    if not task_id:
+        return {"ok": False, "error": "缺少 task_id"}
+
+    resp = requests.get(
+        f"https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{task_id}",
+        headers={"Authorization": f"Bearer {ARK_VIDEO_KEY}"},
+        timeout=30,
+    )
+    data = resp.json() if resp.text else {}
+    status = data.get("status", data.get("state", "unknown"))
+
+    result = {"ok": True, "task_id": task_id, "status": status}
+    if status in ("succeeded", "done", "completed"):
+        video_url = _extract_video_url(data)
+        result["video_url"] = video_url
+        result["message"] = "视频已生成完成"
+    elif status in ("failed", "error"):
+        result["ok"] = False
+        result["error"] = str(data.get("error", "任务失败"))
+        result["message"] = "视频生成失败"
+    else:
+        result["message"] = f"任务状态: {status}，请稍后再查"
+    return result
 
 
 def _exec_generate_tts(args: dict) -> dict:
@@ -371,11 +498,24 @@ def _exec_generate_tts(args: dict) -> dict:
 
     result = _tts(text=text, speaker=speaker, audio_format="mp3")
     if result.get("success"):
+        # 解码 base64 音频保存到本地
+        import base64
+        audio_url = ""
+        audio_b64 = result.get("audio_base64", "")
+        if audio_b64:
+            audio_bytes = base64.b64decode(audio_b64)
+            tts_dir = _IMG_DIR.parent / "tts"
+            tts_dir.mkdir(parents=True, exist_ok=True)
+            filename = f"exagent_tts_{uuid.uuid4().hex[:8]}.mp3"
+            local_path = tts_dir / filename
+            local_path.write_bytes(audio_bytes)
+            audio_url = f"/uploads/tts/{filename}"
+
         return {
             "ok": True,
             "duration": result.get("duration", 0),
-            "message": f"TTS 配音生成成功，时长 {result.get('duration', 0):.1f} 秒",
-            "audio_size": len(result.get("audio_base64", "")),
+            "audio_url": audio_url,
+            "message": f"TTS 配音生成成功，时长 {result.get('duration', 0):.1f} 秒" + (f"，[点击下载音频](http://127.0.0.1:8000{audio_url})" if audio_url else ""),
         }
     return {"ok": False, "error": result.get("error", "TTS 失败")}
 
@@ -431,16 +571,115 @@ def _exec_analyze_material(args: dict) -> dict:
         return analyze_image(file_path)
 
 
+def _exec_concat_video(args: dict) -> dict:
+    """FFmpeg 视频拼接"""
+    import subprocess, tempfile, os as _os
+
+    video_paths = args.get("video_paths", [])
+    transition = args.get("transition", "cut")
+
+    if not video_paths or len(video_paths) < 2:
+        return {"ok": False, "error": "至少需要 2 个视频文件路径"}
+
+    # 验证所有文件存在
+    for vp in video_paths:
+        if not Path(vp).exists():
+            return {"ok": False, "error": f"视频文件不存在: {vp}"}
+
+    ff = shutil.which("ffmpeg") or "ffmpeg"
+    out_name = f"concat_{uuid.uuid4().hex[:8]}.mp4"
+    out_dir = Path(__file__).resolve().parent / "backend" / "uploads" / "ai_videos"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / out_name
+
+    try:
+        if transition == "cut":
+            # concat demuxer: 无损拼接
+            concat_list = tempfile.mktemp(suffix=".txt")
+            with open(concat_list, "w", encoding="utf-8") as f:
+                for vp in video_paths:
+                    f.write(f"file '{Path(vp).as_posix()}'\n")
+
+            try:
+                subprocess.run(
+                    [ff, "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
+                     "-c", "copy", str(out_path)],
+                    check=True, capture_output=True, timeout=300,
+                )
+            except subprocess.CalledProcessError:
+                # 编码不一致回退重新编码
+                subprocess.run(
+                    [ff, "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
+                     "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast",
+                     "-pix_fmt", "yuv420p", str(out_path)],
+                    check=True, capture_output=True, timeout=300,
+                )
+            finally:
+                try: _os.unlink(concat_list)
+                except Exception: pass
+        else:
+            # xfade 交叉淡入淡出
+            fade_dur = 0.5
+            if len(video_paths) == 2:
+                subprocess.run(
+                    [ff, "-y", "-i", video_paths[0], "-i", video_paths[1],
+                     "-filter_complex",
+                     f"xfade=transition=fade:duration={fade_dur}:offset=2.0",
+                     "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast",
+                     "-pix_fmt", "yuv420p", str(out_path)],
+                    check=True, capture_output=True, timeout=300,
+                )
+            else:
+                # 多段: concat filter + fade in/out
+                inputs = []
+                fade_parts = []
+                fade_labels = []
+                for i in range(len(video_paths)):
+                    inputs.extend(["-i", video_paths[i]])
+                    lb = f"v{i}"
+                    fade_labels.append(lb)
+                    fade_parts.append(
+                        f"[{i}:v]fade=t=in:st=0:d={fade_dur},"
+                        f"fade=t=out:st=4.5:d={fade_dur},"
+                        f"setpts=PTS-STARTPTS[{lb}]"
+                    )
+                label_concat = "".join(f"[{l}]" for l in fade_labels)
+                filter_str = ";".join(fade_parts) + f";{label_concat}concat=n={len(video_paths)}:v=1:a=0[outv]"
+
+                subprocess.run(
+                    [ff, "-y", *inputs, "-filter_complex", filter_str,
+                     "-map", "[outv]", "-c:v", "libx264", "-preset", "veryfast",
+                     "-pix_fmt", "yuv420p", str(out_path)],
+                    check=True, capture_output=True, timeout=300,
+                )
+
+    except FileNotFoundError:
+        return {"ok": False, "error": "FFmpeg 未安装"}
+    except subprocess.CalledProcessError as e:
+        return {"ok": False, "error": f"FFmpeg 执行失败: {e.stderr.decode()[:300] if e.stderr else str(e)}"}
+
+    return {
+        "ok": True,
+        "operation": "concat",
+        "transition": transition,
+        "video_count": len(video_paths),
+        "output_path": str(out_path),
+        "url": f"/uploads/ai_videos/{out_name}",
+    }
+
+
 # ── 工具路由表 ──
 TOOL_EXECUTORS = {
     "create_content": _exec_create_content,
     "generate_image": _exec_generate_image,
     "generate_video": _exec_generate_video,
+    "query_video_status": _exec_query_video_status,
     "generate_tts": _exec_generate_tts,
     "web_search": _exec_web_search,
     "knowledge_search": _exec_knowledge_search,
     "sensitive_word_filter": _exec_sensitive_filter,
     "analyze_material": _exec_analyze_material,
+    "concat_video": _exec_concat_video,
 }
 
 
@@ -475,8 +714,8 @@ def _call_deepseek(messages: list[dict], tools: list[dict] | None = None) -> dic
 
     resp = requests.post(
         f"{DS_BASE_URL}/chat/completions",
-        headers={"Authorization": f"Bearer {DS_API_KEY}", "Content-Type": "application/json"},
-        json=payload,
+        headers={"Authorization": f"Bearer {DS_API_KEY}", "Content-Type": "application/json; charset=utf-8"},
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         timeout=180,
     )
     if not resp.ok:
@@ -768,9 +1007,14 @@ class AgentOrchestrator:
                     result_data["video_url"] = tool_result.get("video_url", "")
                     result_data["task_id"] = tool_result.get("task_id", "")
                     result_data["prompt"] = func_args.get("prompt", "")
+                elif func_name == "query_video_status" and tool_result.get("ok"):
+                    result_data["video_url"] = tool_result.get("video_url", "")
+                    result_data["task_id"] = tool_result.get("task_id", "")
+                    result_data["prompt"] = tool_result.get("message", "")
                 elif func_name == "generate_tts" and tool_result.get("ok"):
                     result_data["audio_url"] = tool_result.get("audio_url", "")
                     result_data["duration"] = tool_result.get("duration", 0)
+                    result_data["audio_download_url"] = f"http://127.0.0.1:8000{tool_result.get('audio_url', '')}" if tool_result.get("audio_url") else ""
                 yield f"event: tool_result\ndata: {json.dumps(result_data, ensure_ascii=False)}\n\n"
 
                 messages.append({
@@ -838,12 +1082,14 @@ def _summarize_result(tool_name: str, result: dict) -> str:
     summarizers = {
         "create_content": lambda r: f"✅ 生成 {r.get('schemes_count', 0)} 套方案",
         "generate_image": lambda r: f"✅ 图片已生成: {r.get('image_url', '')}",
-        "generate_video": lambda r: f"✅ 视频任务已提交: {r.get('task_id', '')}",
+        "generate_video": lambda r: f"✅ 视频{'已生成' if r.get('video_url') else '任务已提交: ' + r.get('task_id', '')}",
+        "query_video_status": lambda r: f"✅ 视频已生成: {r.get('video_url', '')}" if r.get("video_url") else f"⏳ {r.get('message', '处理中')}",
         "generate_tts": lambda r: f"✅ {r.get('message', 'TTS 成功')}",
         "web_search": lambda r: f"✅ 搜索到 {len(r.get('results', []))} 条结果",
         "knowledge_search": lambda r: f"✅ 知识库检索完成",
         "sensitive_word_filter": lambda r: f"✅ 风险等级: {r.get('risk_level', 'unknown')}",
-        "analyze_material": lambda r: f"✅ 分析完成" if r.get("success") else f"❌ {r.get('error', '')}"
+        "analyze_material": lambda r: f"✅ 分析完成" if r.get("success") else f"❌ {r.get('error', '')}",
+        "concat_video": lambda r: f"✅ 视频拼接完成: {r.get('video_count', 0)} 段视频已合并" if r.get("ok") else f"❌ {r.get('error', '')}",
     }
 
     fn = summarizers.get(tool_name, lambda r: "✅ 完成")

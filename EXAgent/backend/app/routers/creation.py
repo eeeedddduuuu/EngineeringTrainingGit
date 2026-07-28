@@ -1323,17 +1323,20 @@ def seedance_status(task_id: str, current_user: User = Depends(get_current_user)
             # 打日志看完整结构
             print(f"[Seedance] 完整响应 keys: {list(data.keys())}")
             if "content" in data:
-                print(f"[Seedance] content 类型: {type(data['content'])}, 长度: {len(data['content']) if isinstance(data['content'], list) else 'N/A'}")
+                print(f"[Seedance] content 类型: {type(data['content'])}, 长度: {len(data['content']) if isinstance(data['content'], (list, dict)) else 'N/A'}")
             # 尝试多种路径提取 video_url
-            content_list = data.get("content", [])
-            if isinstance(content_list, list):
-                for i, c in enumerate(content_list):
+            content_val = data.get("content")
+            # 格式1: content 是单对象 {"video_url": "..."}
+            if isinstance(content_val, dict) and content_val.get("video_url"):
+                result["video_url"] = content_val["video_url"]
+            # 格式2: content 是数组 [{"video_url": "..."}]
+            elif isinstance(content_val, list):
+                for i, c in enumerate(content_val):
                     if isinstance(c, dict):
                         print(f"[Seedance] content[{i}] keys: {list(c.keys())}")
                         if c.get("type") == "video" and c.get("video_url"):
                             result["video_url"] = c["video_url"]
                             break
-                        # 有些版本 video_url 在嵌套的 output 里
                         if c.get("video_url"):
                             result["video_url"] = c["video_url"]
                             break
@@ -1346,21 +1349,33 @@ def seedance_status(task_id: str, current_user: User = Depends(get_current_user)
             # output 对象里
             if not result.get("video_url") and isinstance(data.get("output"), dict):
                 result["video_url"] = data["output"].get("video_url", "")
+            # 兜底：content 是 dict 但 key 不是 "video_url"，遍历找
+            if not result.get("video_url") and isinstance(content_val, dict):
+                for k, v in content_val.items():
+                    if isinstance(v, str) and ("video" in k or "url" in k) and v.startswith("http"):
+                        result["video_url"] = v
+                        break
             print(f"[Seedance] ✅ video_url: {bool(result.get('video_url'))}")
         elif status in ("failed", "error"):
             print(f"[Seedance] ❌ 失败: {data.get('error', '无详细信息')}")
 
-        # 把原始 content 和 data 透传，前端备用
-        if not result.get("video_url") and isinstance(data.get("content"), list):
-            for c in data["content"]:
-                if isinstance(c, dict):
-                    # 递归找任意 video_url / url 字段
-                    for k, v in c.items():
-                        if isinstance(v, str) and ("video" in k or "url" in k) and v.startswith("http"):
-                            result["video_url"] = v
-                            break
-                    if result.get("video_url"):
+        # 原始 content 透传（前端备用）
+        if not result.get("video_url"):
+            content_val = data.get("content")
+            if isinstance(content_val, dict):
+                for k, v in content_val.items():
+                    if isinstance(v, str) and ("video" in k or "url" in k) and v.startswith("http"):
+                        result["video_url"] = v
                         break
+            elif isinstance(content_val, list):
+                for c in content_val:
+                    if isinstance(c, dict):
+                        for k, v in c.items():
+                            if isinstance(v, str) and ("video" in k or "url" in k) and v.startswith("http"):
+                                result["video_url"] = v
+                                break
+                        if result.get("video_url"):
+                            break
         return {"status": status, "data": result, "_raw_content": data.get("content")}
     except Exception as e:
         print(f"[Seedance] 异常: {e}")
@@ -1566,6 +1581,147 @@ def video_tool(
         except Exception: pass
     return StreamingResponse(io.BytesIO(result_bytes), media_type="video/mp4",
                              headers={"Content-Disposition": "attachment; filename=tool_output.mp4"})
+
+
+# ====================== 视频拼接 ======================
+
+@router.post("/creation/video-concat")
+def video_concat(
+    videos: list[UploadFile] = File(...),
+    transition: str = Form("cut"),
+    current_user: User = Depends(get_current_user),
+):
+    """FFmpeg 视频拼接 — 将多个短视频按顺序合并为一个。
+
+    transition:
+      - "cut": FFmpeg concat demuxer 无损拼接（速度快，要求编码一致）
+      - "fade": FFmpeg concat filter + 交叉淡入淡出过渡
+
+    要求：2-10 个视频文件
+    """
+    import tempfile as _tmp, os as _os, subprocess
+
+    if len(videos) < 2:
+        raise HTTPException(status_code=400, detail={"error": "too_few_videos", "detail": "至少需要 2 个视频文件"})
+    if len(videos) > 10:
+        raise HTTPException(status_code=400, detail={"error": "too_many_videos", "detail": "最多支持 10 个视频文件"})
+
+    if transition not in ("cut", "fade"):
+        raise HTTPException(status_code=400, detail={"error": "invalid_transition", "detail": "transition 只支持 cut 或 fade"})
+
+    # 保存所有上传视频到临时文件
+    tmp_paths: list[str] = []
+    try:
+        for v in videos:
+            suffix = "." + (v.filename.rsplit(".", 1)[-1] if "." in (v.filename or "") else "mp4")
+            tmp_path = _tmp.mktemp(suffix=suffix)
+            with open(tmp_path, "wb") as f:
+                f.write(v.file.read())
+            tmp_paths.append(tmp_path)
+
+        out_name = f"concat_{uuid.uuid4().hex[:8]}.mp4"
+        out_path = _FF_OUTPUT_DIR / out_name
+        ff = _find_ffmpeg()
+
+        if transition == "cut":
+            # ─── concat demuxer：无损拼接 ───
+            concat_list = _tmp.mktemp(suffix=".txt")
+            with open(concat_list, "w", encoding="utf-8") as f:
+                for tp in tmp_paths:
+                    f.write(f"file '{tp.replace(chr(92), '/')}'\n")
+
+            try:
+                subprocess.run([
+                    ff, "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
+                    "-c", "copy", str(out_path),
+                ], check=True, capture_output=True, timeout=300)
+            except subprocess.CalledProcessError:
+                # 编码不一致时回退到重新编码
+                subprocess.run([
+                    ff, "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
+                    "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast",
+                    "-pix_fmt", "yuv420p", str(out_path),
+                ], check=True, capture_output=True, timeout=300)
+            finally:
+                try: _os.unlink(concat_list)
+                except Exception: pass
+
+        else:
+            # ─── concat filter + xfade 淡入淡出 ───
+            # 构建 filter_complex: 每个视频 0.5s 交叉淡入淡出
+            inputs = []
+            filters = []
+            prev_label = None
+            fade_dur = 0.5
+
+            for i, tp in enumerate(tmp_paths):
+                inputs.extend(["-i", tp])
+
+            # 对每段视频做 fade in/out，然后用 concat 连起来
+            # xfade 方式：每两个相邻视频之间做 crossfade
+            if len(tmp_paths) == 2:
+                # 两段视频直接用 xfade
+                subprocess.run([
+                    ff, "-y", "-i", tmp_paths[0], "-i", tmp_paths[1],
+                    "-filter_complex",
+                    f"xfade=transition=fade:duration={fade_dur}:offset=2.0",
+                    "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast",
+                    "-pix_fmt", "yuv420p", str(out_path),
+                ], check=True, capture_output=True, timeout=300)
+            else:
+                # 多段视频：逐段 xfade 链式连接
+                # 使用 concat filter + 每段边缘加 fade
+                fade_parts = []
+                fade_labels = []
+                for i in range(len(tmp_paths)):
+                    lb = f"v{i}"
+                    fade_labels.append(lb)
+                    fade_parts.append(f"[{i}:v]fade=t=in:st=0:d={fade_dur},fade=t=out:st=4.5:d={fade_dur},setpts=PTS-STARTPTS[{lb}]")
+                concat_inputs = "".join(f"[{l}]" for l in fade_labels)
+                filter_str = ";".join(fade_parts) + f";{''.join(fade_labels)}concat=n={len(tmp_paths)}:v=1:a=0[outv]"
+
+                subprocess.run([
+                    ff, "-y", *inputs,
+                    "-filter_complex", filter_str,
+                    "-map", "[outv]", "-c:v", "libx264", "-preset", "veryfast",
+                    "-pix_fmt", "yuv420p", str(out_path),
+                ], check=True, capture_output=True, timeout=300)
+
+        # 获取输出文件信息
+        file_size = out_path.stat().st_size
+        # 用 ffprobe 获取总时长
+        total_duration = 0
+        try:
+            import subprocess as _sp2
+            probe = _sp2.run(
+                [ff.replace("ffmpeg", "ffprobe"), "-v", "quiet", "-show_entries",
+                 "format=duration", "-of", "csv=p=0", str(out_path)],
+                capture_output=True, text=True, timeout=10,
+            )
+            total_duration = float(probe.stdout.strip() or 0)
+        except Exception:
+            pass
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail={"error": "no_ffmpeg", "detail": "FFmpeg 未安装，请安装 FFmpeg 后重试"})
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
+    finally:
+        for p in tmp_paths:
+            try: _os.unlink(p)
+            except Exception: pass
+
+    return {
+        "ok": True,
+        "operation": "concat",
+        "transition": transition,
+        "video_count": len(videos),
+        "total_duration": round(total_duration, 1),
+        "file_size": file_size,
+        "url": f"/uploads/ai_videos/{out_name}",
+        "download_url": f"/download/ai_videos/{out_name}",
+        "filename": out_name,
+    }
 
 
 @router.post("/creation/render-video/{scheme_id}")
