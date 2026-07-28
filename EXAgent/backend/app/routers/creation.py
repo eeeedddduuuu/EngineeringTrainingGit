@@ -1436,8 +1436,8 @@ def _find_ffmpeg() -> str:
         if candidate.is_file():
             return str(candidate)
     try:
-        import imageio_ffmpeg
-        return imageio_ffmpeg.get_ffmpeg_exe()
+        import imageio_ffmpeg as _iff
+        return _iff.get_ffmpeg_exe()
     except (ImportError, AttributeError):
         return "ffmpeg"
 
@@ -1547,6 +1547,8 @@ def video_tool(
     """FFmpeg 工具箱：transcode / clip / remove_audio"""
     import tempfile as _tmp, os as _os, subprocess
 
+    ff = _find_ffmpeg()
+
     # 保存上传视频到临时文件
     src_suffix = "." + (video.filename.rsplit(".", 1)[-1] if "." in (video.filename or "") else "mp4")
     src_path = _tmp.mktemp(suffix=src_suffix)
@@ -1556,14 +1558,14 @@ def video_tool(
 
     try:
         if operation == "clip":
-            cmd = ["ffmpeg", "-y", "-ss", str(start), "-t", str(duration), "-i", src_path,
+            cmd = [ff, "-y", "-ss", str(start), "-t", str(duration), "-i", src_path,
                    "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast", "-crf", str(crf),
                    "-pix_fmt", "yuv420p", out_path]
         elif operation == "remove_audio":
-            cmd = ["ffmpeg", "-y", "-i", src_path, "-c:v", "libx264", "-an",
+            cmd = [ff, "-y", "-i", src_path, "-c:v", "libx264", "-an",
                    "-preset", "veryfast", "-crf", str(crf), "-pix_fmt", "yuv420p", out_path]
         else:  # transcode
-            cmd = ["ffmpeg", "-y", "-i", src_path, "-vf", f"scale={width}:-2",
+            cmd = [ff, "-y", "-i", src_path, "-vf", f"scale={width}:-2",
                    "-c:v", "libx264", "-c:a", "aac", "-preset", "veryfast", "-crf", str(crf),
                    "-pix_fmt", "yuv420p", out_path]
         subprocess.run(cmd, check=True, capture_output=True, timeout=120)
@@ -1574,13 +1576,22 @@ def video_tool(
         _os.unlink(src_path)
         raise HTTPException(status_code=500, detail={"error": "ffmpeg_failed", "detail": e.stderr.decode()[:500]})
 
-    with open(out_path, "rb") as f:
-        result_bytes = f.read()
+    # 保存到 uploads 目录（与 compose/concat 一致，前端通过 URL 访问）
+    out_name = f"tool_{uuid.uuid4().hex[:8]}.mp4"
+    _FF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_file = _FF_OUTPUT_DIR / out_name
+    import shutil
+    shutil.copyfile(str(out_path), str(out_file))
     for p in [src_path, out_path]:
         try: _os.unlink(p)
         except Exception: pass
-    return StreamingResponse(io.BytesIO(result_bytes), media_type="video/mp4",
-                             headers={"Content-Disposition": "attachment; filename=tool_output.mp4"})
+    return {
+        "ok": True,
+        "operation": operation,
+        "url": f"/uploads/ai_videos/{out_name}",
+        "download_url": f"/download/ai_videos/{out_name}",
+        "filename": out_name,
+    }
 
 
 # ====================== 视频拼接 ======================

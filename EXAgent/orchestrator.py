@@ -108,7 +108,16 @@ SYSTEM_PROMPT = """你是 AI 数字媒体创作助手，专精于短视频创作
 4. 工具返回结果用**自然语言总结**，不要直接 dump JSON
 5. 友好、专业、中文回复
 6. 方案对比用**表格**呈现
-7. **永远使用 Markdown 格式输出**，让回复美观易读"""
+7. **永远使用 Markdown 格式输出**，让回复美观易读
+
+## 素材文件处理
+用户上传的图片/视频/音频文件会自动保存到 uploads 目录，文件路径会以 `file_path` 形式注入到对话中。
+- **图片**: 用 `analyze_material(file_path="/uploads/agent_uploads/xxx.png", file_type="image")` 分析内容/风格/色彩
+- **视频**: 用 `analyze_material(file_path="/uploads/agent_uploads/xxx.mp4", file_type="video")` 分析场景/运镜/色调
+- **音频**: 用 `analyze_material(file_path="/uploads/agent_uploads/xxx.mp3", file_type="audio")` 转写/分析
+- **拼接视频**: 用 `concat_video(video_paths=["path1", "path2"])` 合并多个视频
+- **处理视频**(裁剪/转码/去音): 用 `video_tool` 工具
+- **图生视频**: 用 `generate_video(prompt="描述", image_url="文件URL")` 基于上传图片生成视频"""
 
 
 # ══════════════════════════════════════════════════════════════
@@ -570,22 +579,67 @@ def _exec_sensitive_filter(args: dict) -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def _resolve_file_path(raw: str) -> str | None:
+    """Resolve a file path from AI tool args. Tries:
+    1. Exact path
+    2. Relative to _IMG_DIR's parent uploads/agent_uploads/
+    3. Extract filename from path and look in agent_uploads/
+    """
+    if not raw:
+        return None
+    p = Path(raw)
+    if p.exists():
+        return str(p)
+
+    # Try relative to agent_uploads
+    agent_uploads = _IMG_DIR.parent / "agent_uploads"
+    # If raw is like "/uploads/agent_uploads/xxx.jpg", extract filename
+    if raw.startswith("/uploads/agent_uploads/"):
+        candidate = agent_uploads / Path(raw).name
+        if candidate.exists():
+            return str(candidate)
+    # Try raw as relative to agent_uploads
+    candidate = agent_uploads / Path(raw).name
+    if candidate.exists():
+        return str(candidate)
+
+    return None
+
+
+def _find_ffmpeg() -> str | None:
+    """Look up FFmpeg via imageio_ffmpeg (bundled binary)."""
+    try:
+        import imageio_ffmpeg as _iff
+        return _iff.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
 def _exec_analyze_material(args: dict) -> dict:
     """多模态素材分析"""
     file_path = args.get("file_path", "")
     file_type = args.get("file_type", "image")
 
-    if not file_path or not Path(file_path).exists():
+    resolved = _resolve_file_path(file_path)
+    if not resolved:
         return {"ok": False, "error": f"文件不存在: {file_path}"}
 
     from multimodal import analyze_image, analyze_video, transcribe_audio
 
     if file_type == "video":
-        return analyze_video(file_path)
+        result = analyze_video(resolved)
     elif file_type == "audio":
-        return transcribe_audio(file_path)
+        result = transcribe_audio(resolved)
     else:
-        return analyze_image(file_path)
+        result = analyze_image(resolved)
+
+    # multimodal 模块返回 success/error，统一转为 ok/error
+    return {
+        "ok": result.get("success", False),
+        "success": result.get("success", False),
+        "error": result.get("error", ""),
+        **result,
+    }
 
 
 def _exec_concat_video(args: dict) -> dict:
@@ -598,12 +652,15 @@ def _exec_concat_video(args: dict) -> dict:
     if not video_paths or len(video_paths) < 2:
         return {"ok": False, "error": "至少需要 2 个视频文件路径"}
 
-    # 验证所有文件存在
+    # 解析传入的路径（AI 可能不传绝对路径）
+    resolved_paths = []
     for vp in video_paths:
-        if not Path(vp).exists():
+        r = _resolve_file_path(vp)
+        if not r:
             return {"ok": False, "error": f"视频文件不存在: {vp}"}
+        resolved_paths.append(r)
 
-    ff = shutil.which("ffmpeg") or "ffmpeg"
+    ff = _find_ffmpeg() or shutil.which("ffmpeg") or "ffmpeg"
     out_name = f"concat_{uuid.uuid4().hex[:8]}.mp4"
     out_dir = Path(__file__).resolve().parent / "backend" / "uploads" / "ai_videos"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -614,7 +671,7 @@ def _exec_concat_video(args: dict) -> dict:
             # concat demuxer: 无损拼接
             concat_list = tempfile.mktemp(suffix=".txt")
             with open(concat_list, "w", encoding="utf-8") as f:
-                for vp in video_paths:
+                for vp in resolved_paths:
                     f.write(f"file '{Path(vp).as_posix()}'\n")
 
             try:

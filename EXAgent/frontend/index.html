@@ -514,9 +514,12 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
           <div class="agent-empty-state">👋 你好！直接告诉我你想做什么，我会自动调用合适的工具帮你完成。<br>比如做短视频方案、生成封面图、文案配音、合规检查……</div>
         </div>
         <div class="agent-input-row">
+          <input type="file" id="agentFileInput" accept="image/*,video/*,audio/*" multiple style="display:none;" onchange="agentFilesChanged(this)">
+          <button class="btn btn-ghost" id="agentAttachBtn" onclick="document.getElementById('agentFileInput').click()" title="上传素材文件">📎</button>
           <input type="text" id="agentInput" placeholder='试试说："帮我做一个美食探店抖音短视频，60秒，大学生受众"' onkeydown="if(event.key==='Enter')agentSend()">
           <button id="agentSendBtn" onclick="agentSend()">发送</button>
         </div>
+        <div id="agentFilePreview" style="display:flex;flex-wrap:wrap;gap:0.3rem;padding:0 0.8rem 0.5rem;"></div>
         <div class="agent-hints">
           <span onclick="agentQuick('帮我做一个美食探店抖音短视频，60秒，受众大学生，风格轻松接地气')">🍜 美食探店</span>
           <span onclick="agentQuick('最近有什么热门的AI视频工具？帮我搜一下')">🔍 搜热点</span>
@@ -855,6 +858,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   var $sidebarAvatar = document.getElementById('sidebar-avatar');
   var $sidebarUsername = document.getElementById('sidebar-username');
   var $fileInput = document.getElementById('file-input');
+  var agentFiles = [];  // 待上传的素材文件列表
   var $fileDropArea = document.getElementById('file-drop-area');
   var $fileList = document.getElementById('file-list');
   var $toastContainer = document.getElementById('toast-container');
@@ -2541,18 +2545,21 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
   function agentSend() {
     var input = document.getElementById('agentInput');
     var msg = input.value.trim();
-    if (!msg) return;
+    if (!msg && agentFiles.length === 0) return;
+    if (!msg) msg = '请帮我分析上传的文件';
     input.value = '';
-    // 输入框永不锁定 — 用户可以随时发新消息打断当前回复
     input.focus();
+
+    // 收集当前待上传文件
+    var uploadList = agentFiles.slice();
+    agentFiles = [];
+    agentFilesChanged();  // 清空预览
 
     // 打断上一个正在跑的 SSE 流
     if (currentAbortController) {
       currentAbortController.abort();
-      // 标记上一个 AI 气泡为已取消
       var oldBubbles = document.querySelectorAll('.agent-msg.ai .bubble.cancelled-target');
       if (oldBubbles.length) {
-        // 清理之前的 cancelled-target 标记
         oldBubbles.forEach(function(b) { b.classList.remove('cancelled-target'); });
       }
       var lastAiBubble = document.querySelector('.agent-msg.ai:last-of-type .bubble');
@@ -2560,7 +2567,6 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
         lastAiBubble.classList.add('cancelled-target');
         var typingEl = lastAiBubble.querySelector('.agent-typing');
         if (typingEl) typingEl.remove();
-        // 非破坏性追加取消标记，保留已有 DOM（否则旧流 processEvent 会报 null）
         lastAiBubble.insertAdjacentHTML('beforeend', '<div class="agent-cancelled"><em style="color:#999;">⏸️ 已取消</em></div>');
       }
     }
@@ -2569,14 +2575,48 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     var emptyEl = container.querySelector('.agent-empty-state');
     if (emptyEl) emptyEl.remove();
 
-    appendAgentMsg('user', msg);
+    // 用户消息气泡：包含文本 + 文件预览
+    var userText = msg;
+    if (uploadList.length) {
+      userText += '\n\n📎 已上传 ' + uploadList.length + ' 个文件';
+      uploadList.forEach(function(f) { userText += '\n　' + f.name + ' (' + (f.type || 'file') + ')'; });
+    }
+    appendAgentMsg('user', userText);
 
-    // 创建新的 AbortController
+    // 先上传所有文件
+    var uploadPromises = uploadList.map(function(file) {
+      var fd = new FormData();
+      fd.append('file', file);
+      return fetch(API_BASE + '/agent/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: fd
+      }).then(function(r) { return r.json(); });
+    });
+
+    if (uploadPromises.length === 0) {
+      // 没有文件，直接启动对话
+      startChatStream(msg, []);
+    } else {
+      Promise.all(uploadPromises).then(function(uploadResults) {
+        var uploadedFiles = [];
+        uploadResults.forEach(function(r) {
+          if (r.ok) uploadedFiles.push({file_path: r.file_path, file_type: r.file_type, file_url: r.file_url});
+        });
+        startChatStream(msg, uploadedFiles);
+      }).catch(function() {
+        startChatStream(msg, []);
+      });
+    }
+  }
+
+  function startChatStream(msg, files) {
     var abortCtrl = new AbortController();
     currentAbortController = abortCtrl;
-    var aborted = false;  // 闭包内标记，防止取消后继续处理事件
+    var aborted = false;
 
     // 创建 AI 消息气泡（流式填充）
+    var container = document.getElementById('agentMessages');
     var bubbleDiv = document.createElement('div');
     bubbleDiv.className = 'agent-msg ai';
     var bubbleId = 'agent-bubble-' + Date.now();
@@ -2597,7 +2637,7 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     fetch(API_BASE + '/agent/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ message: msg, session_id: agentSessionId }),
+      body: JSON.stringify({ message: msg, session_id: agentSessionId, files: files }),
       signal: abortCtrl.signal
     }).then(function(response) {
       if (!response.ok) {
@@ -2788,6 +2828,35 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     document.getElementById('agentInput').value = text;
     agentSend();
   }
+
+  function agentFilesChanged(input) {
+    if (!input) input = document.getElementById('agentFileInput');
+    for (var i = 0; i < input.files.length; i++) {
+      agentFiles.push(input.files[i]);
+    }
+    input.value = '';
+    renderAgentFilePreview();
+  }
+
+  function agentRemoveFile(idx) {
+    agentFiles.splice(idx, 1);
+    renderAgentFilePreview();
+  }
+
+  function renderAgentFilePreview() {
+    var el = document.getElementById('agentFilePreview');
+    if (!agentFiles.length) { el.innerHTML = ''; return; }
+    el.innerHTML = agentFiles.map(function(f, i) {
+      var emoji = f.type.startsWith('image/') ? '🖼️' : f.type.startsWith('video/') ? '🎬' : f.type.startsWith('audio/') ? '🎵' : '📎';
+      return '<span style="display:inline-flex;align-items:center;gap:0.2rem;background:#f0ebe4;border-radius:12px;padding:0.2rem 0.6rem;font-size:0.8rem;max-width:200px;">'
+        + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + emoji + ' ' + escapeHtml(f.name) + '</span>'
+        + '<span onclick="agentRemoveFile(' + i + ')" style="cursor:pointer;color:#999;margin-left:0.3rem;">×</span></span>';
+    }).join('');
+  }
+
+  // 暴露到全局
+  window.agentFilesChanged = agentFilesChanged;
+  window.agentRemoveFile = agentRemoveFile;
 
   function scrollAgent() {
     var c = document.getElementById('agentMessages');
