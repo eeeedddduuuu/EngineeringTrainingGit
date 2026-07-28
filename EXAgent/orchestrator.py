@@ -510,12 +510,29 @@ def _exec_generate_tts(args: dict) -> dict:
             local_path = tts_dir / filename
             local_path.write_bytes(audio_bytes)
             audio_url = f"/uploads/tts/{filename}"
+        elif result.get("url"):
+            # base64 为空时，从临时 URL 下载音频
+            try:
+                import requests as _req
+                tts_dir = _IMG_DIR.parent / "tts"
+                tts_dir.mkdir(parents=True, exist_ok=True)
+                filename = f"exagent_tts_{uuid.uuid4().hex[:8]}.mp3"
+                local_path = tts_dir / filename
+                r = _req.get(result["url"], timeout=60, proxies={"http": None, "https": None})
+                r.raise_for_status()
+                local_path.write_bytes(r.content)
+                audio_url = f"/uploads/tts/{filename}"
+            except Exception as dl_err:
+                print(f"[TTS] URL 下载失败: {dl_err}", file=sys.stderr)
+
+        if not audio_url:
+            return {"ok": False, "error": "TTS 返回成功但没有可用的音频数据（base64 和 url 均为空）"}
 
         return {
             "ok": True,
             "duration": result.get("duration", 0),
             "audio_url": audio_url,
-            "message": f"TTS 配音生成成功，时长 {result.get('duration', 0):.1f} 秒" + (f"，[点击下载音频](http://127.0.0.1:8000{audio_url})" if audio_url else ""),
+            "message": f"TTS 配音生成成功，时长 {result.get('duration', 0):.1f} 秒，[点击下载音频](http://127.0.0.1:8000{audio_url})",
         }
     return {"ok": False, "error": result.get("error", "TTS 失败")}
 
@@ -1026,6 +1043,14 @@ class AgentOrchestrator:
             # 工具结果送回模型（流式）
             stream = _call_deepseek_stream(messages, tools=ORCHESTRATOR_TOOLS)
             result = _collect_stream(stream)
+
+        # 若循环结束仍无文字内容（模型持续调工具触达上限或被截断），
+        # 补发一次不带工具的请求，强制基于已有工具结果给出总结
+        if not result.get("content", "").strip() and tool_calls_made:
+            try:
+                result = _collect_stream(_call_deepseek_stream(messages, tools=None))
+            except Exception:
+                pass
 
         # 最终回复
         reply = result.get("content", "") or "抱歉，我暂时无法回答这个问题。"

@@ -386,7 +386,7 @@ def deepseek_provider(prompt: str, config: dict, tools: list[dict] | None = None
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=120)
+    response = requests.post(f"{base_url}/chat/completions", headers=headers, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), timeout=120)
     if not response.ok:
         raise RuntimeError(f"DeepSeek 请求失败：HTTP {response.status_code} {response.text[:300]}")
 

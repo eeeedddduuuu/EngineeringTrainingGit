@@ -2583,6 +2583,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
     bubbleDiv.innerHTML = '<div class="avatar">🤖</div>'
       + '<div class="bubble" id="' + bubbleId + '">'
       + '<div class="agent-typing"><span></span><span></span><span></span></div>'
+      + '<div class="agent-media" id="' + bubbleId + '-media"></div>'
+      + '<div class="agent-content" id="' + bubbleId + '-content"></div>'
       + '<div class="agent-tools" id="' + bubbleId + '-tools" style="display:none;"></div>'
       + '</div>';
     container.appendChild(bubbleDiv);
@@ -2660,7 +2662,8 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
       switch (type) {
         case 'text':
           accText += data.content || '';
-          bubble.innerHTML = simpleMarkdown(accText);
+          var contentEl = bubble.querySelector('.agent-content');
+          if (contentEl) contentEl.innerHTML = simpleMarkdown(accText);
           scrollAgent();
           break;
         case 'tool_call':
@@ -2699,11 +2702,13 @@ label.field-label { display: block; font-weight: 600; font-size: 1.05rem; color:
               fullUrl = (data.audio_url.indexOf('://') === -1 && data.audio_url.startsWith('/'))
                 ? 'http://127.0.0.1:8000' + data.audio_url : data.audio_url;
               addToLib('audio', fullUrl, '', {});
-              // 在对话气泡中插入音频播放器
-              var audioHtml = '<div style="margin-top:0.6rem;padding:0.5rem;background:rgba(124,58,237,0.05);border-radius:10px;">'
-                + '<audio controls src="' + fullUrl + '" style="width:100%;max-width:400px;"></audio>'
-                + '<br><a href="' + fullUrl + '" download style="font-size:0.85rem;color:#7c3aed;">📥 下载音频</a></div>';
-              bubble.innerHTML = audioHtml + bubble.innerHTML;
+              // 在 media 区域插入音频播放器
+              var mediaEl = bubble.querySelector('.agent-media');
+              if (mediaEl) {
+                mediaEl.innerHTML = '<div style="margin-bottom:0.6rem;padding:0.5rem;background:rgba(124,58,237,0.05);border-radius:10px;display:flex;align-items:center;gap:0.5rem;">'
+                  + '<audio controls src="' + fullUrl + '" style="flex:1;max-width:400px;"></audio>'
+                  + '<a href="' + fullUrl + '" download style="font-size:0.85rem;color:#7c3aed;white-space:nowrap;">📥 下载</a></div>';
+              }
             }
           }
           scrollAgent();
